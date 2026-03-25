@@ -5,15 +5,45 @@
   <title>{{ page.title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    body.light-mode {
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    body.dark-mode {
+      background-color: #121212;
+      color: #f1f1f1;
+    }
+    @media (prefers-color-scheme: dark) {
+      body.auto-mode {
+        background-color: #121212;
+        color: #f1f1f1;
+      }
+    }
+    @media (prefers-color-scheme: light) {
+      body.auto-mode {
+        background-color: #f9f9f9;
+        color: #333;
+      }
+    }
+
     header {
       background: linear-gradient(to right, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787);
       padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     nav ul {
       list-style: none;
       margin: 0;
       padding: 0;
       display: flex;
+      align-items: center;
     }
     nav ul li {
       margin-right: 20px;
@@ -21,11 +51,29 @@
     nav ul li a {
       color: white;
       text-decoration: none;
+      padding: 8px 12px;
       font-weight: bold;
+    }
+    nav ul li a:hover {
+      background-color: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+    .tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    select.mode-toggle {
+      background-color: #555;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
     }
   </style>
 </head>
-<body>
+<body class="auto-mode">
   <header>
     <nav>
       <ul>
@@ -35,10 +83,28 @@
         <li><a href="/syphilis/">梅毒篩檢</a></li>
       </ul>
     </nav>
+    <div class="tools">
+      <!-- Microsoft Translator Widget 固定在右上角 -->
+      <div id="MicrosoftTranslatorWidget" class="Dark" style="color:white;background-color:#555"></div>
+      <!-- 三種模式切換選單（含圖示） -->
+      <select class="mode-toggle" onchange="setMode(this.value)">
+        <option value="auto">⚙️ 自動</option>
+        <option value="light">🌞 明亮</option>
+        <option value="dark">🌙 暗黑</option>
+      </select>
+    </div>
   </header>
 
   <main>
     {{ content }}
   </main>
-</body>
-</html>
+
+  <!-- Microsoft Translator Script -->
+  <script type="text/javascript" src="https://www.microsofttranslator.com/AjaxWidgetV3/WidgetV3.js"></script>
+
+  <!-- 模式切換 Script -->
+  <script>
+    function setMode(mode) {
+      document.body.classList.remove('auto-mode', 'light-mode', 'dark-mode');
+      if (mode === 'auto') {
+        document.body.classList.add('auto-mode
