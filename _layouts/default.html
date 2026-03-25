@@ -8,7 +8,7 @@
     body {
       font-family: Arial, sans-serif;
       margin: 0;
-      transition: background-color 0.3s, color 0.3s;
+      transition: background-color 0.5s ease, color 0.5s ease;
     }
     body.light-mode {
       background-color: #f9f9f9;
@@ -107,4 +107,20 @@
     function setMode(mode) {
       document.body.classList.remove('auto-mode', 'light-mode', 'dark-mode');
       if (mode === 'auto') {
-        document.body.classList.add('auto-mode
+        document.body.classList.add('auto-mode');
+      } else if (mode === 'light') {
+        document.body.classList.add('light-mode');
+      } else if (mode === 'dark') {
+        document.body.classList.add('dark-mode');
+      }
+      localStorage.setItem('site-mode', mode);
+    }
+
+    window.onload = function() {
+      const savedMode = localStorage.getItem('site-mode') || 'auto';
+      document.querySelector('.mode-toggle').value = savedMode;
+      setMode(savedMode);
+    }
+  </script>
+</body>
+</html>
