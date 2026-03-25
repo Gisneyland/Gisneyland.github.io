@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <title>{{ page.title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Materialize CSS & Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      transition: background-color 0.5s ease, color 0.5s ease;
-    }
     body.light-mode {
       background-color: #f9f9f9;
       color: #333;
@@ -29,51 +29,12 @@
       }
     }
 
-    header {
+    /* 彩虹 Navbar */
+    nav {
       background: linear-gradient(to right, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787);
-      padding: 10px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    nav ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      align-items: center;
-    }
-    nav ul li {
-      margin-right: 20px;
-    }
-    nav ul li a {
-      color: white;
-      text-decoration: none;
-      padding: 8px 12px;
-      font-weight: bold;
-    }
-    nav ul li a:hover {
-      background-color: rgba(255,255,255,0.2);
-      border-radius: 4px;
-    }
-    .tools {
-      position: absolute;
-      right: 20px;
-      top: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    select.mode-toggle {
-      background-color: #555;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 4px;
-      cursor: pointer;
     }
 
-    /* 卡片風格的內容區塊 */
+    /* 卡片風格 main */
     main {
       padding: 20px;
       max-width: 900px;
@@ -87,64 +48,70 @@
       background-color: rgba(30,30,30,0.9);
       color: #f1f1f1;
     }
+
+    /* 工具區塊 */
+    .tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    select.mode-toggle {
+      background-color: #555;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body class="auto-mode">
-  <header>
-    <nav>
-      <ul>
-        <li><a href="/">風城部屋</a></li>
+
+  <!-- Navbar -->
+  <nav>
+    <div class="nav-wrapper">
+      <a href="/" class="brand-logo" style="padding-left:10px;">風城部屋</a>
+      <a href="#" data-target="mobile-demo" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+      <ul class="right hide-on-med-and-down">
         <li><a href="/rainbow/">新竹彩虹文化祭</a></li>
         <li><a href="/HIVA/">愛滋篩檢</a></li>
         <li><a href="/syphilis/">梅毒篩檢</a></li>
+        <li>
+          <div class="tools">
+            <div id="google_translate_element"></div>
+            <div id="translate_fallback" style="display:none; color:white; background-color:#555; padding:6px 10px; border-radius:4px;">
+              ⚠️ 翻譯工具載入失敗，請檢查瀏覽器設定或停用廣告阻擋器。
+            </div>
+            <select class="mode-toggle" onchange="setMode(this.value)">
+              <option value="auto">⚙️ 自動</option>
+              <option value="light">🌞 明亮</option>
+              <option value="dark">🌙 暗黑</option>
+            </select>
+          </div>
+        </li>
       </ul>
-    </nav>
-    <div class="tools">
-      <!-- Google Translate Widget 固定在右上角 -->
-      <div id="google_translate_element"></div>
-      <div id="translate_fallback" style="display:none; color:white; background-color:#555; padding:6px 10px; border-radius:4px;">
-        ⚠️ 翻譯工具載入失敗，請檢查瀏覽器設定或停用廣告阻擋器。
-      </div>
-      <!-- 三種模式切換選單（含圖示） -->
-      <select class="mode-toggle" onchange="setMode(this.value)">
-        <option value="auto">⚙️ 自動</option>
-        <option value="light">🌞 明亮</option>
-        <option value="dark">🌙 暗黑</option>
-      </select>
     </div>
-  </header>
+  </nav>
+
+  <!-- 手機版側邊選單 -->
+  <ul class="sidenav" id="mobile-demo">
+    <li><a href="/rainbow/">新竹彩虹文化祭</a></li>
+    <li><a href="/HIVA/">愛滋篩檢</a></li>
+    <li><a href="/syphilis/">梅毒篩檢</a></li>
+  </ul>
 
   <main>
     {{ content }}
   </main>
 
-  <!-- Google Translate Script -->
-  <script type="text/javascript">
-    function googleTranslateElementInit() {
-      console.log("Google Translate 初始化成功");
-      new google.translate.TranslateElement(
-        {
-          pageLanguage: 'zh-TW',
-          includedLanguages: 'id,th,vi,my,tl,km,bn,en,zh-TW',
-          layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-        },
-        'google_translate_element'
-      );
-    }
-
-    // fallback 檢查：如果 5 秒後翻譯工具還沒載入，就顯示提示
-    setTimeout(function() {
-      var el = document.getElementById('google_translate_element');
-      if (!el.innerHTML || el.innerHTML.trim() === "") {
-        document.getElementById('translate_fallback').style.display = "inline-block";
-        console.error("Google Translate 載入失敗");
-      }
-    }, 5000);
-  </script>
-  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-
-  <!-- 模式切換 Script -->
+  <!-- Materialize JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
   <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var elems = document.querySelectorAll('.sidenav');
+      M.Sidenav.init(elems);
+    });
+
     function setMode(mode) {
       document.body.classList.remove('auto-mode', 'light-mode', 'dark-mode');
       if (mode === 'auto') {
@@ -162,6 +129,23 @@
       document.querySelector('.mode-toggle').value = savedMode;
       setMode(savedMode);
     }
-  </script>
-</body>
-</html>
+
+    function googleTranslateElementInit() {
+      console.log("Google Translate 初始化成功");
+      new google.translate.TranslateElement(
+        {
+          pageLanguage: 'zh-TW',
+          includedLanguages: 'id,th,vi,my,tl,km,bn,en,zh-TW',
+          layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+        },
+        'google_translate_element'
+      );
+    }
+
+    setTimeout(function() {
+      var el = document.getElementById('google_translate_element');
+      if (!el.innerHTML || el.innerHTML.trim() === "") {
+        document.getElementById('translate_fallback').style.display = "inline-block";
+        console.error("Google Translate 載入失敗");
+      }
+    }, 5000);
