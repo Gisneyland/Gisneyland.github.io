@@ -21,6 +21,7 @@
     body.auto-mode { background-color: #f9f9f9; color: #333; }
     @media (prefers-color-scheme: dark) {
       body.auto-mode { background-color: #121212; color: #f1f1f1; }
+      body.auto-mode main { background-color: rgba(30,30,30,0.9); color: #f1f1f1; }
     }
 
     nav.bottom-nav {
@@ -39,7 +40,7 @@
       color: white;
       text-align: center;
       flex: 1;
-      font-size: 14px;
+      font-size: 0.9rem; /* 使用相對單位 */
       text-decoration: none;
     }
     nav.bottom-nav a:hover {
@@ -64,13 +65,17 @@
       position: fixed;
       top: 10px;
       right: 10px;
-      background: rgba(0,0,0,0.4);
+      background: rgba(255,255,255,0.7);
       padding: 6px;
       border-radius: 6px;
       display: flex;
       align-items: center;
       gap: 10px;
       z-index: 1100;
+    }
+    body.dark-mode .tools,
+    body.auto-mode .tools {
+      background: rgba(30,30,30,0.7);
     }
     select.mode-toggle {
       background-color: #555;
@@ -80,11 +85,16 @@
       border-radius: 4px;
       cursor: pointer;
     }
+
+    /* 避免 FAB 與底部導覽列重疊 */
+    .fixed-action-btn {
+      bottom: 80px;
+    }
   </style>
 </head>
 <body class="auto-mode">
 
-  <!-- 工具區：只保留一份 -->
+  <!-- 工具區 -->
   <div class="tools">
     <div id="google_translate_element"></div>
     <select class="mode-toggle" onchange="setMode(this.value)">
@@ -123,25 +133,16 @@
     document.addEventListener('DOMContentLoaded', function() {
       M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
       M.Tooltip.init(document.querySelectorAll('.tooltipped'));
+
+      const savedMode = localStorage.getItem('site-mode') || 'auto';
+      setMode(savedMode);
     });
 
     function setMode(mode) {
       document.body.classList.remove('auto-mode', 'light-mode', 'dark-mode');
-      if (mode === 'auto') {
-        document.body.classList.add('auto-mode');
-      } else if (mode === 'light') {
-        document.body.classList.add('light-mode');
-      } else if (mode === 'dark') {
-        document.body.classList.add('dark-mode');
-      }
+      document.body.classList.add(mode + '-mode');
       localStorage.setItem('site-mode', mode);
       document.querySelector('.mode-toggle').value = mode;
-    }
-
-    window.onload = function() {
-      const savedMode = localStorage.getItem('site-mode') || 'auto';
-      document.querySelector('.mode-toggle').value = savedMode;
-      setMode(savedMode);
     }
 
     function googleTranslateElementInit() {
