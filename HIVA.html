@@ -4,14 +4,168 @@ title: 自我健康管理檢視計畫問卷
 permalink: /HIVA/
 ---
 
-<h1>問卷調查</h1>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <title>自我健康管理檢視計畫問卷</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  <style>
+    .lang-switch {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body class="container">
 
-<form id="survey-form">
-  <label for="name">姓名：</label><br>
-  <input type="text" id="name" name="name" required><br><br>
+  <!-- 語言切換 -->
+  <div class="lang-switch">
+    <select id="language-select">
+      <option value="zh-TW">繁體中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
 
-  <label for="feedback">意見：</label><br>
-  <textarea id="feedback" name="feedback" rows="4" cols="50" required></textarea><br><br>
+  <h4 class="center-align" data-i18n="title">自我健康管理問卷</h4>
+  <form id="questionnaire-form">
 
-  <button type="submit">送出</button>
-</form>
+    <!-- 基本資料 -->
+    <div class="card">
+      <div class="card-content">
+        <span class="card-title" data-i18n="basic_info">基本資料</span>
+        <div class="input-field">
+          <input type="text" name="nickname" id="nickname">
+          <label for="nickname" data-i18n="nickname">暱稱</label>
+        </div>
+        <p>
+          <label>
+            <input type="checkbox" name="agreement" />
+            <span data-i18n="agreement">我同意提供此問卷資料作為健康管理用途</span>
+          </label>
+        </p>
+      </div>
+    </div>
+
+    <!-- 性別 -->
+    <div class="card">
+      <div class="card-content">
+        <span class="card-title" data-i18n="gender">性別認同</span>
+        <p>
+          <label><input type="checkbox" name="gender_cisman" /><span data-i18n="cisman">順性別男性</span></label>
+          <label><input type="checkbox" name="gender_ciswoman" /><span data-i18n="ciswoman">順性別女性</span></label>
+          <label><input type="checkbox" name="gender_transgender" /><span data-i18n="transgender">跨性別</span></label>
+          <label><input type="checkbox" name="gender_nonbinary" /><span data-i18n="nonbinary">非二元性別</span></label>
+        </p>
+      </div>
+    </div>
+
+    <!-- 性傾向 -->
+    <div class="card">
+      <div class="card-content">
+        <span class="card-title" data-i18n="orientation">性傾向</span>
+        <p>
+          <label><input type="checkbox" name="orientation_heterosexual" /><span data-i18n="heterosexual">異性戀</span></label>
+          <label><input type="checkbox" name="orientation_homosexual" /><span data-i18n="homosexual">同性戀</span></label>
+          <label><input type="checkbox" name="orientation_bisexual" /><span data-i18n="bisexual">雙性戀</span></label>
+          <label><input type="checkbox" name="orientation_others" /><span data-i18n="orientation_others">其他</span></label>
+        </p>
+      </div>
+    </div>
+
+    <!-- 教育程度 -->
+    <div class="card">
+      <div class="card-content">
+        <span class="card-title" data-i18n="education">教育程度</span>
+        <p>
+          <label><input type="checkbox" name="education_elementary" /><span data-i18n="elementary">小學</span></label>
+          <label><input type="checkbox" name="education_junior_high" /><span data-i18n="junior_high">國中</span></label>
+          <label><input type="checkbox" name="education_senior_high" /><span data-i18n="senior_high">高中</span></label>
+          <label><input type="checkbox" name="education_bachelor" /><span data-i18n="bachelor">大學</span></label>
+          <label><input type="checkbox" name="education_master" /><span data-i18n="master">碩士</span></label>
+          <label><input type="checkbox" name="education_doctor" /><span data-i18n="doctor">博士</span></label>
+        </p>
+      </div>
+    </div>
+
+    <!-- 居住地 -->
+    <div class="card">
+      <div class="card-content">
+        <span class="card-title" data-i18n="residence">居住地</span>
+        <p>
+          <label><input type="checkbox" name="residence_hsinchu_city" /><span data-i18n="hsinchu_city">新竹市</span></label>
+          <label><input type="checkbox" name="residence_hsinchu_county" /><span data-i18n="hsinchu_county">新竹縣</span></label>
+          <label><input type="checkbox" name="residence_miaoli_county" /><span data-i18n="miaoli_county">苗栗縣</span></label>
+          <label><input type="checkbox" name="residence_taoyuan_city" /><span data-i18n="taoyuan_city">桃園市</span></label>
+          <label><input type="checkbox" name="residence_others" /><span data-i18n="residence_others">其他</span></label>
+        </p>
+      </div>
+    </div>
+
+    <!-- 檢測紀錄 -->
+    <div class="card">
+      <div class="card-content">
+        <span class="card-title" data-i18n="screening">檢測紀錄</span>
+        <div class="input-field">
+          <input type="date" name="last_screening_at" id="last_screening_at">
+          <label for="last_screening_at" data-i18n="last_screening">最近一次篩檢日期</label>
+        </div>
+        <div class="input-field">
+          <input type="text" name="screening_place" id="screening_place">
+          <label for="screening_place" data-i18n="screening_place">篩檢地點</label>
+        </div>
+        <p>
+          <label><input type="checkbox" name="screening_hiv" /><span data-i18n="screening_hiv">HIV 篩檢</span></label>
+          <label><input type="checkbox" name="screening_syphilis" /><span data-i18n="screening_syphilis">梅毒篩檢</span></label>
+        </p>
+      </div>
+    </div>
+
+    <!-- 送出 -->
+    <div class="center-align" style="margin:20px;">
+      <button class="btn waves-effect waves-light" type="submit" data-i18n="submit">送出問卷
+        <i class="material-icons right">send</i>
+      </button>
+    </div>
+  </form>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  <script>
+    // 多語系字典
+    const i18n = {
+      "zh-TW": {
+        title: "自我健康管理問卷",
+        basic_info: "基本資料",
+        nickname: "暱稱",
+        agreement: "我同意提供此問卷資料作為健康管理用途",
+        gender: "性別認同",
+        cisman: "順性別男性",
+        ciswoman: "順性別女性",
+        transgender: "跨性別",
+        nonbinary: "非二元性別",
+        orientation: "性傾向",
+        heterosexual: "異性戀",
+        homosexual: "同性戀",
+        bisexual: "雙性戀",
+        orientation_others: "其他",
+        education: "教育程度",
+        elementary: "小學",
+        junior_high: "國中",
+        senior_high: "高中",
+        bachelor: "大學",
+        master: "碩士",
+        doctor: "博士",
+        residence: "居住地",
+        hsinchu_city: "新竹市",
+        hsinchu_county: "新竹縣",
+        miaoli_county: "苗栗縣",
+        taoyuan_city: "桃園市",
+        residence_others: "其他",
+        screening: "檢測紀錄",
+        last_screening: "最近一次篩檢日期",
+        screening_place: "篩檢地點",
+        screening
