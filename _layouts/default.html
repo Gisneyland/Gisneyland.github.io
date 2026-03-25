@@ -64,6 +64,9 @@
       position: fixed;
       top: 10px;
       right: 10px;
+      background: rgba(0,0,0,0.4);
+      padding: 6px;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -98,9 +101,9 @@
   <!-- 底部導覽列 -->
   <nav class="bottom-nav">
     <a href="/"><i class="material-icons">home</i><br>首頁</a>
-    <a href="/rainbow/"><i class="material-icons">celebration</i><br>彩虹文化祭</a>
-    <a href="/HIVA/"><i class="material-icons">favorite</i><br>愛滋篩檢</a>
-    <a href="/syphilis/"><i class="material-icons">healing</i><br>梅毒篩檢</a>
+    <a href="/pride/"><i class="material-icons">celebration</i><br>彩虹文化祭</a>
+    <a href="/screening/"><i class="material-icons">favorite</i><br>篩檢</a>
+    <a href="/activity/"><i class="material-icons">event</i><br>活動</a>
   </nav>
 
   <!-- 浮動操作按鈕 (FAB) -->
@@ -109,8 +112,8 @@
       <i class="material-icons">menu</i>
     </a>
     <ul>
-      <li><a class="btn-floating blue" onclick="scrollToTop()"><i class="material-icons">arrow_upward</i></a></li>
-      <li><a class="btn-floating green" href="mailto:yourmail@example.com"><i class="material-icons">email</i></a></li>
+      <li><a class="btn-floating blue tooltipped" data-tooltip="回到頂端" onclick="scrollToTop()"><i class="material-icons">arrow_upward</i></a></li>
+      <li><a class="btn-floating green tooltipped" data-tooltip="聯絡我們" href="https://www.facebook.com/GisneyLandHSC/"><i class="material-icons">email</i></a></li>
     </ul>
   </div>
 
@@ -119,6 +122,7 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
+      M.Tooltip.init(document.querySelectorAll('.tooltipped'));
     });
 
     function setMode(mode) {
