@@ -10,31 +10,22 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
 
   <style>
-    body.light-mode {
-      background-color: #f9f9f9;
-      color: #333;
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      transition: background-color 0.5s ease, color 0.5s ease;
     }
-    body.dark-mode {
-      background-color: #121212;
-      color: #f1f1f1;
-    }
-    body.auto-mode {
-      background-color: #f9f9f9;
-      color: #333;
-    }
+    body.light-mode { background-color: #f9f9f9; color: #333; }
+    body.dark-mode { background-color: #121212; color: #f1f1f1; }
+    body.auto-mode { background-color: #f9f9f9; color: #333; }
     @media (prefers-color-scheme: dark) {
-      body.auto-mode {
-        background-color: #121212;
-        color: #f1f1f1;
-      }
+      body.auto-mode { background-color: #121212; color: #f1f1f1; }
     }
 
-    /* 彩虹 Navbar */
     nav {
       background: linear-gradient(to right, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787);
     }
 
-    /* 卡片風格 main */
     main {
       padding: 20px;
       max-width: 900px;
@@ -49,7 +40,6 @@
       color: #f1f1f1;
     }
 
-    /* 工具區塊 */
     .tools {
       display: flex;
       align-items: center;
@@ -104,12 +94,25 @@
     {{ content }}
   </main>
 
+  <!-- 浮動操作按鈕 (FAB) -->
+  <div class="fixed-action-btn">
+    <a class="btn-floating btn-large red">
+      <i class="material-icons">menu</i>
+    </a>
+    <ul>
+      <li><a class="btn-floating blue" onclick="scrollToTop()"><i class="material-icons">arrow_upward</i></a></li>
+      <li><a class="btn-floating green" href="mailto:yourmail@example.com"><i class="material-icons">email</i></a></li>
+    </ul>
+  </div>
+
   <!-- Materialize JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var elems = document.querySelectorAll('.sidenav');
       M.Sidenav.init(elems);
+      var fabElems = document.querySelectorAll('.fixed-action-btn');
+      M.FloatingActionButton.init(fabElems);
     });
 
     function setMode(mode) {
@@ -149,3 +152,12 @@
         console.error("Google Translate 載入失敗");
       }
     }, 5000);
+
+    // 快速回到頂端
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+</body>
+</html>
