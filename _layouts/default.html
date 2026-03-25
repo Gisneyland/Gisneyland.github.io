@@ -66,20 +66,16 @@
         <li><a href="/rainbow/">新竹彩虹文化祭</a></li>
         <li><a href="/HIVA/">愛滋篩檢</a></li>
         <li><a href="/syphilis/">梅毒篩檢</a></li>
-        <li>
-          <div class="tools">
-            <div id="google_translate_element"></div>
-            <div id="translate_fallback" style="display:none; color:white; background-color:#555; padding:6px 10px; border-radius:4px;">
-              ⚠️ 翻譯工具載入失敗，請檢查瀏覽器設定或停用廣告阻擋器。
-            </div>
-            <select class="mode-toggle" onchange="setMode(this.value)">
-              <option value="auto">⚙️ 自動</option>
-              <option value="light">🌞 明亮</option>
-              <option value="dark">🌙 暗黑</option>
-            </select>
-          </div>
-        </li>
       </ul>
+      <!-- 桌面版工具區 -->
+      <div class="tools right" style="margin-right:20px;">
+        <div id="google_translate_element"></div>
+        <select class="mode-toggle" onchange="setMode(this.value)">
+          <option value="auto">⚙️ 自動</option>
+          <option value="light">🌞 明亮</option>
+          <option value="dark">🌙 暗黑</option>
+        </select>
+      </div>
     </div>
   </nav>
 
@@ -88,6 +84,17 @@
     <li><a href="/rainbow/">新竹彩虹文化祭</a></li>
     <li><a href="/HIVA/">愛滋篩檢</a></li>
     <li><a href="/syphilis/">梅毒篩檢</a></li>
+    <li>
+      <!-- 手機版工具區 -->
+      <div class="tools" style="padding:10px;">
+        <div id="google_translate_element_mobile"></div>
+        <select class="mode-toggle" onchange="setMode(this.value)">
+          <option value="auto">⚙️ 自動</option>
+          <option value="light">🌞 明亮</option>
+          <option value="dark">🌙 暗黑</option>
+        </select>
+      </div>
+    </li>
   </ul>
 
   <main>
@@ -109,10 +116,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      var elems = document.querySelectorAll('.sidenav');
-      M.Sidenav.init(elems);
-      var fabElems = document.querySelectorAll('.fixed-action-btn');
-      M.FloatingActionButton.init(fabElems);
+      M.Sidenav.init(document.querySelectorAll('.sidenav'));
+      M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
     });
 
     function setMode(mode) {
@@ -129,12 +134,11 @@
 
     window.onload = function() {
       const savedMode = localStorage.getItem('site-mode') || 'auto';
-      document.querySelector('.mode-toggle').value = savedMode;
+      document.querySelectorAll('.mode-toggle').forEach(sel => sel.value = savedMode);
       setMode(savedMode);
     }
 
     function googleTranslateElementInit() {
-      console.log("Google Translate 初始化成功");
       new google.translate.TranslateElement(
         {
           pageLanguage: 'zh-TW',
@@ -143,15 +147,16 @@
         },
         'google_translate_element'
       );
+      // 手機版也初始化
+      new google.translate.TranslateElement(
+        {
+          pageLanguage: 'zh-TW',
+          includedLanguages: 'id,th,vi,my,tl,km,bn,en,zh-TW',
+          layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+        },
+        'google_translate_element_mobile'
+      );
     }
-
-    setTimeout(function() {
-      var el = document.getElementById('google_translate_element');
-      if (!el.innerHTML || el.innerHTML.trim() === "") {
-        document.getElementById('translate_fallback').style.display = "inline-block";
-        console.error("Google Translate 載入失敗");
-      }
-    }, 5000);
 
     // 快速回到頂端
     function scrollToTop() {
