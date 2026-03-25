@@ -5,12 +5,6 @@
   <title>{{ page.title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background-color: #f9f9f9;
-      color: #333;
-    }
     header {
       background: linear-gradient(to right, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787);
       padding: 10px 20px;
@@ -22,38 +16,12 @@
       display: flex;
     }
     nav ul li {
-      position: relative;
       margin-right: 20px;
     }
     nav ul li a {
       color: white;
       text-decoration: none;
-      padding: 8px 12px;
-      display: block;
       font-weight: bold;
-    }
-    nav ul li a:hover {
-      background-color: rgba(255,255,255,0.2);
-      border-radius: 4px;
-    }
-    nav ul li ul {
-      display: none;
-      position: absolute;
-      top: 35px;
-      left: 0;
-      background: linear-gradient(to right, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787);
-      padding: 0;
-      list-style: none;
-      min-width: 120px;
-    }
-    nav ul li:hover ul {
-      display: block;
-    }
-    nav ul li ul li {
-      margin: 0;
-    }
-    main {
-      padding: 20px;
     }
   </style>
 </head>
@@ -63,13 +31,8 @@
       <ul>
         <li><a href="/">風城部屋</a></li>
         <li><a href="/rainbow/">新竹彩虹文化祭</a></li>
-        <li>
-          <a href="#">快速篩檢</a>
-          <ul>
-            <li><a href="/HIVA/">愛滋</a></li>
-            <li><a href="/syphilis/">梅毒</a></li>
-          </ul>
-        </li>
+        <li><a href="/HIVA/">愛滋篩檢</a></li>
+        <li><a href="/syphilis/">梅毒篩檢</a></li>
       </ul>
     </nav>
   </header>
