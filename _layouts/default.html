@@ -14,6 +14,7 @@
       font-family: Arial, sans-serif;
       margin: 0;
       transition: background-color 0.5s ease, color 0.5s ease;
+      padding-bottom: 56px; /* 預留底部導覽列空間 */
     }
     body.light-mode { background-color: #f9f9f9; color: #333; }
     body.dark-mode { background-color: #121212; color: #f1f1f1; }
@@ -22,8 +23,27 @@
       body.auto-mode { background-color: #121212; color: #f1f1f1; }
     }
 
-    nav {
+    nav.bottom-nav {
       background: linear-gradient(to right, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787);
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 1000;
+    }
+    nav.bottom-nav a {
+      color: white;
+      text-align: center;
+      flex: 1;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    nav.bottom-nav a:hover {
+      background-color: rgba(255,255,255,0.2);
     }
 
     main {
@@ -41,9 +61,13 @@
     }
 
     .tools {
+      position: fixed;
+      top: 10px;
+      right: 10px;
       display: flex;
       align-items: center;
       gap: 10px;
+      z-index: 1100;
     }
     select.mode-toggle {
       background-color: #555;
@@ -57,49 +81,27 @@
 </head>
 <body class="auto-mode">
 
-  <!-- Navbar -->
-  <nav>
-    <div class="nav-wrapper">
-      <a href="/" class="brand-logo" style="padding-left:10px;">風城部屋</a>
-      <a href="#" data-target="mobile-demo" class="sidenav-trigger"><i class="material-icons">menu</i></a>
-      <ul class="right hide-on-med-and-down">
-        <li><a href="/rainbow/">新竹彩虹文化祭</a></li>
-        <li><a href="/HIVA/">愛滋篩檢</a></li>
-        <li><a href="/syphilis/">梅毒篩檢</a></li>
-      </ul>
-      <!-- 桌面版工具區 -->
-      <div class="tools right" style="margin-right:20px;">
-        <div id="google_translate_element"></div>
-        <select class="mode-toggle" onchange="setMode(this.value)">
-          <option value="auto">⚙️ 自動</option>
-          <option value="light">🌞 明亮</option>
-          <option value="dark">🌙 暗黑</option>
-        </select>
-      </div>
-    </div>
-  </nav>
-
-  <!-- 手機版側邊選單 -->
-  <ul class="sidenav" id="mobile-demo">
-    <li><a href="/rainbow/">新竹彩虹文化祭</a></li>
-    <li><a href="/HIVA/">愛滋篩檢</a></li>
-    <li><a href="/syphilis/">梅毒篩檢</a></li>
-    <li>
-      <!-- 手機版工具區 -->
-      <div class="tools" style="padding:10px;">
-        <div id="google_translate_element_mobile"></div>
-        <select class="mode-toggle" onchange="setMode(this.value)">
-          <option value="auto">⚙️ 自動</option>
-          <option value="light">🌞 明亮</option>
-          <option value="dark">🌙 暗黑</option>
-        </select>
-      </div>
-    </li>
-  </ul>
+  <!-- 工具區：只保留一份 -->
+  <div class="tools">
+    <div id="google_translate_element"></div>
+    <select class="mode-toggle" onchange="setMode(this.value)">
+      <option value="auto">⚙️ 自動</option>
+      <option value="light">🌞 明亮</option>
+      <option value="dark">🌙 暗黑</option>
+    </select>
+  </div>
 
   <main>
     {{ content }}
   </main>
+
+  <!-- 底部導覽列 -->
+  <nav class="bottom-nav">
+    <a href="/"><i class="material-icons">home</i><br>首頁</a>
+    <a href="/rainbow/"><i class="material-icons">celebration</i><br>彩虹文化祭</a>
+    <a href="/HIVA/"><i class="material-icons">favorite</i><br>愛滋篩檢</a>
+    <a href="/syphilis/"><i class="material-icons">healing</i><br>梅毒篩檢</a>
+  </nav>
 
   <!-- 浮動操作按鈕 (FAB) -->
   <div class="fixed-action-btn">
@@ -116,7 +118,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      M.Sidenav.init(document.querySelectorAll('.sidenav'));
       M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
     });
 
@@ -130,11 +131,12 @@
         document.body.classList.add('dark-mode');
       }
       localStorage.setItem('site-mode', mode);
+      document.querySelector('.mode-toggle').value = mode;
     }
 
     window.onload = function() {
       const savedMode = localStorage.getItem('site-mode') || 'auto';
-      document.querySelectorAll('.mode-toggle').forEach(sel => sel.value = savedMode);
+      document.querySelector('.mode-toggle').value = savedMode;
       setMode(savedMode);
     }
 
@@ -146,15 +148,6 @@
           layout: google.translate.TranslateElement.InlineLayout.SIMPLE
         },
         'google_translate_element'
-      );
-      // 手機版也初始化
-      new google.translate.TranslateElement(
-        {
-          pageLanguage: 'zh-TW',
-          includedLanguages: 'id,th,vi,my,tl,km,bn,en,zh-TW',
-          layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-        },
-        'google_translate_element_mobile'
       );
     }
 
