@@ -18,16 +18,15 @@
       background-color: #121212;
       color: #f1f1f1;
     }
+    body.auto-mode {
+      /* 預設跟隨系統偏好 */
+      background-color: #f9f9f9;
+      color: #333;
+    }
     @media (prefers-color-scheme: dark) {
       body.auto-mode {
         background-color: #121212;
         color: #f1f1f1;
-      }
-    }
-    @media (prefers-color-scheme: light) {
-      body.auto-mode {
-        background-color: #f9f9f9;
-        color: #333;
       }
     }
 
@@ -59,6 +58,9 @@
       border-radius: 4px;
     }
     .tools {
+      position: absolute;
+      right: 20px;
+      top: 10px;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -114,6 +116,7 @@
         document.body.classList.add('dark-mode');
       }
       localStorage.setItem('site-mode', mode);
+      console.log("現在模式:", document.body.className); // Debug
     }
 
     window.onload = function() {
