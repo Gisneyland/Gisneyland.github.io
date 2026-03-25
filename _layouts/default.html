@@ -72,6 +72,21 @@
       border-radius: 4px;
       cursor: pointer;
     }
+
+    /* 卡片風格的內容區塊 */
+    main {
+      padding: 20px;
+      max-width: 900px;
+      margin: 30px auto;
+      background-color: rgba(255,255,255,0.85);
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      line-height: 1.6;
+    }
+    body.dark-mode main {
+      background-color: rgba(30,30,30,0.9);
+      color: #f1f1f1;
+    }
   </style>
 </head>
 <body class="auto-mode">
@@ -87,6 +102,9 @@
     <div class="tools">
       <!-- Google Translate Widget 固定在右上角 -->
       <div id="google_translate_element"></div>
+      <div id="translate_fallback" style="display:none; color:white; background-color:#555; padding:6px 10px; border-radius:4px;">
+        ⚠️ 翻譯工具載入失敗，請檢查瀏覽器設定或停用廣告阻擋器。
+      </div>
       <!-- 三種模式切換選單（含圖示） -->
       <select class="mode-toggle" onchange="setMode(this.value)">
         <option value="auto">⚙️ 自動</option>
@@ -101,33 +119,29 @@
   </main>
 
   <!-- Google Translate Script -->
-<div id="google_translate_element"></div>
-<div id="translate_fallback" style="display:none; color:white; background-color:#555; padding:6px 10px; border-radius:4px;">
-  ⚠️ 翻譯工具載入失敗，請檢查瀏覽器設定或停用廣告阻擋器。
-</div>
-
-<script type="text/javascript">
-  function googleTranslateElementInit() {
-    new google.translate.TranslateElement(
-      {
-        pageLanguage: 'zh-TW',
-        includedLanguages: 'id,th,vi,my,tl,km,bn,en,zh-TW',
-        layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-      },
-      'google_translate_element'
-    );
-  }
-
-  // fallback 檢查：如果 5 秒後翻譯工具還沒載入，就顯示提示
-  setTimeout(function() {
-    var el = document.getElementById('google_translate_element');
-    if (!el.innerHTML || el.innerHTML.trim() === "") {
-      document.getElementById('translate_fallback').style.display = "inline-block";
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      console.log("Google Translate 初始化成功");
+      new google.translate.TranslateElement(
+        {
+          pageLanguage: 'zh-TW',
+          includedLanguages: 'id,th,vi,my,tl,km,bn,en,zh-TW',
+          layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+        },
+        'google_translate_element'
+      );
     }
-  }, 5000);
-</script>
-<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
+    // fallback 檢查：如果 5 秒後翻譯工具還沒載入，就顯示提示
+    setTimeout(function() {
+      var el = document.getElementById('google_translate_element');
+      if (!el.innerHTML || el.innerHTML.trim() === "") {
+        document.getElementById('translate_fallback').style.display = "inline-block";
+        console.error("Google Translate 載入失敗");
+      }
+    }, 5000);
+  </script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
   <!-- 模式切換 Script -->
   <script>
