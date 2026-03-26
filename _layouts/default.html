@@ -9,8 +9,9 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
 
-  <!-- Style -->
-  <!-- <link rel="stylesheet" href="assets/css/style.css"> -->
+  <!-- Custom Style -->
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  
 </head>
 <body class="auto-mode">
 
@@ -22,52 +23,23 @@
   </main>
 
   <!-- 底部導覽列 -->
-  <!-- 在這裡包含 navbar.html 的內容 -->
     {% include navbar.html %}
-
   <!-- 浮動操作按鈕 (FAB) -->
-    {% include FAB.html %}
+    {% include fab.html %}
 
+  <!-- CDN JS -->
   <!-- TailwindCSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
   <!-- Materialize JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
-      M.Tooltip.init(document.querySelectorAll('.tooltipped'));
-
-      const savedMode = localStorage.getItem('site-mode') || 'auto';
-      setMode(savedMode);
-    });
-
-    function setMode(mode) {
-      document.body.classList.remove('auto-mode', 'light-mode', 'dark-mode');
-      document.body.classList.add(mode + '-mode');
-      localStorage.setItem('site-mode', mode);
-      document.querySelector('.mode-toggle').value = mode;
-    }
-
-    function googleTranslateElementInit() {
-      new google.translate.TranslateElement(
-        {
-          pageLanguage: 'zh-TW',
-          includedLanguages: 'id,th,vi,my,tl,km,bn,en,zh-TW',
-          layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-        },
-        'google_translate_element'
-      );
-    }
-
-    // 快速回到頂端
-    function scrollToTop() {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  </script>
+  <!-- Google Translation -->
   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+  <!-- Custom JS -->
+  <!-- Main JS assets -->
+  <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
+  <!-- JavaScript i18n.js -->
   <script src="{{ '/assets/js/i18n.js' | relative_url }}"></script>
-  <!-- JavaScript i18n.js-->
-  <script src="assets/js/i18n.js"></script>
+  
 </body>
 </html>
