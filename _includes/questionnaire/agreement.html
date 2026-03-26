@@ -1,6 +1,9 @@
 <div class="card"class="space-y-12">
     <div class="card-content">
-      <span class="card-title" data-i18n="basic_info">篩檢須知</span>
+      <span class="card-title" data-i18n="notice_title">篩檢須知</span>
+        <span data-i18n="notice_paragraph">您好，<br>
+            定期檢視自我健康，可以提升傳染疾病的預防知識，並將低感染風險。快速篩檢結果若為陽性，將由篩檢人員協助轉介醫療服務，所有篩檢資料皆保密，敬請放心，謝謝。<br>
+            財團法人紅絲帶基金會</span>
       <div class="input-field">
         <input type="text" name="nickname" id="nickname">
         <label for="nickname" data-i18n="nickname">暱稱</label>
@@ -8,16 +11,25 @@
       <p>
         <label>
           <input type="checkbox" name="agreement" />
-          <span data-i18n="agreement">我同意篩檢員採集我的血液作為篩檢所需生物樣本，並在篩檢試劑判定結果為陽性時，由篩檢單位轉介醫療單位。</span>
+          <span data-i18n="agreement">我同意且配合扎針採血的快速篩檢諮詢以及陽性轉介服務。</span>
         </label>
         <label>
           <input type="checkbox" name="agreement_undetectable" />
-          <span data-i18n="agreement_undetectable">我已知悉 HIV 篩檢試劑有一個月的空窗期與三個月的空窗期，梅毒篩檢試劑有一個月的空窗期。空窗期表示試劑測不到抗原或抗體的時期。</span>
+          <span data-i18n="agreement_undetectable">我已知悉篩檢試劑空窗期間測不到抗原或抗體。</span>
         </label>
       </p>
+        <div class="input-field">
+            <label for="frequency_screening">篩檢頻率</label>
+            <input type="range" id="frequency_screening" name="frequency_screening" min="-1" max="1" list="frequency_screening_markers">
+            <datalist id="frequency_screening_markers">
+             <option value="-1"><span data-i18n="frequency_screening_never">從未篩檢</span></option>
+             <option value="0"><span data-i18n="frequency_screening_oftenly">偶爾篩檢</span></option>
+             <option value="1"><span data-i18n="frequency_screening_regularly">定期篩檢</span></option>
+            </datalist>
+        </div>
       <div class="input-field">
         <p>
-        <input type="date" name="last_screening_at" id="last_screening_at">
+        <input type="month" name="last_screening_at" id="last_screening_at">
         <label for="last_screening_at" data-i18n="last_screening">最近一次篩檢日期</label>
         </p>
       </div>
