@@ -15,33 +15,18 @@
 <body class="auto-mode">
 
   <!-- 工具區 -->
-  <div class="tools">
-    <div id="google_translate_element"></div>
-    <select class="mode-toggle" onchange="setMode(this.value)">
-      <option value="auto">⚙️ 自動</option>
-      <option value="light">🌞 明亮</option>
-      <option value="dark">🌙 暗黑</option>
-    </select>
-  </div>
+    {% include tools.html %}
 
   <main>
     {{ content }}
   </main>
 
   <!-- 底部導覽列 -->
-  <<!-- 在這裡包含 navbar.html 的內容 -->
+  <!-- 在這裡包含 navbar.html 的內容 -->
     {% include navbar.html %}
 
   <!-- 浮動操作按鈕 (FAB) -->
-  <div class="fixed-action-btn">
-    <a class="btn-floating btn-large red">
-      <i class="material-icons">menu</i>
-    </a>
-    <ul>
-      <li><a class="btn-floating blue tooltipped" data-tooltip="回到頂端" onclick="scrollToTop()"><i class="material-icons">arrow_upward</i></a></li>
-      <li><a class="btn-floating green tooltipped" data-tooltip="聯絡我們" href="https://www.facebook.com/GisneyLandHSC/"><i class="material-icons">email</i></a></li>
-    </ul>
-  </div>
+    {% include FAB.html %}
 
   <!-- Materialize JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
