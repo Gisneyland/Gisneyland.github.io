@@ -54,7 +54,8 @@
       <!-- 下拉選單 -->
       <div class="input-field">
         <label for="residence_select" data-i18n="residence">居住地</label>
-        <select id="residence_select" name="residence">
+        <select id="residence_select" name="residence"
+                class="border rounded p-2 w-full bg-white dark:bg-gray-800 dark:text-gray-100">
           <option value="hsinchu_city" data-i18n="hsinchu_city">新竹市</option>
           <option value="hsinchu_county" data-i18n="hsinchu_county">新竹縣</option>
           <option value="miaoli_county" data-i18n="miaoli_county">苗栗縣</option>
@@ -63,11 +64,36 @@
         </select>
       </div>
     
-      <!-- 其他輸入 -->
-      <div class="input-field">
-        <label for="residence_others" data-i18n="residence_others">其他</label>
-        <input type="text" name="residence_others" id="residence_others">
+      <!-- 其他輸入（預設隱藏，含暗色模式） -->
+      <div id="residence_other_field"
+           class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
+        <label for="residence_other" data-i18n="residence_others">其他</label>
+        <input type="text" name="residence_other" id="residence_other"
+               class="border rounded p-2 w-full bg-white dark:bg-gray-800 dark:text-gray-100">
       </div>
     </div>
+    
+    <script>
+      const selectResidence = document.getElementById('residence_select');
+      const otherField = document.getElementById('residence_other_field');
+    
+      selectResidence.addEventListener('change', function() {
+        if (this.value === 'others') {
+          otherField.classList.remove('hidden');
+          // 先強制 reflow 讓 transition 生效
+          void otherField.offsetWidth;
+          otherField.classList.add('opacity-100');
+          otherField.classList.remove('opacity-0');
+        } else {
+          otherField.classList.add('opacity-0');
+          otherField.classList.remove('opacity-100');
+          // 等動畫結束再隱藏
+          setTimeout(() => {
+            otherField.classList.add('hidden');
+          }, 500);
+        }
+      });
+    </script>
+
   </div>
 </div>
