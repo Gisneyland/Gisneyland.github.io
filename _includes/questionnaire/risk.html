@@ -72,7 +72,10 @@
             <label><input type="checkbox" name="drug_mephedrone" /><span data-i18n="drug_mephedrone">合成卡西酮類物質（喵喵）</span></label>
             <label><input type="checkbox" name="drug_heroin" /><span data-i18n="drug_heroin">海洛因</span></label>
             <label><input type="checkbox" name="drug_weed" /><span data-i18n="drug_weed">大麻（草、穴）</span></label>
-            <label for="drug_others"><input type="text" name="drug_others" id="drug_others" /><span data-i18n="drug_others">其他</span></label>
+              <div class="input-field">
+                <input type="text" name="drug_others" id="drug_others">
+                <label for="drug_others" data-i18n="drug_others">其他</label>
+              </div>
           <label><input type="radio" name="usage_drug" /><span data-i18n="false">否</span></label>
         </p>      
         <p>
@@ -87,7 +90,10 @@
           <span class="text-lg" data-i18n="frequency_std">一年內曾經<span class="text-underline">感染性病</span>。</span>
           <label><input type="radio" name="frequency_std" /><span data-i18n="true">是</span></label>
             <label><input type="checkbox" name="std_aids" /><span data-i18n="std_aids">愛滋</span></label>
-              <label><input type="text" name="std_aids_reason" /><span data-i18n="std_aids_reason">再次篩檢的原因</span></label>
+              <div class="input-field">
+                  <input type="text" name="std_others" id="std_aids_reason">
+                  <label for="std_aids_reason" data-i18n="std_aids_reason">再次篩檢的原因</label>
+              </div>
             <label><input type="checkbox" name="std_genital_warts" /><span data-i18n="std_genital_warts">菜花（尖形濕疣）</span></label>
             <label><input type="checkbox" name="std_syphilis" /><span data-i18n="std_syphilis">梅毒</span></label>
             <label><input type="checkbox" name="std_chlamydia" /><span data-i18n="std_chlamydia">披衣菌</span></label>
@@ -95,7 +101,10 @@
             <label><input type="checkbox" name="std_genital_herpes" /><span data-i18n="std_genital_herpes">性皰疹</span></label>
             <label><input type="checkbox" name="std_hepatitis_a" /><span data-i18n="std_hepatitis_a">A型肝炎</span></label>
             <label><input type="checkbox" name="std_hepatitis_c" /><span data-i18n="std_hepatitis_c">C型肝炎</span></label>
-            <label><input type="text" name="std_others" /><span data-i18n="std_others">其他</span></label>
+              <div class="input-field">
+                  <input type="text" name="std_others" id="std_others">
+                  <label for="std_others" data-i18n="std_others">其他</label>
+              </div>  
           <label><input type="radio" name="frequency_std" /><span data-i18n="false">否</span></label>
         </p>
         <p>
