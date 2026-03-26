@@ -7,127 +7,18 @@ permalink: /hiva/
 <h4 class="center-align" data-i18n="title">自我健康管理問卷</h4>
 <form id="questionnaire-form">
 
+  <!-- 篩檢須知 -->
+  {% include questionnaire/agreement.html %}
+
   <!-- 基本資料 -->
-  <div class="card"class="space-y-12">
-    <div class="card-content">
-      <span class="card-title" data-i18n="basic_info">篩檢須知</span>
-      <div class="input-field">
-        <input type="text" name="nickname" id="nickname">
-        <label for="nickname" data-i18n="nickname">暱稱</label>
-      </div>
-      <p>
-        <label>
-          <input type="checkbox" name="agreement" />
-          <span data-i18n="agreement">我同意篩檢員採集我的血液作為篩檢所需生物樣本，並在篩檢試劑判定結果為陽性時，由篩檢單位轉介醫療單位。</span>
-        </label>
-        <label>
-          <input type="checkbox" name="agreement_undetectable" />
-          <span data-i18n="agreement_undetectable">我已知悉 HIV 篩檢試劑有一個月的空窗期與三個月的空窗期，梅毒篩檢試劑有一個月的空窗期。空窗期表示試劑測不到抗原或抗體的時期。</span>
-        </label>
-      </p>
-      <div class="input-field">
-        <p>
-        <input type="date" name="last_screening_at" id="last_screening_at">
-        <label for="last_screening_at" data-i18n="last_screening">最近一次篩檢日期</label>
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <!-- 性別 -->
-  <div class="card">
-    <div class="card-content">
-      <span class="card-title" data-i18n="gender">性別</span>
-      <p>
-        <label><input type="radio" name="gender" /><span data-i18n="cisman">順性別男性</span></label>
-        <label><input type="radio" name="gender" /><span data-i18n="ciswoman">順性別女性</span></label>
-        <label><input type="radio" name="gender" /><span data-i18n="transman">跨性別男性</span></label>
-        <label><input type="radio" name="gender" /><span data-i18n="transwoman">跨性別女性</span></label>
-        <label><input type="radio" name="gender" /><span data-i18n="nonbinary">非二元性別</span></label>
-      </p>
-    </div>
-  </div>
-
-  <!-- 性傾向 -->
-  <div class="card">
-    <div class="card-content">
-      <span class="card-title" data-i18n="orientation">性傾向</span>
-      <p>
-        <label><input type="radio" name="orientation" /><span data-i18n="heterosexual">異性戀</span></label>
-        <label><input type="radio" name="orientation" /><span data-i18n="homosexual">同性戀</span></label>
-        <label><input type="radio" name="orientation" /><span data-i18n="bisexual">雙性戀</span></label>
-        <label><input type="text" name="orientation" /><span data-i18n="orientation_others">其他</span></label>
-      </p>
-    </div>
-  </div>
-
-  <!-- 教育程度 -->
-  <div class="card">
-    <div class="card-content">
-      <span class="card-title" data-i18n="education">教育程度</span>
-      <p>
-        <label><input type="radio" name="education" /><span data-i18n="illiterate">小學以下</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="primary">小學</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="junior_high">國中</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="senior_high">高中</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="university">大學</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="master">碩士</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="phd">博士</span></label>
-      </p>
-    </div>
-  </div>
-
-  <!-- 居住地 -->
-  <div class="card">
-    <div class="card-content">
-      <span class="card-title" data-i18n="residence">居住地</span>
-      <p>        
-        <label for="residence"></label>
-          <select id="residence"name="residence" >
-            <option><span data-i18n="hsinchu_city">新竹市</span></option>
-            <option><span data-i18n="hsinchu_county">新竹縣</span></option>
-            <option><span data-i18n="miaoli_county">苗栗縣</span></option>
-            <option><span data-i18n="taoyuan_city">桃園市</span></option>
-            <option><span data-i18n="residence_others">其他</span></option>              
-          </select>
-          <div class="input-field">
-        <input type="text" name="residence" id="residence">
-        <label for="residence" data-i18n="residence_others">其他</label>
-          </p>
-          </div>
-    </div>
+  {% include questionnaire/profile.html %}
 
   <!-- 篩檢結果 -->
-  <div class="card">
-    <div class="card-content">
-      <span class="card-title" data-i18n="screening">篩檢結果</span>
-      <p>此區域由篩檢員填答</p>
-      <div class="input-field">
-        <input type="text" name="screener" id="screener">
-        <label for="screener" data-i18n="screener">篩檢員編號</label>
-      </div>
-      <div class="input-field">
-        <input type="date" name="screening_at" id="screening_at">
-        <label for="screening_at" data-i18n="screening_date">篩檢日期</label>
-      </div>
-      <div class="input-field">
-        <input type="text" name="screening_place" id="screening_place">
-        <label for="screening_place" data-i18n="screening_place">篩檢地點</label>
-      </div>
-      <p>
-        <label><input type="checkbox" name="screening_hiv" /><span data-i18n="screening_hiv">HIV 篩檢</span></label>
-        <label><input type="checkbox" name="hiv_positive" /><span data-i18n="hiv_positive">HIV 陽性</span></label>
-      </p>
-      <p>
-        <label><input type="checkbox" name="screening_syphilis" /><span data-i18n="screening_syphilis">梅毒篩檢</span></label>
-        <label><input type="checkbox" name="syphilis_positive" /><span data-i18n="syphilis_positive">梅毒陽性</span></label>
-      </p>
-    </div>
-  </div>
+  {% include questionnaire/result.html %}
 
   <!-- 送出 -->
-  <div class="center-align" style="margin:20px;">
-    <button class="btn waves-effect waves-light" type="submit" data-i18n="submit">送出問卷
+  <div class="center-align space-y-2" style="margin:20px;">
+    <button class="btn waves-effect waves-light hover:border-transparent" type="submit" data-i18n="submit">送出問卷
       <i class="material-icons right">send</i>
     </button>
   </div>
