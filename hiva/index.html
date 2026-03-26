@@ -19,11 +19,15 @@ permalink: /hiva/
         <label>
           <input type="checkbox" name="agreement" />
           <span data-i18n="agreement">我同意篩檢員採集我的血液作為篩檢所需生物樣本，並在篩檢試劑判定結果為陽性時，由篩檢單位轉介醫療單位。</span>
+          <input type="checkbox" name="agreement_undetectable" />
+          <span data-i18n="agreement_undetectable">我已知悉 HIV 篩檢試劑有一個月的空窗期與三個月的空窗期，梅毒篩檢試劑有一個月的空窗期。空窗期表示試劑測不到抗原或抗體的時期。</span>
         </label>
       </p>
       <div class="input-field">
+        <p>
         <input type="date" name="last_screening_at" id="last_screening_at">
         <label for="last_screening_at" data-i18n="last_screening">最近一次篩檢日期</label>
+        </p>
       </div>
     </div>
   </div>
@@ -116,7 +120,7 @@ permalink: /hiva/
   <!-- 送出 -->
   <div class="center-align" style="margin:20px;">
     <button class="btn waves-effect waves-light" type="submit" data-i18n="submit">送出問卷
-      <i class="material-icons right">send</i>
+      <i class="material-icons right">送出</i>
     </button>
   </div>
 </form>
