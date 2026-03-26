@@ -21,12 +21,24 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 模式切換
-function setMode(mode) {
+/*
+  function setMode(mode) {
   document.body.classList.remove('auto-mode', 'light-mode', 'dark-mode');
   document.body.classList.add(mode + '-mode');
   localStorage.setItem('site-mode', mode);
   const modeToggle = document.querySelector('.mode-toggle');
   if (modeToggle) modeToggle.value = mode;
+}
+*/
+
+function setMode(mode) {
+  const html = document.documentElement;
+  if (mode === 'dark') {
+    html.classList.add('dark');
+  } else {
+    html.classList.remove('dark');
+  }
+  localStorage.setItem('site-mode', mode);
 }
 
 // Google Translate 初始化
