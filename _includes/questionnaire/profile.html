@@ -1,3 +1,4 @@
+<div class="card">
 <!-- 性別 -->
   <div class="card">
     <div class="card-content">
@@ -8,6 +9,10 @@
         <label><input type="radio" name="gender" /><span data-i18n="transman">跨性別男性</span></label>
         <label><input type="radio" name="gender" /><span data-i18n="transwoman">跨性別女性</span></label>
         <label><input type="radio" name="gender" /><span data-i18n="nonbinary">非二元性別</span></label>
+          <div class="input-field">
+            <input type="text" name="gender" id="gender">
+            <label for="gender" data-i18n="gender_others">其他</label>
+          </div>
       </p>
     </div>
   </div>
@@ -21,7 +26,10 @@
         <label><input type="radio" name="orientation" /><span data-i18n="homosexual">同性戀</span></label>
         <label><input type="radio" name="orientation" /><span data-i18n="bisexual">雙性戀</span></label>
         <label><input type="radio" name="orientation" /><span data-i18n="orientation_others">其他</span></label>
-        <label><input type="text" name="orientation" /><span data-i18n="orientation_others">其他</span></label>
+          <div class="input-field">
+            <input type="text" name="orientation" id="orientation">
+            <label for="orientation" data-i18n="orientation_others">其他</label>
+          </div>
       </p>
     </div>
   </div>
@@ -37,7 +45,7 @@
         <label><input type="radio" name="education" /><span data-i18n="senior_high">高中</span></label>
         <label><input type="radio" name="education" /><span data-i18n="university">大學</span></label>
         <label><input type="radio" name="education" /><span data-i18n="master">碩士</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="phd">博士</span></label>
+        <label><input type="radio" name="education" /><span data-i18n="phd">博士以上</span></label>
       </p>
     </div>
   </div>
@@ -54,11 +62,12 @@
             <option value="miaoli_county"><span data-i18n="miaoli_county">苗栗縣</span></option>
             <option value="taoyuan_city"><span data-i18n="taoyuan_city">桃園市</span></option>
             <option value="others"><span data-i18n="residence_others">其他</span></option>              
-          </input>
-        <div class="input-field">
-          <input type="text" name="residence" id="residence">
-          <label for="residence" data-i18n="residence_others">其他</label>
-            </p>
+              <div class="input-field">
+                <input type="text" name="residence" id="residence">
+                <label for="residence" data-i18n="residence_others">其他</label>
+              </div>
+          </p>
         </div>
       </div>
     </div>
+</div>
