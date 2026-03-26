@@ -11,15 +11,15 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
 
   <!-- Custom Style -->
-  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <!-- <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}"> -->
   
 </head>
-<body class="auto-mode">
+<body class="auto-mode bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100"">
 
   <!-- 工具區 -->
     {% include tools.html %}
 
-  <main>
+  <main class="p-6 max-w-3xl mx-auto rounded-lg shadow bg-white dark:bg-gray-800 dark:text-gray-100">
     {{ content }}
   </main>
 
