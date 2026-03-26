@@ -50,20 +50,24 @@
   <!-- 居住地 -->
     <div class="card-content">
       <span class="card-title" data-i18n="residence">居住地</span>
-      <p>        
-        <label for="residence"></label>
-          <select id="residence" name="residence" >
-            <option value="hsinchu_city"><span data-i18n="hsinchu_city">新竹市</span></option>
-            <option value="hsinchu_county"><span data-i18n="hsinchu_county">新竹縣</span></option>
-            <option value="miaoli_county"><span data-i18n="miaoli_county">苗栗縣</span></option>
-            <option value="taoyuan_city"><span data-i18n="taoyuan_city">桃園市</span></option>
-            <option value="others"><span data-i18n="residence_others">其他</span></option> 
-          </select>
-              <div class="input-field">
-                <input type="text" name="residence" id="residence">
-                <label for="residence" data-i18n="residence_others">其他</label>
-              </div>
-      </p>
+    
+      <!-- 下拉選單 -->
+      <div class="input-field">
+        <label for="residence_select" data-i18n="residence">居住地</label>
+        <select id="residence_select" name="residence">
+          <option value="hsinchu_city" data-i18n="hsinchu_city">新竹市</option>
+          <option value="hsinchu_county" data-i18n="hsinchu_county">新竹縣</option>
+          <option value="miaoli_county" data-i18n="miaoli_county">苗栗縣</option>
+          <option value="taoyuan_city" data-i18n="taoyuan_city">桃園市</option>
+          <option value="others" data-i18n="residence_others">其他</option>
+        </select>
+      </div>
+    
+      <!-- 其他輸入 -->
+      <div class="input-field">
+        <label for="residence_others" data-i18n="residence_others">其他</label>
+        <input type="text" name="residence_others" id="residence_others">
+      </div>
     </div>
   </div>
 </div>
