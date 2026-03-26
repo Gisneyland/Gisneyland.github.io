@@ -20,6 +20,7 @@
         <label><input type="radio" name="orientation" /><span data-i18n="heterosexual">異性戀</span></label>
         <label><input type="radio" name="orientation" /><span data-i18n="homosexual">同性戀</span></label>
         <label><input type="radio" name="orientation" /><span data-i18n="bisexual">雙性戀</span></label>
+        <label><input type="radio" name="orientation" /><span data-i18n="orientation_others">其他</span></label>
         <label><input type="text" name="orientation" /><span data-i18n="orientation_others">其他</span></label>
       </p>
     </div>
@@ -47,16 +48,17 @@
       <span class="card-title" data-i18n="residence">居住地</span>
       <p>        
         <label for="residence"></label>
-          <select id="residence"name="residence" >
-            <option><span data-i18n="hsinchu_city">新竹市</span></option>
-            <option><span data-i18n="hsinchu_county">新竹縣</span></option>
-            <option><span data-i18n="miaoli_county">苗栗縣</span></option>
-            <option><span data-i18n="taoyuan_city">桃園市</span></option>
-            <option><span data-i18n="residence_others">其他</span></option>              
-          </select>
-          <div class="input-field">
-        <input type="text" name="residence" id="residence">
-        <label for="residence" data-i18n="residence_others">其他</label>
-          </p>
-          </div>
+          <select id="residence" name="residence" >
+            <option value="hsinchu_city"><span data-i18n="hsinchu_city">新竹市</span></option>
+            <option value="hsinchu_county"><span data-i18n="hsinchu_county">新竹縣</span></option>
+            <option value="miaoli_county"><span data-i18n="miaoli_county">苗栗縣</span></option>
+            <option value="taoyuan_city"><span data-i18n="taoyuan_city">桃園市</span></option>
+            <option value="others"><span data-i18n="residence_others">其他</span></option>              
+          </input>
+        <div class="input-field">
+          <input type="text" name="residence" id="residence">
+          <label for="residence" data-i18n="residence_others">其他</label>
+            </p>
+        </div>
+      </div>
     </div>
