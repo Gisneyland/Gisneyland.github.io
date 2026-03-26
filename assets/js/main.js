@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // 初始化 Materialize 元件
   M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
   M.Tooltip.init(document.querySelectorAll('.tooltipped'));
+  M.FormSelect.init(document.querySelectorAll('select'));
   var elems = document.querySelectorAll('select');
   M.FormSelect.init(elems);
 
