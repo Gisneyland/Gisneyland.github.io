@@ -3,8 +3,6 @@ document.addEventListener('DOMContentLoaded', function() {
   M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
   M.Tooltip.init(document.querySelectorAll('.tooltipped'));
   M.FormSelect.init(document.querySelectorAll('select'));
-  var elems = document.querySelectorAll('select');
-  M.FormSelect.init(elems);
 
   // 模式初始化
   const savedMode = localStorage.getItem('site-mode') || 'auto';
