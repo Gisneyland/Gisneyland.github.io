@@ -1,0 +1,32 @@
+<div class="card">
+    <div class="card-content">
+      <span class="card-title" data-i18n="screening">篩檢結果</span>
+      <p>此區域由篩檢員填答</p>
+      <div class="input-field">
+        <input type="text" name="screener" id="screener">
+        <label for="screener" data-i18n="screener">篩檢員編號</label>
+      </div>
+      <div class="input-field">
+        <input type="date" name="screening_at" id="screening_at">
+        <label for="screening_at" data-i18n="screening_date">篩檢日期</label>
+      </div>
+      <div class="input-field">
+        <input type="text" name="screening_place" id="screening_place">
+        <label for="screening_place" data-i18n="screening_place">篩檢地點</label>
+      </div>
+      <div class="card-content">
+        <label><input type="checkbox" name="screening_hiv" /><span class="card-title" data-i18n="screening_hiv">HIV 篩檢</span></label>
+        <p>
+          <label><input type="radio" name="hiv_result" /><span data-i18n="hiv_positive">HIV 陽性</span></label>
+          <label><input type="radio" name="hiv_result" /><span data-i18n="hiv_negative">HIV 陰性</span></label>
+        </p>
+      </div>
+      <div class="card-content">
+          <label><input type="checkbox" name="screening_syphilis" /><span class="card-title" data-i18n="screening_syphilis">梅毒篩檢</span></label>
+        <p>
+          <label><input type="radio" name="syphilis_result" /><span data-i18n="syphilis_positive">梅毒陽性</span></label>
+          <label><input type="radio" name="syphilis_result" /><span data-i18n="syphilis_negative">梅毒陰性</span></label>
+        </p>
+      </div>
+    </div>
+  </div>
