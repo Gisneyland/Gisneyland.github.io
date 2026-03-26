@@ -29,12 +29,8 @@
   </main>
 
   <!-- 底部導覽列 -->
-  <nav class="bottom-nav">
-    <a href="/"><i class="material-icons">home</i><br>首頁</a>
-    <a href="/pride/"><i class="material-icons">celebration</i><br>彩虹文化祭</a>
-    <a href="/screening/"><i class="material-icons">favorite</i><br>篩檢</a>
-    <a href="/activity/"><i class="material-icons">event</i><br>活動</a>
-  </nav>
+  <<!-- 在這裡包含 navbar.html 的內容 -->
+    {% include navbar.html %}
 
   <!-- 浮動操作按鈕 (FAB) -->
   <div class="fixed-action-btn">
@@ -83,5 +79,7 @@
   </script>
   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
   <script src="{{ '/assets/js/i18n.js' | relative_url }}"></script>
+  <!-- JavaScript i18n.js-->
+  <script src="assets/js/i18n.js"></script>
 </body>
 </html>
