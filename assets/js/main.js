@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // 初始化 Materialize 元件
   M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
   M.Tooltip.init(document.querySelectorAll('.tooltipped'));
+  var elems = document.querySelectorAll('select');
+  M.FormSelect.init(elems);
 
   // 模式初始化
   const savedMode = localStorage.getItem('site-mode') || 'auto';
