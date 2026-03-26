@@ -21,6 +21,10 @@ permalink: /hiva/
           <span data-i18n="agreement">我同意篩檢員採集我的血液作為篩檢所需生物樣本，並在篩檢試劑判定結果為陽性時，由篩檢單位轉介醫療單位。</span>
         </label>
       </p>
+      <div class="input-field">
+        <input type="date" name="last_screening_at" id="last_screening_at">
+        <label for="last_screening_at" data-i18n="last_screening">最近一次篩檢日期</label>
+      </div>
     </div>
   </div>
 
@@ -81,14 +85,18 @@ permalink: /hiva/
     </div>
   </div>
 
-  <!-- 篩檢紀錄 -->
+  <!-- 篩檢結果 -->
   <div class="card">
     <div class="card-content">
       <span class="card-title" data-i18n="screening">篩檢結果</span>
       <p>此區域由篩檢員填答</p>
       <div class="input-field">
-        <input type="date" name="last_screening_at" id="last_screening_at">
-        <label for="last_screening_at" data-i18n="last_screening">最近一次篩檢日期</label>
+        <input type="text" name="screener" id="screener">
+        <label for="screener" data-i18n="screener">ㄕ篩檢員編號</label>
+      </div>
+      <div class="input-field">
+        <input type="date" name="screening_at" id="screening_at">
+        <label for="screening_at" data-i18n="screening_date">篩檢日期</label>
       </div>
       <div class="input-field">
         <input type="text" name="screening_place" id="screening_place">
@@ -96,9 +104,11 @@ permalink: /hiva/
       </div>
       <p>
         <label><input type="checkbox" name="screening_hiv" /><span data-i18n="screening_hiv">HIV 篩檢</span></label>
-        <label><input type="radio" name="hiv_positive" /><span data-i18n="hiv_positive">HIV 陽性</span></label>
+        <label><input type="checkbox" name="hiv_positive" /><span data-i18n="hiv_positive">HIV 陽性</span></label>
+      </p>
+      <p></p>ㄥ
         <label><input type="checkbox" name="screening_syphilis" /><span data-i18n="screening_syphilis">梅毒篩檢</span></label>
-        <label><input type="radio" name="syphilis_positive" /><span data-i18n="syphilis_positive">梅毒陽性</span></label>
+        <label><input type="checkbox" name="syphilis_positive" /><span data-i18n="syphilis_positive">梅毒陽性</span></label>
       </p>
     </div>
   </div>
