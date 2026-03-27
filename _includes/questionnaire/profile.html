@@ -82,7 +82,7 @@
             <label>居住地</label>
         </div>    
       <!-- 其他輸入（預設隱藏，含暗色模式） -->
-          <div id="residence_others_field"
+          <div id="residence_others_field">
                class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
             <label for="residence_others" data-i18n="residence_others">其他</label>
             <input type="text" name="residence_others" id="residence_others">
@@ -92,21 +92,21 @@
 
     <script>
       const selectResidence = document.getElementById('residence_select');
-      const otherField = document.getElementById('residence_others_field');
+      const othersField = document.getElementById('residence_others_field');
     
       selectResidence.addEventListener('change', function() {
         if (this.value === 'others') {
-          otherField.classList.remove('hidden');
+          othersField.classList.remove('hidden');
           // 先強制 reflow 讓 transition 生效
-          void otherField.offsetWidth;
-          otherField.classList.add('opacity-100');
-          otherField.classList.remove('opacity-0');
+          void othersField.offsetWidth;
+          othersField.classList.add('opacity-100');
+          othersField.classList.remove('opacity-0');
         } else {
-          otherField.classList.add('opacity-0');
-          otherField.classList.remove('opacity-100');
+          othersField.classList.add('opacity-0');
+          othersField.classList.remove('opacity-100');
           // 等動畫結束再隱藏
           setTimeout(() => {
-            otherField.classList.add('hidden');
+            othersField.classList.add('hidden');
           }, 500);
         }
       });
