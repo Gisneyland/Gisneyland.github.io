@@ -4,6 +4,10 @@
         <span class="card-title" data-i18n="profile_title">基本資料</span>
         <p class="text-right">衛生福利部疾病管制署計畫</p>
     </div>
+
+<div class="row">
+
+    <div class="col s4">
     
     <!-- 性別 -->
     <div class="card-content">
@@ -25,7 +29,10 @@
             <input type="text" name="gender_others" id="gender_others">
           </div>
         </div>
-    
+
+    </div>
+    <div class="col s4">
+        
   <!-- 性傾向 -->
     <div class="card-content">
         <div class="input-field col s12">
@@ -44,24 +51,11 @@
             <input type="text" name="orientation_others" id="orientation_others">
           </div>
         </div>
-
-    <!--
-    <div class="card-content">
-      <span class="card-title" data-i18n="orientation">性傾向</span>
-      <p>
-        <label><input type="radio" name="orientation" /><span data-i18n="heterosexual">異性戀</span></label>
-        <label><input type="radio" name="orientation" /><span data-i18n="homosexual">同性戀</span></label>
-        <label><input type="radio" name="orientation" /><span data-i18n="bisexual">雙性戀</span></label>
-        <label><input type="radio" name="orientation" /><span data-i18n="orientation_others">其他</span></label>
-          <div class="input-field">
-            <input type="text" name="orientation" id="orientation">
-            <label for="orientation" data-i18n="orientation_others">其他</label>
-          </div>
-      </p>
+    
     </div>
-    -->
-
-  <!-- 教育程度 -->
+    <div class="col s4">
+  
+    <!-- 教育程度 -->
     <div class="card-content">
     <div class="input-field col s12">
     <select id="education" name="education">
@@ -77,6 +71,9 @@
     <label>教育程度</label>
   </div>
     </div>
+
+    </div>
+    <div class="col s4">
     
   <!-- 居住地 -->
     <div class="card-content">
@@ -97,6 +94,8 @@
             <input type="text" name="residence_others" id="residence_others">
           </div>
         </div>
+    </div>
+</div>
 </div>
 
         <script>
