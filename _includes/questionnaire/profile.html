@@ -35,6 +35,21 @@
     </div>
 
   <!-- 教育程度 -->
+    <div class="input-field col s12">
+    <select id="education" name="education">
+      <option value="" disabled selected>教育程度</option>
+      <option value="illiterate" data-i18n="illiterate">不識字</option>
+      <option value="primary" data-i18n="primary">小學</option>
+      <option value="junior_high" data-i18n="junior_high">國中</option>
+      <option value="senior_high" data-i18n="senior_high">高中</option>
+        <option value="university" data-i18n="university">大學</option>
+        <option value="master" data-i18n="master">碩士</option>
+      <option value="phd" data-i18n="phd">博士</option>
+    </select>
+    <label>教育程度</label>
+  </div>
+
+    <!--
     <div class="card-content">
       <span class="card-title" data-i18n="education">教育程度</span>
       <p>
@@ -47,13 +62,29 @@
         <label><input type="radio" name="education" /><span data-i18n="phd">博士以上</span></label>
       </p>
     </div>
+    -->
     
   <!-- 居住地 -->
+    <div class="input-field col s12">
+    <select id="residence_select" name="residence">
+      <option value="" disabled selected>居住地</option>
+      <option value="hsinchu_city" data-i18n="hsinchu_city">新竹市</option>
+      <option value="hsinchu_county" data-i18n="hsinchu_county">新竹縣</option>
+      <option value="miaoli_county" data-i18n="miaoli_county">苗栗縣</option>
+      <option value="taoyuan_city" data-i18n="toayuan_city">桃園市</option>
+      <option value="residence_others" data-i18n="residence_others">其他</option>
+    </select>
+    <label>居住地</label>
+  </div>
+
+    <!--
       <div class="section mb-4 col s12">
   <label for="residence_select" data-i18n="residence">居住地</label>
-        <div class="input-field col s12>          
+    -->
+    
       <!-- 下拉選單 -->
-  <select id="residence_select" name="residence">
+  <!--
+    <select id="residence_select" name="residence">
     <option value="hsinchu_city" data-i18n="hsinchu_city">新竹市</option>
     <option value="hsinchu_county" data-i18n="hsinchu_county">新竹縣</option>
     <option value="miaoli_county" data-i18n="miaoli_county">苗栗縣</option>
@@ -61,7 +92,7 @@
     <option value="others" data-i18n="residence_others">其他</option>
   </select>
 </div>
-
+-->
     
       <!-- 其他輸入（預設隱藏，含暗色模式） -->
       <div id="residence_other_field"
@@ -70,7 +101,6 @@
         <input type="text" name="residence_other" id="residence_other">
       </div>
     </div>
-</div>
     <script>
       const selectResidence = document.getElementById('residence_select');
       const otherField = document.getElementById('residence_other_field');
