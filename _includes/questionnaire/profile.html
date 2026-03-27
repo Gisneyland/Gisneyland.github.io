@@ -50,16 +50,10 @@
 
   <!-- 居住地 -->
       <div class="input-field mb-4">
-  <label for="residence_select" 
-         class="block mb-2 font-medium text-gray-700 dark:text-gray-200" 
-         data-i18n="residence">
-    居住地
-  </label>
+  <label for="residence_select" data-i18n="residence">居住地</label>
           
       <!-- 下拉選單 -->
-  <select id="residence_select" name="residence"
-          class="border rounded p-2 w-full bg-white text-gray-800 
-                 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600">
+  <select id="residence_select" name="residence">
     <option value="hsinchu_city" data-i18n="hsinchu_city">新竹市</option>
     <option value="hsinchu_county" data-i18n="hsinchu_county">新竹縣</option>
     <option value="miaoli_county" data-i18n="miaoli_county">苗栗縣</option>
@@ -73,8 +67,7 @@
       <div id="residence_other_field"
            class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
         <label for="residence_other" data-i18n="residence_others">其他</label>
-        <input type="text" name="residence_other" id="residence_other"
-               class="border rounded p-2 w-full bg-white dark:bg-gray-800 dark:text-gray-100">
+        <input type="text" name="residence_other" id="residence_other">
       </div>
     </div>
     
