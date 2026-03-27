@@ -35,6 +35,7 @@
     </div>
 
   <!-- 教育程度 -->
+    <div class="card-content">
     <div class="input-field col s12">
     <select id="education" name="education">
       <option value="" disabled selected>教育程度</option>
@@ -48,6 +49,7 @@
     </select>
     <label>教育程度</label>
   </div>
+    </div>
 
     <!--
     <div class="card-content">
@@ -65,6 +67,7 @@
     -->
     
   <!-- 居住地 -->
+    <div class="card-content>
     <div class="input-field col s12">
     <select id="residence_select" name="residence">
       <option value="" disabled selected>居住地</option>
@@ -100,7 +103,9 @@
         <label for="residence_other" data-i18n="residence_others">其他</label>
         <input type="text" name="residence_other" id="residence_other">
       </div>
+    
     </div>
+
     <script>
       const selectResidence = document.getElementById('residence_select');
       const otherField = document.getElementById('residence_other_field');
