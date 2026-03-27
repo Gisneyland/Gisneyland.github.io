@@ -7,6 +7,26 @@
     
     <!-- 性別 -->
     <div class="card-content">
+        <div class="input-field col s12">
+            <select id="gender_select" name="gender">
+              <option value="" disabled selected>性別</option>
+              <option value="cisman" data-i18n="cisman">順行別男性</option>
+              <option value="transman" data-i18n="transman">跨性別男性</option>
+              <option value="ciswoman" data-i18n="ciswoman">順性別女性</option>
+                <option value="transwoman" data-i18n="transwoman">跨性別女性</option>
+                <option value="nonbinary" data-i18n="nonbinary">非二元性別</option>
+              <option value="gender_others" data-i18n="gender_others">其他</option>
+            </select>
+            <label>性傾向</label>
+        </div>    
+      <!-- 其他輸入（預設隱藏，含暗色模式） -->
+          <div id="gender_others_field" class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
+            <label for="gender_others" data-i18n="gender_others">其他</label>
+            <input type="text" name="gender_others" id="gender_others">
+          </div>
+        </div>
+<!--    
+    <div class="card-content">
       <span class="card-title" data-i18n="gender">性別</span>
       <p>
         <label><input type="radio" name="gender" /><span data-i18n="cisman">順性別男性</span></label>
@@ -20,8 +40,28 @@
           </div>
       </p>
     </div>
+--> 
 
   <!-- 性傾向 -->
+    <div class="card-content">
+        <div class="input-field col s12">
+            <select id="orientation_select" name="orientation">
+              <option value="" disabled selected>性傾向</option>
+              <option value="heterosexual" data-i18n="heterosexual">異性戀</option>
+              <option value="homosexual" data-i18n="homosexual">同性戀</option>
+              <option value="bisexual" data-i18n="bisexual">雙性戀</option>
+              <option value="orientation_others" data-i18n="orientation_others">其他</option>
+            </select>
+            <label>性傾向</label>
+        </div>    
+      <!-- 其他輸入（預設隱藏，含暗色模式） -->
+          <div id="orientation_others_field" class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
+            <label for="orientation_others" data-i18n="orientation_others">其他</label>
+            <input type="text" name="orientation_others" id="orientation_others">
+          </div>
+        </div>
+
+    <!--
     <div class="card-content">
       <span class="card-title" data-i18n="orientation">性傾向</span>
       <p>
@@ -35,6 +75,7 @@
           </div>
       </p>
     </div>
+    -->
 
   <!-- 教育程度 -->
     <div class="card-content">
@@ -52,21 +93,6 @@
     <label>教育程度</label>
   </div>
     </div>
-
-    <!--
-    <div class="card-content">
-      <span class="card-title" data-i18n="education">教育程度</span>
-      <p>
-        <label><input type="radio" name="education" /><span data-i18n="illiterate">小學以下</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="primary">小學</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="junior_high">國中</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="senior_high">高中</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="university">大學</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="master">碩士</span></label>
-        <label><input type="radio" name="education" /><span data-i18n="phd">博士以上</span></label>
-      </p>
-    </div>
-    -->
     
   <!-- 居住地 -->
     <div class="card-content">
@@ -89,6 +115,50 @@
         </div>
 </div>
 
+        <script>
+      const selectGender = document.getElementById('gender_select');
+      const othersField = document.getElementById('gender_others_field');
+    
+      selectGender.addEventListener('change', function() {
+        if (this.value === 'gender_others') {
+          othersField.classList.remove('hidden');
+          // 先強制 reflow 讓 transition 生效
+          void othersField.offsetWidth;
+          othersField.classList.add('opacity-100');
+          othersField.classList.remove('opacity-0');
+        } else {
+          othersField.classList.add('opacity-0');
+          othersField.classList.remove('opacity-100');
+          // 等動畫結束再隱藏
+          setTimeout(() => {
+            othersField.classList.add('hidden');
+          }, 500);
+        }
+      });
+    </script>
+
+        <script>
+      const selectOrientation = document.getElementById('orientation_select');
+      const othersField = document.getElementById('orientation_others_field');
+    
+      selectOrientation.addEventListener('change', function() {
+        if (this.value === 'orientation_others') {
+          othersField.classList.remove('hidden');
+          // 先強制 reflow 讓 transition 生效
+          void othersField.offsetWidth;
+          othersField.classList.add('opacity-100');
+          othersField.classList.remove('opacity-0');
+        } else {
+          othersField.classList.add('opacity-0');
+          othersField.classList.remove('opacity-100');
+          // 等動畫結束再隱藏
+          setTimeout(() => {
+            othersField.classList.add('hidden');
+          }, 500);
+        }
+      });
+    </script>
+
     <script>
       const selectResidence = document.getElementById('residence_select');
       const othersField = document.getElementById('residence_others_field');
@@ -110,20 +180,3 @@
         }
       });
     </script>
-
-    <!--
-      <div class="section mb-4 col s12">
-  <label for="residence_select" data-i18n="residence">居住地</label>
-    -->
-    
-      <!-- 下拉選單 -->
-  <!--
-    <select id="residence_select" name="residence">
-    <option value="hsinchu_city" data-i18n="hsinchu_city">新竹市</option>
-    <option value="hsinchu_county" data-i18n="hsinchu_county">新竹縣</option>
-    <option value="miaoli_county" data-i18n="miaoli_county">苗栗縣</option>
-    <option value="taoyuan_city" data-i18n="taoyuan_city">桃園市</option>
-    <option value="others" data-i18n="residence_others">其他</option>
-  </select>
-</div>
--->
