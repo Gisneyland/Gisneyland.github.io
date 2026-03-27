@@ -18,7 +18,6 @@
               <option value="transman" data-i18n="transman">跨性別男性</option>
               <option value="ciswoman" data-i18n="ciswoman">順性別女性</option>
                 <option value="transwoman" data-i18n="transwoman">跨性別女性</option>
-                <option value="nonbinary" data-i18n="nonbinary">非二元性別</option>
               <option value="gender_others" data-i18n="gender_others">其他</option>
             </select>
             <label data-i18n="gender">性別</label>
@@ -54,24 +53,62 @@
     
     </div>
     <div class="col s4">
-  
-    <!-- 教育程度 -->
-    <div class="card-content">
-    <div class="input-field col s12">
-    <select id="education" name="education">
-      <option value="" disabled selected>教育程度</option>
-      <option value="illiterate" data-i18n="illiterate">不識字</option>
-      <option value="primary" data-i18n="primary">小學</option>
-      <option value="junior_high" data-i18n="junior_high">國中</option>
-      <option value="senior_high" data-i18n="senior_high">高中</option>
-        <option value="university" data-i18n="university">大學</option>
-        <option value="master" data-i18n="master">碩士</option>
-      <option value="phd" data-i18n="phd">博士</option>
-    </select>
-    <label>教育程度</label>
-  </div>
-    </div>
 
+        <!-- 生日 -->
+            <div class="col s4">
+              <div class="input-field">
+                <input type="month" name="birth" id="birth">
+                <label for="birth" data-i18n="birth">生日</label>
+              </div>
+            </div>
+        
+    </div>
+    <div class="col s4">
+        
+    <!-- 國籍 -->
+        <div class="card-content">
+        <div class="input-field col s12">
+            <select multiple id="nationality_select" name="nationality">
+              <option value="" disabled selected>國籍</option>
+              <option value="taiwan" data-i18n="taiwan">台灣</option>
+              <option value="philipine" data-i18n="philipine">菲律賓</option>
+              <option value="vietnam" data-i18n="vietnam">越南</option>
+              <option value="indonesia" data-i18n="indonesia">印尼</option>
+                <option value="thailand" data-i18n="thailand">泰國</option>
+              <option value="nationality_others" data-i18n="nationality_others">其他</option>
+            </select>
+            <label>國籍</label>
+        </div>    
+      <!-- 其他輸入（預設隱藏，含暗色模式） -->
+          <div id="nationality_others_field" class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
+            <label for="nationality_others" data-i18n="nationality_others">其他</label>
+            <input type="text" name="nationality_others" id="nationality_others">
+          </div>
+        </div>
+
+    </div>
+    <div class="col s4">
+
+    <!-- 家鄉 -->
+        <div class="card-content">
+            <div class="input-field col s12">
+                <select multiple id="hometown_select" name="hometown">
+                  <option value="" disabled selected>十八歲前居住地</option>
+                  <option value="hsinchu_city" data-i18n="hsinchu_city">新竹市</option>
+                  <option value="hsinchu_county" data-i18n="hsinchu_county">新竹縣</option>
+                  <option value="miaoli_county" data-i18n="miaoli_county">苗栗縣</option>
+                  <option value="taoyuan_city" data-i18n="toayuan_city">桃園市</option>
+                  <option value="hometown_others" data-i18n="hometown_others">其他</option>
+                </select>
+                <label>家鄉</label>
+            </div>    
+      <!-- 其他輸入（預設隱藏，含暗色模式） -->
+          <div id="hometown_others_field" class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
+            <label for="hometown_others" data-i18n="hometown_others">其他</label>
+            <input type="text" name="hometown_others" id="hometown_others">
+          </div>
+        </div>
+        
     </div>
     <div class="col s4">
     
@@ -94,8 +131,31 @@
             <input type="text" name="residence_others" id="residence_others">
           </div>
         </div>
+        
     </div>
+    <div class="col s4">
+  
+    <!-- 教育程度 -->
+        <div class="card-content">
+            <div class="input-field col s12">
+            <select id="education" name="education">
+              <option value="" disabled selected>教育程度</option>
+              <option value="illiterate" data-i18n="illiterate">不識字</option>
+              <option value="primary" data-i18n="primary">小學</option>
+              <option value="junior_high" data-i18n="junior_high">國中</option>
+              <option value="senior_high" data-i18n="senior_high">高中</option>
+                <option value="university" data-i18n="university">大學</option>
+                <option value="master" data-i18n="master">碩士</option>
+              <option value="phd" data-i18n="phd">博士</option>
+            </select>
+            <label>教育程度</label>
+          </div>
+        </div>
+
+    </div>
+        
 </div>
+    
 </div>
 
         <script>
@@ -137,6 +197,50 @@
           // 等動畫結束再隱藏
           setTimeout(() => {
             OrientationOthersField.classList.add('hidden');
+          }, 500);
+        }
+      });
+    </script>
+
+    <script>
+      const selectNationality = document.getElementById('nationality_select');
+      const nationalityOthersField = document.getElementById('nationality_others_field');
+    
+      selectNationality.addEventListener('change', function() {
+        if (this.value === 'nationality_others') {
+          nationalityOthersField.classList.remove('hidden');
+          // 先強制 reflow 讓 transition 生效
+          void nationalityOthersField.offsetWidth;
+          nationalityOthersField.classList.add('opacity-100');
+          nationalityOthersField.classList.remove('opacity-0');
+        } else {
+          nationalityOthersField.classList.add('opacity-0');
+          nationalityOthersField.classList.remove('opacity-100');
+          // 等動畫結束再隱藏
+          setTimeout(() => {
+            nationalityOthersField.classList.add('hidden');
+          }, 500);
+        }
+      });
+    </script>
+
+    <script>
+      const selectHometown = document.getElementById('hometown_select');
+      const hometownOthersField = document.getElementById('hometown_others_field');
+    
+      selectHometown.addEventListener('change', function() {
+        if (this.value === 'hometown_others') {
+          hometownOthersField.classList.remove('hidden');
+          // 先強制 reflow 讓 transition 生效
+          void hometownOthersField.offsetWidth;
+          hometownOthersField.classList.add('opacity-100');
+          hometownOthersField.classList.remove('opacity-0');
+        } else {
+          hometownOthersField.classList.add('opacity-0');
+          hometownOthersField.classList.remove('opacity-100');
+          // 等動畫結束再隱藏
+          setTimeout(() => {
+            hometownOthersField.classList.add('hidden');
           }, 500);
         }
       });
