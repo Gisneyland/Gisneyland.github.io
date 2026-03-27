@@ -82,8 +82,7 @@
             <label>居住地</label>
         </div>    
       <!-- 其他輸入（預設隱藏，含暗色模式） -->
-          <div id="residence_others_field">
-               class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
+          <div id="residence_others_field" class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
             <label for="residence_others" data-i18n="residence_others">其他</label>
             <input type="text" name="residence_others" id="residence_others">
           </div>
@@ -95,7 +94,7 @@
       const othersField = document.getElementById('residence_others_field');
     
       selectResidence.addEventListener('change', function() {
-        if (this.value === 'others') {
+        if (this.value === 'residence_others') {
           othersField.classList.remove('hidden');
           // 先強制 reflow 讓 transition 生效
           void othersField.offsetWidth;
