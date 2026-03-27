@@ -9,7 +9,7 @@
     <div class="card-content">
         <div class="input-field col s12">
             <select id="gender_select" name="gender">
-              <option value="" disabled selected>性別</option>
+              <option value="" disabled selected data-i18n="gender">性別</option>
               <option value="cisman" data-i18n="cisman">順行別男性</option>
               <option value="transman" data-i18n="transman">跨性別男性</option>
               <option value="ciswoman" data-i18n="ciswoman">順性別女性</option>
@@ -17,7 +17,7 @@
                 <option value="nonbinary" data-i18n="nonbinary">非二元性別</option>
               <option value="gender_others" data-i18n="gender_others">其他</option>
             </select>
-            <label>性別</label>
+            <label data-i18n="gender">性別</label>
         </div>    
       <!-- 其他輸入（預設隱藏，含暗色模式） -->
           <div id="gender_others_field" class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
@@ -25,34 +25,18 @@
             <input type="text" name="gender_others" id="gender_others">
           </div>
         </div>
-<!--    
-    <div class="card-content">
-      <span class="card-title" data-i18n="gender">性別</span>
-      <p>
-        <label><input type="radio" name="gender" /><span data-i18n="cisman">順性別男性</span></label>
-        <label><input type="radio" name="gender" /><span data-i18n="ciswoman">順性別女性</span></label>
-        <label><input type="radio" name="gender" /><span data-i18n="transman">跨性別男性</span></label>
-        <label><input type="radio" name="gender" /><span data-i18n="transwoman">跨性別女性</span></label>
-        <label><input type="radio" name="gender" /><span data-i18n="nonbinary">非二元性別</span></label>
-          <div class="input-field">
-            <input type="text" name="gender" id="gender">
-            <label for="gender" data-i18n="gender_others">其他</label>
-          </div>
-      </p>
-    </div>
---> 
-
+    
   <!-- 性傾向 -->
     <div class="card-content">
         <div class="input-field col s12">
             <select id="orientation_select" name="orientation">
-              <option value="" disabled selected>性傾向</option>
+              <option value="" disabled selected data-i18n="orientation">性傾向</option>
               <option value="heterosexual" data-i18n="heterosexual">異性戀</option>
               <option value="homosexual" data-i18n="homosexual">同性戀</option>
               <option value="bisexual" data-i18n="bisexual">雙性戀</option>
               <option value="orientation_others" data-i18n="orientation_others">其他</option>
             </select>
-            <label>性傾向</label>
+            <label data-i18n="orientation">性傾向</label>
         </div>    
       <!-- 其他輸入（預設隱藏，含暗色模式） -->
           <div id="orientation_others_field" class="input-field transition-opacity duration-500 ease-in-out opacity-0 hidden">
