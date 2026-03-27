@@ -101,21 +101,21 @@
 
         <script>
       const selectGender = document.getElementById('gender_select');
-      const othersField = document.getElementById('gender_others_field');
+      const GenderOthersField = document.getElementById('gender_others_field');
     
       selectGender.addEventListener('change', function() {
         if (this.value === 'gender_others') {
-          othersField.classList.remove('hidden');
+          GenderOthersField.classList.remove('hidden');
           // 先強制 reflow 讓 transition 生效
-          void othersField.offsetWidth;
-          othersField.classList.add('opacity-100');
-          othersField.classList.remove('opacity-0');
+          void GenderOthersField.offsetWidth;
+          GenderOthersField.classList.add('opacity-100');
+          GenderOthersField.classList.remove('opacity-0');
         } else {
-          othersField.classList.add('opacity-0');
-          othersField.classList.remove('opacity-100');
+          GenderOthersField.classList.add('opacity-0');
+          GenderOthersField.classList.remove('opacity-100');
           // 等動畫結束再隱藏
           setTimeout(() => {
-            othersField.classList.add('hidden');
+            GenderOthersField.classList.add('hidden');
           }, 500);
         }
       });
@@ -123,21 +123,21 @@
 
         <script>
       const selectOrientation = document.getElementById('orientation_select');
-      const othersField = document.getElementById('orientation_others_field');
+      const OrientationOthersField = document.getElementById('orientation_others_field');
     
       selectOrientation.addEventListener('change', function() {
         if (this.value === 'orientation_others') {
-          othersField.classList.remove('hidden');
+          OrientationOthersField.classList.remove('hidden');
           // 先強制 reflow 讓 transition 生效
-          void othersField.offsetWidth;
-          othersField.classList.add('opacity-100');
-          othersField.classList.remove('opacity-0');
+          void OrientationOthersField.offsetWidth;
+          OrientationOthersField.classList.add('opacity-100');
+          OrientationOthersField.classList.remove('opacity-0');
         } else {
-          othersField.classList.add('opacity-0');
-          othersField.classList.remove('opacity-100');
+          OrientationOthersField.classList.add('opacity-0');
+          OrientationOthersField.classList.remove('opacity-100');
           // 等動畫結束再隱藏
           setTimeout(() => {
-            othersField.classList.add('hidden');
+            OrientationOthersField.classList.add('hidden');
           }, 500);
         }
       });
@@ -145,21 +145,21 @@
 
     <script>
       const selectResidence = document.getElementById('residence_select');
-      const othersField = document.getElementById('residence_others_field');
+      const residenceOthersField = document.getElementById('residence_others_field');
     
       selectResidence.addEventListener('change', function() {
         if (this.value === 'residence_others') {
-          othersField.classList.remove('hidden');
+          residenceOthersField.classList.remove('hidden');
           // 先強制 reflow 讓 transition 生效
-          void othersField.offsetWidth;
-          othersField.classList.add('opacity-100');
-          othersField.classList.remove('opacity-0');
+          void residenceOthersField.offsetWidth;
+          residenceOthersField.classList.add('opacity-100');
+          residenceOthersField.classList.remove('opacity-0');
         } else {
-          othersField.classList.add('opacity-0');
-          othersField.classList.remove('opacity-100');
+          residenceOthersField.classList.add('opacity-0');
+          residenceOthersField.classList.remove('opacity-100');
           // 等動畫結束再隱藏
           setTimeout(() => {
-            othersField.classList.add('hidden');
+            residenceOthersField.classList.add('hidden');
           }, 500);
         }
       });
