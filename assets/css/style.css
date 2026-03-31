@@ -2,7 +2,7 @@
       font-family: Arial, sans-serif;
       margin: 0;
       transition: background-color 0.5s ease, color 0.5s ease;
-      padding-bottom: 12%; /* 預留底部導覽列空間 */
+      padding-bottom: 12rem; /* 預留底部導覽列空間 */
     }
     body.light-mode { background-color: #f9f9f9; color: #333; }
     body.dark-mode { background-color: #121212; color: #f1f1f1; }
@@ -18,7 +18,7 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 12%;
+      height: 12rem;
       display: flex;
       justify-content: space-around;
       align-items: center;
@@ -76,5 +76,5 @@
 
     /* 避免 FAB 與底部導覽列重疊 */
     .fixed-action-btn {
-      bottom: 20%;
+      bottom: 20em;
     }
