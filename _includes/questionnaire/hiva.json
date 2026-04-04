@@ -1,0 +1,56 @@
+[
+  {
+   "question": "hiva_nickname"
+  },
+  {
+    "question": "hiva_agreement"
+  },
+  {
+    "question": "hiva_frequency"
+  },
+  {
+    "question": "last_hiva"
+  },
+  {
+    "question": "sex_frequency"
+  },
+  {
+    "question": "condom_frequency"
+  },
+  {
+    "question": "partner_fixed"
+  },
+  {
+    "question": "partner_random"
+  },
+  {
+    "question": "partner_online"
+  },
+  {
+    "question": "partner_pub"
+  },
+  {
+    "question": "sex_worker"
+  },
+  {
+    "question": "sex_customer"
+  },
+  {
+    "question": "drunk_sex_frequency"
+  },
+  {
+    "question": "chemsex_frequency"
+  },
+  {
+    "question": "chemsex_amphetamine"
+  },
+  {
+    "question": "chemsex_amphetamine_inhalant"
+  },
+  {
+    "question": "chemsex_amphetamine_injection"
+  },
+  {
+    "question": "chemsex_amphetamine_oral"
+  },
+]
