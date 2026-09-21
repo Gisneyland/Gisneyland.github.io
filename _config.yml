@@ -1,0 +1,13 @@
+title: 風城部屋
+lang: zh-TW
+url: https://gisneyland.github.io
+baseurl: ""
+markdown: kramdown
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
+  - README.md
+  - .github/
+  - .hackmd.io/

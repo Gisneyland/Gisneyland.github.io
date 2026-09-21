@@ -93,3 +93,14 @@ const i18n = {
     submit: "Submit Questionnaire"
   }
 };
+
+function setLanguage(language) {
+  const translations = i18n[language] || i18n['zh-TW'];
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    const key = element.dataset.i18n;
+    if (translations[key] && element.children.length === 0) {
+      element.textContent = translations[key];
+    }
+  });
+  document.documentElement.lang = language;
+}

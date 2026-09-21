@@ -2,8 +2,9 @@
 <html lang="zh-TW">
 <head>
   <meta charset="utf-8">
-  <title>{{ page.title }}</title>
-  <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+  <title>{{ page.title }} | {{ site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description | default: site.title }}">
+  <link rel="icon" type="image/x-icon" href="{{ '/assets/images/favicon.ico' | relative_url }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <!-- Materialize CSS & Icons -->
@@ -11,15 +12,15 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
 
   <!-- Custom Style -->
-  <!-- <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}"> -->
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
   
 </head>
-<body class="auto-mode bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100"">
+<body class="auto-mode bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100">
 
   <!-- 工具區 -->
     {% include tools.html %}
 
-  <main class="p-6 max-w-3xl mx-auto rounded-lg shadow bg-white dark:bg-gray-800 dark:text-gray-100">
+  <main id="main-content" class="p-6 max-w-3xl mx-auto rounded-lg shadow bg-white dark:bg-gray-800 dark:text-gray-100">
     {{ content }}
   </main>
 
@@ -30,17 +31,16 @@
 
   <!-- CDN JS -->
   <!-- TailwindCSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com" defer></script>
   <!-- Materialize JS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <!-- Google Translation -->
-  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" defer></script>
 
-  <!-- Custom JS -->
-  <!-- Main JS assets -->
-  <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
   <!-- JavaScript i18n.js -->
   <script src="{{ '/assets/js/i18n.js' | relative_url }}"></script>
+  <!-- Main JS assets -->
+  <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
   
 </body>
 </html>
