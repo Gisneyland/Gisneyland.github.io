@@ -80,6 +80,9 @@ function googleTranslateElementInit() {
 }
 
 // 快速回到頂端
-function scrollToTop() {
+function scrollToTop(event) {
+  if (event) {
+    event.preventDefault();
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

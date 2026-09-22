@@ -1,8 +1,22 @@
+    :root {
+      color-scheme: light;
+      font-size: 16px;
+    }
+
+    html.dark {
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
       margin: 0;
       transition: background-color 0.5s ease, color 0.5s ease;
-      padding-bottom: 4.5rem; /* 預留底部導覽列空間 */
+      padding-bottom: 5.5rem;
+      line-height: 1.7;
     }
     body.light-mode { background-color: #f9f9f9; color: #333; }
     body.dark-mode { background-color: #121212; color: #f1f1f1; }
@@ -13,7 +27,7 @@
     }
 
     nav.bottom-nav {
-      background: linear-gradient(to right, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787);
+      background: #172554;
       position: fixed;
       bottom: 0;
       left: 0;
@@ -24,6 +38,7 @@
       justify-content: space-around;
       align-items: center;
       z-index: 1000;
+      border-top: 3px solid #facc15;
     }
     nav.bottom-nav a {
       color: white;
@@ -32,19 +47,103 @@
       font-size: 0.9rem;
       line-height: 1.1;
       text-decoration: none;
+      min-height: 4rem;
+      padding: 0.45rem 0.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
     }
     nav.bottom-nav a:hover {
       background-color: rgba(255,255,255,0.2);
     }
 
     main {
-      padding: 20px;
-      max-width: 900px;
+      padding: 1.5rem;
+      width: min(900px, calc(100% - 2rem));
       margin: 30px auto;
       background-color: rgba(255,255,255,0.85);
       border-radius: 10px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      line-height: 1.6;
+      line-height: 1.75;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      line-height: 1.3;
+      text-wrap: balance;
+    }
+
+    h1 {
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+    }
+
+    h2 {
+      font-size: clamp(1.35rem, 3vw, 1.75rem);
+      margin-top: 0;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+    }
+
+    a {
+      text-underline-offset: 0.15em;
+    }
+
+    .skip-link {
+      position: fixed;
+      top: 0.5rem;
+      left: 0.5rem;
+      z-index: 2000;
+      padding: 0.6rem 0.9rem;
+      color: #fff;
+      background: #172554;
+      transform: translateY(-150%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    :focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .card-content > .card-title {
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    .input-field > label,
+    .input-field > select {
+      line-height: 1.4;
+    }
+
+    .questionnaire-question {
+      margin: 1.5rem 0;
+    }
+
+    .questionnaire-question > label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin: 0.35rem 0.75rem 0.35rem 0;
     }
     body.dark-mode main {
       background-color: rgba(30,30,30,0.9);
@@ -74,9 +173,33 @@
       padding: 6px 10px;
       border-radius: 4px;
       cursor: pointer;
+      min-height: 2.5rem;
     }
 
     /* 避免 FAB 與底部導覽列重疊 */
     .fixed-action-btn {
       bottom: 5rem;
+    }
+
+    @media (max-width: 600px) {
+      .tools {
+        top: 0.5rem;
+        right: 0.5rem;
+        max-width: calc(100vw - 1rem);
+      }
+
+      .tools #google_translate_element {
+        max-width: 8rem;
+        overflow: hidden;
+      }
+
+      main {
+        width: calc(100% - 1rem);
+        padding: 1rem;
+        margin: 4.5rem auto 1rem;
+      }
+
+      nav.bottom-nav a {
+        font-size: 0.8rem;
+      }
     }
