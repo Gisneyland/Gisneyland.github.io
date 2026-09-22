@@ -103,6 +103,48 @@ a {
   background: linear-gradient(135deg, var(--surface) 0%, var(--accent-soft) 100%);
 }
 
+.hero-content {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(220px, 1fr);
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.hero-side-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.mini-stat {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.mini-stat strong,
+.mini-stat span {
+  display: block;
+}
+
+.mini-stat strong {
+  margin-bottom: 0.2rem;
+  color: var(--accent-strong);
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-heading a {
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -119,6 +161,36 @@ a {
   padding: 0.7rem 1rem;
   border-radius: 999px;
   text-decoration: none;
+}
+
+.news-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.news-card {
+  padding: 1rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.news-card h3 {
+  margin-top: 0;
+}
+
+.news-tag {
+  display: inline-block;
+  margin-bottom: 0.6rem;
+  padding: 0.25rem 0.55rem;
+  color: var(--accent-strong);
+  background: rgba(158, 49, 85, 0.12);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .quick-links {
@@ -162,7 +234,8 @@ a {
 }
 
 .detail-card,
-.event-card {
+.event-card,
+.news-card {
   padding: 1rem;
   background: var(--surface-muted);
   border: 1px solid var(--border);
@@ -170,7 +243,8 @@ a {
 }
 
 .detail-card h3,
-.event-card h3 {
+.event-card h3,
+.news-card h3 {
   margin-top: 0;
 }
 
@@ -364,6 +438,17 @@ textarea:focus {
 
 .fixed-action-btn {
   bottom: 5.25rem;
+}
+
+@media (max-width: 760px) {
+  .hero-content {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 600px) {
