@@ -15,14 +15,14 @@
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
   
 </head>
-<body class="auto-mode bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100">
+<body>
 
   <a class="skip-link" href="#main-content">跳到主要內容</a>
 
   <!-- 工具區 -->
     {% include tools.html %}
 
-  <main id="main-content" class="p-6 max-w-3xl mx-auto rounded-lg shadow bg-white dark:bg-gray-800 dark:text-gray-100">
+  <main id="main-content">
     {{ content }}
   </main>
 
@@ -32,8 +32,6 @@
     {% include fab.html %}
 
   <!-- CDN JS -->
-  <!-- TailwindCSS CDN -->
-  <script src="https://cdn.tailwindcss.com" defer></script>
   <!-- Materialize JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <!-- Google Translation -->

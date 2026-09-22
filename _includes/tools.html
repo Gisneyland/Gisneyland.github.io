@@ -1,11 +1,11 @@
-  <div class="tools fixed top-2 right-2 flex items-center gap-2 p-2 rounded bg-white/70 dark:bg-gray-800/70" aria-label="網站工具">
+  <div class="tools" aria-label="網站工具">
     <div id="google_translate_element"></div>
     <div>
-      <label for="mode-toggle" class="sr-only">顯示模式</label>
-      <select id="mode-toggle" class="mode-toggle" onchange="setMode(this.value)">
-        <option value="auto">⚙️ 自動</option>
-        <option value="light">🌞 明亮</option>
-        <option value="dark">🌙 暗黑</option>
+      <label for="mode-toggle" class="mode-label">主題</label>
+      <select id="mode-toggle" class="mode-toggle" aria-label="選擇顯示模式">
+        <option value="auto">自動</option>
+        <option value="light">明亮</option>
+        <option value="dark">暗黑</option>
       </select>
     </div>
   </div>
