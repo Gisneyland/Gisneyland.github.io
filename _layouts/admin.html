@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <title>{{ page.title }} | {{ site.title }}</title>
+  <meta name="description" content="GisneyLand 管理後台">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/admin.css' | relative_url }}">
+</head>
+<body class="admin-body">
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <main id="main-content" class="admin-main">
+    {{ content }}
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+  <script src="{{ '/assets/js/supabase-config.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/admin.js' | relative_url }}"></script>
+</body>
+</html>

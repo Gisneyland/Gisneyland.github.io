@@ -17,26 +17,15 @@ permalink: /news/
   <div class="card-content">
     <h2>近期重點項目</h2>
     <div class="event-list">
+      {% for item in site.data.news %}
       <article class="event-card">
-        <span class="event-tag">2025</span>
-        <h3>我們一起走過的故事</h3>
-        <p>回顧過去一年中，社群活動、篩檢與教育倡議如何持續延續並產生連結。</p>
+        <span class="event-tag">{{ item.tag }}</span>
+        <p class="news-category">{{ item.category }}</p>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.summary }}</p>
+        <a href="{{ item.url | relative_url }}">前往相關內容<span aria-hidden="true"> →</span></a>
       </article>
-      <article class="event-card">
-        <span class="event-tag">2026</span>
-        <h3>藥愛自助互助團體</h3>
-        <p>強化同伴支持與社群互助，鼓勵更有韌性的健康照護與陪伴關係。</p>
-      </article>
-      <article class="event-card">
-        <span class="event-tag">外展</span>
-        <h3>桃園、新竹、苗栗外展匿名篩檢</h3>
-        <p>在社區與各地落地服務，讓篩檢更容易被取得，並減輕就醫上的障礙。</p>
-      </article>
-      <article class="event-card">
-        <span class="event-tag">節慶</span>
-        <h3>彩虹文化祭與公共活動</h3>
-        <p>讓多元性別文化逐步進入公共視野，成為認識與支持的重要入口。</p>
-      </article>
+      {% endfor %}
     </div>
   </div>
 </section>

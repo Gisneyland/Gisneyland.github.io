@@ -1,10 +1,10 @@
 <div>
   <nav class="bottom-nav" aria-label="主要導覽">
-    <a href="{{ '/' | relative_url }}"><i class="material-icons" aria-hidden="true">home</i><span data-i18n="homepage">首頁</span></a>
-    <a href="{{ '/about/' | relative_url }}"><i class="material-icons" aria-hidden="true">info</i><span>關於中心</span></a>
-    <a href="{{ '/services/' | relative_url }}"><i class="material-icons" aria-hidden="true">build</i><span>服務</span></a>
-    <a href="{{ '/activity/' | relative_url }}"><i class="material-icons" aria-hidden="true">event</i><span data-i18n="activity">活動</span></a>
-    <a href="{{ '/news/' | relative_url }}"><i class="material-icons" aria-hidden="true">article</i><span>最新消息</span></a>
-    <a href="{{ '/contact/' | relative_url }}"><i class="material-icons" aria-hidden="true">mail</i><span>聯絡</span></a>
+    <a href="{{ '/' | relative_url }}"{% if page.url == '/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">home</i><span data-i18n="homepage">首頁</span></a>
+    <a href="{{ '/about/' | relative_url }}"{% if page.url == '/about/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">info</i><span data-i18n="about">關於中心</span></a>
+    <a href="{{ '/services/' | relative_url }}"{% if page.url == '/services/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">build</i><span data-i18n="services">服務</span></a>
+    <a href="{{ '/activity/' | relative_url }}"{% if page.url == '/activity/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">event</i><span data-i18n="activity">活動</span></a>
+    <a href="{{ '/news/' | relative_url }}"{% if page.url == '/news/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">article</i><span data-i18n="news">最新消息</span></a>
+    <a href="{{ '/contact/' | relative_url }}"{% if page.url == '/contact/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">mail</i><span data-i18n="contact">聯絡</span></a>
   </nav>
 </div>

@@ -1,0 +1,23 @@
+- tag: "2026"
+  title: "藥愛自助互助團體"
+  summary: "強化同伴支持與社群互助，鼓勵更有韌性的健康照護與陪伴關係。"
+  category: "社群支持"
+  url: "/activity/"
+
+- tag: "外展"
+  title: "桃園、新竹、苗栗外展匿名篩檢"
+  summary: "在社區與各地落地服務，讓篩檢更容易被取得，並減輕就醫上的障礙。"
+  category: "健康資源"
+  url: "/screening/"
+
+- tag: "節慶"
+  title: "彩虹文化祭與公共活動"
+  summary: "讓多元性別文化逐步進入公共視野，成為認識與支持的重要入口。"
+  category: "文化活動"
+  url: "/pride/"
+
+- tag: "2025"
+  title: "我們一起走過的故事"
+  summary: "回顧過去一年中，社群活動、篩檢與教育倡議如何持續延續並產生連結。"
+  category: "年度回顧"
+  url: "/about/"

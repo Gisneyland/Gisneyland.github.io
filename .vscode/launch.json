@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "開啟 Jekyll 網站",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:4000",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "Jekyll: serve"
+    }
+  ]
+}

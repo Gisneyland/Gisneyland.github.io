@@ -41,21 +41,14 @@ permalink: /activity/
   <div class="card-content">
     <h2>活動安排方向</h2>
     <div class="event-list">
+      {% for item in site.data.events %}
       <article class="event-card">
-        <span class="event-tag">經常性</span>
-        <h3>社群交流場次</h3>
-        <p>用輕鬆的方式建立信任和連結，讓每位參與者都能感到被接納。</p>
+        <span class="event-tag">{{ item.tag }}</span>
+        <p class="news-category">{{ item.category }}</p>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.summary }}</p>
       </article>
-      <article class="event-card">
-        <span class="event-tag">節慶</span>
-        <h3>彩虹文化節慶</h3>
-        <p>以展演、公開交流與文化參與方式，讓社群價值在大眾視野中被看見。</p>
-      </article>
-      <article class="event-card">
-        <span class="event-tag">資訊</span>
-        <h3>健康與資源分享</h3>
-        <p>提供關於檢測、照護與支持的資訊，讓行動更有依據與安心感。</p>
-      </article>
+      {% endfor %}
     </div>
     <p>實際報名資訊、舉辦日期和地點，請以官方網站與 Facebook 公告為準；這裡主要作為快速導覽與前置資訊使用。</p>
   </div>

@@ -11,9 +11,8 @@ description: GisneyLand 風城部屋是新竹在地 LGBTQ+ 社群服務與活動
       <h1>在地同志社群服務、文化活動與健康資源的官方入口</h1>
       <p>GisneyLand 風城部屋長期關注同志與多元性別朋友的生活與支持需求，透過社群聚會、文化節慶、篩檢服務、教育倡議與資訊連結，打造更友善、更包容的在地公共空間。</p>
       <div class="hero-actions">
-        <a class="btn waves-effect waves-light" href="{{ '/services/' | relative_url }}">看服務項目</a>
-        <a class="btn-flat" href="{{ '/news/' | relative_url }}">最新消息</a>
-        <a class="btn-flat" href="{{ '/contact/' | relative_url }}">聯絡我們</a>
+        <a class="btn waves-effect waves-light" href="#start-here">我現在需要什麼？</a>
+        <a class="btn-flat" href="{{ '/services/' | relative_url }}">看全部服務</a>
       </div>
     </div>
     <div class="hero-side-panel">
@@ -29,6 +28,40 @@ description: GisneyLand 風城部屋是新竹在地 LGBTQ+ 社群服務與活動
         <strong>健康資源</strong>
         <span>篩檢、教育與照護</span>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="start-here" class="card action-section" aria-labelledby="start-here-title">
+  <div class="card-content">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">從這裡開始</p>
+        <h2 id="start-here-title">你現在想找哪一種支持？</h2>
+      </div>
+      <span class="section-note">不用一次了解全部，從最需要的地方開始。</span>
+    </div>
+    <div class="action-grid">
+      <a class="action-card" href="{{ '/screening/' | relative_url }}">
+        <span class="action-icon" aria-hidden="true"><i class="material-icons notranslate" translate="no">health_and_safety</i></span>
+        <span><strong>我想關心健康</strong><small>篩檢資訊、自我檢視與轉介資源</small></span>
+        <span class="action-arrow" aria-hidden="true">→</span>
+      </a>
+      <a class="action-card" href="{{ '/activity/' | relative_url }}">
+        <span class="action-icon" aria-hidden="true"><i class="material-icons notranslate" translate="no">groups</i></span>
+        <span><strong>我想認識社群</strong><small>活動、聚會與文化參與入口</small></span>
+        <span class="action-arrow" aria-hidden="true">→</span>
+      </a>
+      <a class="action-card" href="{{ '/services/' | relative_url }}">
+        <span class="action-icon" aria-hidden="true"><i class="material-icons notranslate" translate="no">volunteer_activism</i></span>
+        <span><strong>我需要支持資源</strong><small>陪伴、教育與在地服務方向</small></span>
+        <span class="action-arrow" aria-hidden="true">→</span>
+      </a>
+      <a class="action-card" href="{{ '/contact/' | relative_url }}">
+        <span class="action-icon" aria-hidden="true"><i class="material-icons notranslate" translate="no">help_outline</i></span>
+        <span><strong>我還不確定</strong><small>先看看官方聯絡與求助方式</small></span>
+        <span class="action-arrow" aria-hidden="true">→</span>
+      </a>
     </div>
   </div>
 </section>
@@ -60,6 +93,18 @@ description: GisneyLand 風城部屋是新竹在地 LGBTQ+ 社群服務與活動
   </div>
 </section>
 
+<section class="trust-band" aria-label="服務承諾">
+  <div>
+    <p class="eyebrow">我們怎麼陪伴</p>
+    <h2>友善不是一句口號，是每一次互動的方式。</h2>
+  </div>
+  <div class="trust-points">
+    <span><strong>尊重差異</strong>不預設、不貼標籤</span>
+    <span><strong>重視隱私</strong>清楚說明資料用途</span>
+    <span><strong>連結資源</strong>需要時一起找下一步</span>
+  </div>
+</section>
+
 <section class="card">
   <div class="card-content">
     <div class="section-heading">
@@ -67,26 +112,15 @@ description: GisneyLand 風城部屋是新竹在地 LGBTQ+ 社群服務與活動
       <a href="{{ '/news/' | relative_url }}">看全部紀錄</a>
     </div>
     <div class="news-grid">
+      {% for item in site.data.news limit:4 %}
       <article class="news-card">
-        <span class="news-tag">2025</span>
-        <h3>我們一起走過的故事</h3>
-        <p>回顧過去一年中社群、教育、篩檢與文化活動累積出的連結與影響。</p>
+        <span class="news-tag">{{ item.tag }}</span>
+        <p class="news-category">{{ item.category }}</p>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.summary }}</p>
+        <a href="{{ item.url | relative_url }}">了解更多<span aria-hidden="true"> →</span></a>
       </article>
-      <article class="news-card">
-        <span class="news-tag">2026</span>
-        <h3>藥愛自助互助團體</h3>
-        <p>深化同伴支持與相互照顧的力量，讓友善與資訊交流從社群扎根。</p>
-      </article>
-      <article class="news-card">
-        <span class="news-tag">外展</span>
-        <h3>桃園、新竹、苗栗篩檢服務</h3>
-        <p>持續擴展在地服務範圍，將健康照護與支持帶進社區。</p>
-      </article>
-      <article class="news-card">
-        <span class="news-tag">節慶</span>
-        <h3>彩虹文化祭與社群活動</h3>
-        <p>透過文化與參與，讓多元性別文化更可見、更有力量地持續存在。</p>
-      </article>
+      {% endfor %}
     </div>
   </div>
 </section>

@@ -6,9 +6,15 @@
             所有篩檢資料皆保密，敬請放心，謝謝。<br>
             <label class="text-right">財團法人紅絲帶基金會</label></span>
       <div class="input-field">
-        <input type="text" name="nickname" id="nickname">
+        <input type="text" name="nickname" id="nickname" maxlength="80" autocomplete="off">
         <label for="nickname" data-i18n="nickname">暱稱</label>
       </div>
+      <details>
+        <summary>個人資料與問卷資料使用說明</summary>
+        <p>
+          本問卷資料僅用於健康管理、篩檢服務與統計分析。資料會由授權的工作人員保管，並依組織的資料保存期限保存；如需查詢、更正或刪除資料，請向篩檢人員提出申請。
+        </p>
+      </details>
       <p>
         <label>
           <input type="checkbox" name="agreement" required />
@@ -18,6 +24,11 @@
           <input type="checkbox" name="agreement_undetectable" required />
           <span data-i18n="agreement_undetectable">我已知悉篩檢試劑空窗期間測不到抗原或抗體。</span>
         </label>
+        <label>
+          <input type="checkbox" name="privacy_consent" value="accepted" required />
+          <span>我已閱讀並同意上述資料使用說明。</span>
+        </label>
+        <input type="hidden" name="privacy_notice_version" value="2026-09-23">
       </p>
         <!-- <div class="input-field">
             <label for="frequency_screening">篩檢頻率</label> -->

@@ -1,0 +1,86 @@
+---
+layout: admin
+title: 問卷管理後台
+permalink: /admin/
+---
+
+<section class="admin-shell" aria-labelledby="admin-title">
+  <div class="admin-header">
+    <div>
+      <p class="eyebrow">GisneyLand 內部使用</p>
+      <h1 id="admin-title">問卷管理後台</h1>
+      <p class="admin-subtitle">僅供授權工作人員查看健康問卷資料。</p>
+    </div>
+    <button id="sign-out-button" class="admin-button secondary" type="button" hidden>
+      <span class="material-icons notranslate" translate="no" aria-hidden="true">logout</span>
+      登出
+    </button>
+  </div>
+
+  <section id="admin-login" class="admin-panel" aria-labelledby="login-title">
+    <h2 id="login-title">管理員登入</h2>
+    <p>請使用 Supabase Auth 中已建立且列入管理員白名單的帳號。</p>
+    <form id="login-form" class="admin-form">
+      <label for="admin-email">電子郵件</label>
+      <input id="admin-email" name="email" type="email" autocomplete="username" required>
+      <label for="admin-password">密碼</label>
+      <input id="admin-password" name="password" type="password" autocomplete="current-password" required>
+      <button class="admin-button" type="submit">
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">login</span>
+        登入後台
+      </button>
+    </form>
+    <p id="login-status" class="admin-status" role="status" hidden></p>
+  </section>
+
+  <section id="admin-dashboard" hidden>
+    <div class="admin-toolbar">
+      <div>
+        <h2>問卷資料</h2>
+        <p id="admin-user" class="admin-muted"></p>
+      </div>
+      <button id="refresh-button" class="admin-button secondary" type="button">
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
+        重新整理
+      </button>
+    </div>
+    <div class="admin-filters">
+      <label for="search-responses">搜尋篩檢員、地點或暱稱</label>
+      <input id="search-responses" type="search" placeholder="輸入關鍵字">
+      <label for="language-filter">語言</label>
+      <select id="language-filter">
+        <option value="all">全部</option>
+        <option value="zh-TW">繁體中文</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+    <p id="dashboard-status" class="admin-status" role="status" hidden></p>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <caption class="sr-only">健康問卷提交紀錄</caption>
+        <thead>
+          <tr>
+            <th scope="col">送出時間</th>
+            <th scope="col">暱稱</th>
+            <th scope="col">篩檢員</th>
+            <th scope="col">地點</th>
+            <th scope="col">語言</th>
+            <th scope="col"><span class="sr-only">操作</span></th>
+          </tr>
+        </thead>
+        <tbody id="responses-body"></tbody>
+      </table>
+    </div>
+    <p id="empty-state" class="admin-empty" hidden>目前沒有符合條件的資料。</p>
+  </section>
+</section>
+
+<dialog id="response-dialog" class="response-dialog" aria-labelledby="response-dialog-title">
+  <div class="dialog-header">
+    <h2 id="response-dialog-title">問卷詳細資料</h2>
+    <button id="close-dialog-button" class="icon-button" type="button" aria-label="關閉詳細資料">
+      <span class="material-icons notranslate" translate="no" aria-hidden="true">close</span>
+    </button>
+  </div>
+  <dl id="response-details" class="response-details"></dl>
+</dialog>

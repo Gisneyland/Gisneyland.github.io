@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <title>{{ page.title }} | {{ site.title }}</title>
   <meta name="description" content="{{ page.description | default: site.description | default: site.title }}">
+  <meta name="theme-color" content="#243b53">
+  <meta property="og:title" content="{{ page.title }} | {{ site.title }}">
+  <meta property="og:description" content="{{ page.description | default: site.description | default: site.title }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ page.url | absolute_url }}">
   <link rel="icon" type="image/x-icon" href="{{ '/assets/images/favicon.ico' | relative_url }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -30,12 +35,17 @@
     {% include navbar.html %}
   <!-- 浮動操作按鈕 (FAB) -->
     {% include fab.html %}
+  {% include footer.html %}
 
   <!-- CDN JS -->
   <!-- Materialize JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <!-- Google Translation -->
   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" defer></script>
+
+  <!-- Supabase browser client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+  <script src="{{ '/assets/js/supabase-config.js' | relative_url }}"></script>
 
   <!-- JavaScript i18n.js -->
   <script src="{{ '/assets/js/i18n.js' | relative_url }}"></script>

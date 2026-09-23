@@ -2,6 +2,11 @@
 const i18n = {
   "zh-TW": {
     home: "首頁",
+    homepage: "首頁",
+    about: "關於中心",
+    services: "服務",
+    news: "最新消息",
+    contact: "聯絡",
     pride: "彩虹文化祭",
     screening: "篩檢",
     activity: "活動",
@@ -48,6 +53,11 @@ const i18n = {
   },
   "en": {
     home: "Home",
+    homepage: "Home",
+    about: "About Us",
+    services: "Services",
+    news: "News",
+    contact: "Contact",
     pride: "Pride Festival",
     screening: "Screening",
     activity: "Activities",
@@ -98,7 +108,17 @@ function setLanguage(language) {
   const translations = i18n[language] || i18n['zh-TW'];
   document.querySelectorAll('[data-i18n]').forEach(element => {
     const key = element.dataset.i18n;
-    if (translations[key] && element.children.length === 0) {
+    if (!translations[key]) {
+      return;
+    }
+
+    const textNode = Array.from(element.childNodes).find(
+      node => node.nodeType === Node.TEXT_NODE && node.textContent.trim()
+    );
+
+    if (textNode) {
+      textNode.textContent = ` ${translations[key]} `;
+    } else if (element.children.length === 0) {
       element.textContent = translations[key];
     }
   });

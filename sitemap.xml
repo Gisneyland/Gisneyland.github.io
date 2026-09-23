@@ -1,0 +1,15 @@
+---
+layout: null
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>{{ site.url }}{{ site.baseurl }}/</loc></url>
+  <url><loc>{{ site.url }}{{ site.baseurl }}/about/</loc></url>
+  <url><loc>{{ site.url }}{{ site.baseurl }}/services/</loc></url>
+  <url><loc>{{ site.url }}{{ site.baseurl }}/activity/</loc></url>
+  <url><loc>{{ site.url }}{{ site.baseurl }}/news/</loc></url>
+  <url><loc>{{ site.url }}{{ site.baseurl }}/pride/</loc></url>
+  <url><loc>{{ site.url }}{{ site.baseurl }}/screening/</loc></url>
+  <url><loc>{{ site.url }}{{ site.baseurl }}/contact/</loc></url>
+  <url><loc>{{ site.url }}{{ site.baseurl }}/privacy/</loc></url>
+</urlset>
