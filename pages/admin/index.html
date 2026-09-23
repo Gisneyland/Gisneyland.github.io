@@ -39,10 +39,22 @@ permalink: /admin/
         <h2>問卷資料</h2>
         <p id="admin-user" class="admin-muted"></p>
       </div>
-      <button id="refresh-button" class="admin-button secondary" type="button">
-        <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
-        重新整理
-      </button>
+      <div class="admin-actions">
+        <button id="refresh-button" class="admin-button secondary" type="button">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
+          重新整理
+        </button>
+        <button id="export-button" class="admin-button secondary" type="button">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">download</span>
+          匯出目前結果
+        </button>
+      </div>
+    </div>
+    <div class="admin-stats" aria-label="問卷統計">
+      <div class="stat-card"><span>目前載入</span><strong id="total-count">0</strong><small>筆問卷</small></div>
+      <div class="stat-card"><span>繁體中文</span><strong id="zh-count">0</strong><small>筆</small></div>
+      <div class="stat-card"><span>English</span><strong id="en-count">0</strong><small>筆</small></div>
+      <div class="stat-card"><span>目前顯示</span><strong id="filtered-count">0</strong><small>筆</small></div>
     </div>
     <div class="admin-filters">
       <label for="search-responses">搜尋篩檢員、地點或暱稱</label>
@@ -72,6 +84,11 @@ permalink: /admin/
       </table>
     </div>
     <p id="empty-state" class="admin-empty" hidden>目前沒有符合條件的資料。</p>
+    <div class="admin-pagination" aria-label="問卷分頁">
+      <button id="previous-page" class="admin-button secondary" type="button">上一頁</button>
+      <span id="page-status">第 1 頁</span>
+      <button id="next-page" class="admin-button secondary" type="button">下一頁</button>
+    </div>
   </section>
 </section>
 
