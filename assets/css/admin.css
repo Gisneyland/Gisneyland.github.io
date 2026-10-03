@@ -112,9 +112,9 @@
   gap: 0.4rem;
   min-height: 2.7rem;
   padding: 0.55rem 0.9rem;
-  color: #fff;
-  background: var(--accent-strong);
-  border: 1px solid var(--accent-strong);
+  color: var(--button-text);
+  background: var(--button-bg);
+  border: 1px solid var(--button-bg);
   border-radius: 0.4rem;
   cursor: pointer;
   font-weight: 700;
@@ -132,9 +132,9 @@
 .table-action:focus-visible,
 .icon-button:hover,
 .icon-button:focus-visible {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--button-hover);
+  border-color: var(--button-hover);
+  color: var(--button-text);
 }
 
 .admin-button:disabled {
@@ -187,6 +187,11 @@
 .admin-table-wrap {
   overflow-x: auto;
   padding: 0;
+}
+
+.admin-table-wrap:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
 }
 
 .admin-table {

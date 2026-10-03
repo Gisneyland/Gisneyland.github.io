@@ -12,6 +12,7 @@ const i18n = {
     activity: "活動",
 
     title: "自我健康管理問卷",
+    questionnaire_sections: "問卷區段導覽",
     basic_info: "基本資料",
     nickname: "暱稱",
     agreement: "我同意提供此問卷資料作為健康管理用途",
@@ -63,6 +64,7 @@ const i18n = {
     activity: "Activities",
 
     title: "Self Health Management Questionnaire",
+    questionnaire_sections: "Questionnaire sections",
     basic_info: "Basic Information",
     nickname: "Nickname",
     agreement: "I agree to provide this questionnaire data for health management purposes",
@@ -105,12 +107,19 @@ const i18n = {
 };
 
 function setLanguage(language) {
-  const translations = i18n[language] || i18n['zh-TW'];
+  const selectedLanguage = language === 'en' ? 'en' : 'zh-TW';
+  const translations = i18n[selectedLanguage];
   document.querySelectorAll('[data-i18n]').forEach(element => {
     const key = element.dataset.i18n;
     if (!translations[key]) {
+      element.lang = 'zh-TW';
       return;
     }
+
+    element.lang = selectedLanguage;
+    element.querySelectorAll(':not([data-i18n])').forEach(descendant => {
+      descendant.lang = 'zh-TW';
+    });
 
     const textNode = Array.from(element.childNodes).find(
       node => node.nodeType === Node.TEXT_NODE && node.textContent.trim()
@@ -122,5 +131,6 @@ function setLanguage(language) {
       element.textContent = translations[key];
     }
   });
-  document.documentElement.lang = language;
+  document.documentElement.lang = 'zh-TW';
+  document.documentElement.dataset.contentLanguage = selectedLanguage;
 }

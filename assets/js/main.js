@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
       try {
         const payload = {
           response_data: collectFormData(questionnaireForm),
-          language: document.documentElement.lang || 'zh-TW',
+          language: document.documentElement.dataset.contentLanguage || 'zh-TW',
           schema_version: 1
         };
         let error;
@@ -118,6 +118,8 @@ function showFormStatus(status, message, isError = false) {
   }
 
   status.textContent = message;
+  status.setAttribute('role', isError ? 'alert' : 'status');
+  status.setAttribute('aria-live', isError ? 'assertive' : 'polite');
   status.classList.toggle('red-text', isError);
   status.classList.toggle('green-text', !isError);
   status.hidden = false;

@@ -1,65 +1,65 @@
 <div class="card space-y-12">
   <div class="card-content">
-    <h2 class="card-title" data-i18n="risk_title">風險評估</h2>
+    <h2 id="questionnaire-risk" class="card-title" data-i18n="risk_title" tabindex="-1">風險評估</h2>
   </div>
     <div class="card-content">
         <h3 class="card-title" data-i18n="risk_relationship_title">性偏好</h3>
-        <p>
-          <span class="text-lg" data-i18n="frequency_sex">一年內有與人發生陰道交、肛交或口交的性行為。</span>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_sex">一年內有與人發生陰道交、肛交或口交的性行為。</legend>
           <label><input type="radio" name="frequency_sex" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_sex" value="no" /><span data-i18n="false">否</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_condom">一年內每次陰道交、肛交或口交都<span class="text-underline">全程正確使用保險套</span>。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_condom">一年內每次陰道交、肛交或口交都<span class="text-underline">全程正確使用保險套</span>。</legend>
           <label><input type="radio" name="frequency_condom" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_condom" value="no" /><span data-i18n="false">否</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_closed_relationship">一年內每次性行為都<span class="text-underline">只跟固定性伴侶</span>發生。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_closed_relationship">一年內每次性行為都<span class="text-underline">只跟固定性伴侶</span>發生。</legend>
           <label><input type="radio" name="frequency_closed_relationship" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_closed_relationship" value="no" /><span data-i18n="false">否</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_closed_relationship">固定性伴侶<span class="text-underline">是愛滋感染者</span>。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_closed_relationship">固定性伴侶<span class="text-underline">是愛滋感染者</span>。</legend>
           <label><input type="radio" name="closed_relationship_aids" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="closed_relationship_aids" value="no" /><span data-i18n="false">否</span></label>
           <label><input type="radio" name="closed_relationship_aids" value="unknown" /><span data-i18n="unknown">不知道</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_online_dating">最近一年內有<span class="text-underline">透過網路認識其他性伴侶並發生性行為</span>。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_online_dating">最近一年內有<span class="text-underline">透過網路認識其他性伴侶並發生性行為</span>。</legend>
           <label><input type="radio" name="frequency_online_dating" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_online_dating" value="no" /><span data-i18n="false">否</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_public_dating">最近一年內有<span class="text-underline">透過三溫暖、酒吧、健身房等娛樂場所認識其他性伴侶並發生性行為</span>。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_public_dating">最近一年內有<span class="text-underline">透過三溫暖、酒吧、健身房等娛樂場所認識其他性伴侶並發生性行為</span>。</legend>
           <label><input type="radio" name="frequency_public_dating" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_public_dating" value="no" /><span data-i18n="false">否</span></label>
-        </p>      
-        <p>
-          <span class="text-lg" data-i18n="frequency_sex_work">最近一年內有<span class="text-underline">從事性工作、提供性交易服務</span>。</span>
+        </fieldset>      
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_sex_work">最近一年內有<span class="text-underline">從事性工作、提供性交易服務</span>。</legend>
           <label><input type="radio" name="frequency_sex_service" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_sex_service" value="no" /><span data-i18n="false">否</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_sex_consumption">最近一年內有<span class="text-underline">進行性消費、買春</span>。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_sex_consumption">最近一年內有<span class="text-underline">進行性消費、買春</span>。</legend>
           <label><input type="radio" name="frequency_sex_consumption" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_sex_consumption" value="no" /><span data-i18n="false">否</span></label>
-        </p>        
+        </fieldset>        
       </div>
     <div class="card-content">
         <h3 class="card-title" data-i18n="risk_substance_title">物質使用</h3>
-        <p>
-          <span class="text-lg" data-i18n="frequency_alcohol">一年內曾經在性行為前、後或過程中<span class="text-underline">飲酒</span>。</span>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_alcohol">一年內曾經在性行為前、後或過程中<span class="text-underline">飲酒</span>。</legend>
           <label><input type="radio" name="frequency_alcohol" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_alcohol" value="no" /><span data-i18n="false">否</span></label>
-        </p>      
-        <p>
-          <span class="text-lg" data-i18n="frequency_drug">一年內曾經在性行為前、後或過程中<span class="text-underline">使用娛樂性藥物</span>。</span>
+        </fieldset>      
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_drug">一年內曾經在性行為前、後或過程中<span class="text-underline">使用娛樂性藥物</span>。</legend>
           <label><input type="radio" name="frequency_drug" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_drug" value="no" /><span data-i18n="false">否</span></label>
-        </p>      
-        <p>
-          <span class="text-lg" data-i18n="usage_drug">一年內曾經<span class="text-underline">使用成癮藥物</span>。</span>
+        </fieldset>      
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="usage_drug">一年內曾經<span class="text-underline">使用成癮藥物</span>。</legend>
           <label><input type="radio" name="usage_drug" value="yes" /><span data-i18n="true">是</span></label>
             <label><input type="checkbox" name="drug_amphetamine" /><span data-i18n="drug_amphetamine">安非他命、甲基安非他命（冰、煙）</span></label>
               <label><input type="checkbox" name="drug_amphetamine_inhalant" /><span data-i18n="drug_amphetamine_inhalant">吸入劑</span></label>
@@ -77,17 +77,17 @@
                 <label for="drug_others" data-i18n="drug_others">其他</label>
               </div>
           <label><input type="radio" name="usage_drug" value="no" /><span data-i18n="false">否</span></label>
-        </p>      
-        <p>
-          <span class="text-lg" data-i18n="frequency_drug_now">現在還有持續<span class="text-underline">使用成癮藥物</span>。</span>
+        </fieldset>      
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_drug_now">現在還有持續<span class="text-underline">使用成癮藥物</span>。</legend>
           <label><input type="radio" name="frequency_drug_now" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_drug_now" value="no" /><span data-i18n="false">否</span></label>
-        </p>
+        </fieldset>
       </div>
       <div class="card-content">
       <h3 class="card-title" data-i18n="risk_condition_title">風險控管</h3>
-        <p>
-          <span class="text-lg" data-i18n="frequency_std">一年內曾經<span class="text-underline">感染性病</span>。</span>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_std">一年內曾經<span class="text-underline">感染性病</span>。</legend>
           <label><input type="radio" name="frequency_std" value="yes" /><span data-i18n="true">是</span></label>
             <label><input type="checkbox" name="std_aids" /><span data-i18n="std_aids">愛滋</span></label>
               <div class="input-field">
@@ -106,26 +106,26 @@
                   <label for="std_others" data-i18n="std_others">其他</label>
               </div>  
           <label><input type="radio" name="frequency_std" value="no" /><span data-i18n="false">否</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_pep">最近一年內有<span class="text-underline">使用暴露愛滋病毒後預防性投藥（PEP）</span>。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_pep">最近一年內有<span class="text-underline">使用暴露愛滋病毒後預防性投藥（PEP）</span>。</legend>
           <label><input type="radio" name="frequency_pep" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_pep" value="no" /><span data-i18n="false">否</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_pep_willingness">發生高風險性行為72小時內<span class="text-underline">有意願</span>自費使用暴露愛滋病毒後預防性投藥（PEP），降低八成以上的愛滋感染風險。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_pep_willingness">發生高風險性行為72小時內<span class="text-underline">有意願</span>自費使用暴露愛滋病毒後預防性投藥（PEP），降低八成以上的愛滋感染風險。</legend>
           <label><input type="radio" name="frequency_pep_willingness" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_pep_willingness" value="no" /><span data-i18n="false">否</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_prep">有<span class="text-underline">聽過暴露愛滋病毒前預防性投藥（PrEP）</span>。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_prep">有<span class="text-underline">聽過暴露愛滋病毒前預防性投藥（PrEP）</span>。</legend>
           <label><input type="radio" name="frequency_prep" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_prep" value="no" /><span data-i18n="false">否</span></label>
-        </p>
-        <p>
-          <span class="text-lg" data-i18n="frequency_prep_willingness"><span class="text-underline">有意願</span>使用暴露愛滋病毒前預防性投藥（PrEP）合併安全性行為，預防九成以上的愛滋感染風險。</span>
+        </fieldset>
+        <fieldset class="question-group">
+          <legend class="text-lg" data-i18n="frequency_prep_willingness"><span class="text-underline">有意願</span>使用暴露愛滋病毒前預防性投藥（PrEP）合併安全性行為，預防九成以上的愛滋感染風險。</legend>
           <label><input type="radio" name="frequency_prep_willingness" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_prep_willingness" value="no" /><span data-i18n="false">否</span></label>
-        </p>
+        </fieldset>
       </div>
 </div>
