@@ -48,7 +48,7 @@
               </div>
             </div>
             <div id="screening-place-map" class="screening-place-map" hidden>
-              <div id="screening-place-map-canvas" role="application" aria-label="互動式篩檢地點地圖"></div>
+              <div id="screening-place-map-canvas" class="screening-place-map-canvas" role="application" aria-label="互動式篩檢地點地圖"></div>
             </div>
           </div>
 
@@ -73,6 +73,46 @@
               </fieldset>
             </div>
             <p id="screening-interpretation-message" class="screening-interpretation-message" role="alert" aria-live="polite" hidden></p>
+            <fieldset id="hiv-positive-referral" class="hiv-positive-referral" hidden disabled>
+              <legend data-i18n="hiv_positive_referral">HIV 陽性轉介（選填）</legend>
+              <div class="hiv-positive-referral-fields">
+                <div class="screening-field">
+                  <label for="hiv_positive_contact_phone" data-i18n="referral_contact_phone">聯絡電話</label>
+                  <input type="tel" name="hiv_positive_contact_phone" id="hiv_positive_contact_phone" maxlength="40" autocomplete="tel">
+                </div>
+                <div class="screening-field">
+                  <label for="hiv_positive_appointment" data-i18n="referral_appointment">預約門診</label>
+                  <input type="text" name="hiv_positive_appointment" id="hiv_positive_appointment" maxlength="120">
+                </div>
+                <div class="screening-field hiv-positive-referral-field-wide screening-place-field">
+                  <label for="hiv_positive_address" data-i18n="referral_address">就診地址</label>
+                  <div class="screening-place-input">
+                    <input type="search" name="hiv_positive_address" id="hiv_positive_address" maxlength="240" autocomplete="street-address" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="hiv-positive-address-suggestions">
+                    <button type="button" id="hiv-positive-address-locate-button" class="btn-flat" aria-label="定位目前位置">
+                      <i class="material-icons" aria-hidden="true">my_location</i>
+                      <span>定位目前位置</span>
+                    </button>
+                  </div>
+                  <div id="hiv-positive-address-suggestions" class="screening-place-suggestions" role="listbox" aria-label="地址建議" hidden></div>
+                  <p id="hiv-positive-address-status" class="screening-place-status" role="status" aria-live="polite" hidden></p>
+                  <div class="screening-place-map-info">
+                    <button type="button" id="hiv-positive-address-info-button" class="screening-place-info-button" aria-label="地圖與地址資料來源" aria-expanded="false" aria-controls="hiv-positive-address-info-popover">
+                      <i class="material-icons" aria-hidden="true">info_outline</i>
+                    </button>
+                    <div id="hiv-positive-address-info-popover" class="screening-place-info-popover" role="tooltip" hidden>
+                      地圖資料 © OpenStreetMap contributors。地址建議由 Photon 與 Nominatim 查詢；輸入地址文字會送至這些服務搜尋，不會隨問卷答案送出。
+                    </div>
+                  </div>
+                  <div id="hiv-positive-address-map" class="screening-place-map" hidden>
+                    <div id="hiv-positive-address-map-canvas" class="screening-place-map-canvas" role="application" aria-label="就診地址地圖"></div>
+                  </div>
+                </div>
+                <div class="screening-field hiv-positive-referral-field-wide">
+                  <label for="hiv_positive_notes" data-i18n="referral_notes">備註</label>
+                  <textarea name="hiv_positive_notes" id="hiv_positive_notes" rows="3" maxlength="1000"></textarea>
+                </div>
+              </div>
+            </fieldset>
           </div>
             
         </div>

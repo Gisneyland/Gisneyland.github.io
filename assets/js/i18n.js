@@ -49,6 +49,11 @@ const i18n = {
     screening_place: "篩檢地點",
     screening_hiv: "HIV 篩檢",
     screening_syphilis: "梅毒篩檢",
+    hiv_positive_referral: "HIV 陽性轉介（選填）",
+    referral_contact_phone: "聯絡電話",
+    referral_appointment: "預約門診",
+    referral_address: "就診地址",
+    referral_notes: "備註",
 
     submit: "送出問卷"
   },
@@ -101,6 +106,11 @@ const i18n = {
     screening_place: "Screening Place",
     screening_hiv: "HIV Screening",
     screening_syphilis: "Syphilis Screening",
+    hiv_positive_referral: "HIV-positive referral (optional)",
+    referral_contact_phone: "Contact phone",
+    referral_appointment: "Clinic appointment",
+    referral_address: "Clinic address",
+    referral_notes: "Notes",
 
     submit: "Submit Questionnaire"
   }

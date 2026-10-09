@@ -145,8 +145,9 @@ function initializeQuestionnaireFields() {
 
   initializeNationalityPicker();
   initializeScreeningDate();
-  initializeScreeningInterpretation();
   initializeScreeningPlace();
+  const resetReferralAddressPicker = initializeScreeningPlace('hiv_positive_address', 'hiv-positive-address', 'hiv-positive-address-locate-button');
+  initializeScreeningInterpretation(resetReferralAddressPicker);
 }
 
 function initializeScreeningDate() {
@@ -156,18 +157,36 @@ function initializeScreeningDate() {
   input.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
-function initializeScreeningInterpretation() {
+function initializeScreeningInterpretation(resetReferralAddressPicker) {
   const inputs = Array.from(document.querySelectorAll('input[name="screening_interpretation[]"]'));
   const message = document.getElementById('screening-interpretation-message');
   const hivInputs = inputs.filter(input => input.value.startsWith('hiv_'));
+  const hivPositiveInput = inputs.find(input => input.value === 'hiv_positive');
   const windowPeriodField = document.getElementById('hiv-window-period-field');
   const windowPeriodSelect = document.querySelector('select[name="hiv_window_period"]');
+  const referralField = document.getElementById('hiv-positive-referral');
+  const referralInputs = referralField
+    ? Array.from(referralField.querySelectorAll('input, textarea, select'))
+    : [];
   const updateHivWindowPeriod = () => {
     const showWindowPeriod = hivInputs.some(input => input.checked);
     if (windowPeriodField) windowPeriodField.hidden = !showWindowPeriod;
     if (windowPeriodSelect) {
       windowPeriodSelect.required = showWindowPeriod;
       if (!showWindowPeriod) windowPeriodSelect.value = '3_months';
+    }
+  };
+  const updatePositiveReferral = () => {
+    const showReferral = hivPositiveInput?.checked === true;
+    if (referralField) {
+      referralField.hidden = !showReferral;
+      referralField.disabled = !showReferral;
+    }
+    if (!showReferral) {
+      referralInputs.forEach(input => {
+        input.value = '';
+      });
+      resetReferralAddressPicker?.();
     }
   };
 
@@ -184,6 +203,7 @@ function initializeScreeningInterpretation() {
       }
       updateSelection();
       updateHivWindowPeriod();
+      updatePositiveReferral();
       if (inputs.some(option => option.checked) && message) {
         message.hidden = true;
         message.textContent = '';
@@ -192,6 +212,16 @@ function initializeScreeningInterpretation() {
     updateSelection();
   });
   updateHivWindowPeriod();
+  updatePositiveReferral();
+
+  const form = document.getElementById('questionnaire-form');
+  form?.addEventListener('reset', () => {
+    window.setTimeout(() => {
+      inputs.forEach(input => input.closest('label')?.classList.toggle('is-selected', input.checked));
+      updateHivWindowPeriod();
+      updatePositiveReferral();
+    }, 0);
+  });
 }
 
 function validateScreeningInterpretation(form) {
@@ -206,15 +236,15 @@ function validateScreeningInterpretation(form) {
   return hasSelection;
 }
 
-function initializeScreeningPlace() {
-  const input = document.getElementById('screening_place');
-  const locateButton = document.getElementById('screening-locate-button');
-  const suggestions = document.getElementById('screening-place-suggestions');
-  const status = document.getElementById('screening-place-status');
-  const map = document.getElementById('screening-place-map');
-  const mapCanvas = document.getElementById('screening-place-map-canvas');
-  const infoButton = document.getElementById('screening-place-info-button');
-  const infoPopover = document.getElementById('screening-place-info-popover');
+function initializeScreeningPlace(inputId = 'screening_place', idPrefix = 'screening-place', locateButtonId = 'screening-locate-button') {
+  const input = document.getElementById(inputId);
+  const locateButton = document.getElementById(locateButtonId);
+  const suggestions = document.getElementById(`${idPrefix}-suggestions`);
+  const status = document.getElementById(`${idPrefix}-status`);
+  const map = document.getElementById(`${idPrefix}-map`);
+  const mapCanvas = document.getElementById(`${idPrefix}-map-canvas`);
+  const infoButton = document.getElementById(`${idPrefix}-info-button`);
+  const infoPopover = document.getElementById(`${idPrefix}-info-popover`);
   if (!input || !locateButton || !suggestions || !status || !map || !mapCanvas || !infoButton || !infoPopover) return;
   let localPlaces = [];
   try {
@@ -540,6 +570,20 @@ function initializeScreeningPlace() {
     if (!input.contains(event.target) && !suggestions.contains(event.target)) closeSuggestions();
     if (!infoContainer.contains(event.target)) setInfoOpen(false);
   });
+
+  return () => {
+    clearTimeout(debounceTimer);
+    clearTimeout(nominatimTimer);
+    photonRequest?.abort();
+    nominatimRequest?.abort();
+    searchRevision += 1;
+    currentPosition = null;
+    lastLocatedLabel = '';
+    closeSuggestions();
+    clearLocationError();
+    map.hidden = true;
+    setInfoOpen(false);
+  };
 }
 
 function initializeLocationPickers(locations) {
