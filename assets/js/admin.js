@@ -2,6 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginPanel = document.getElementById('admin-login');
   const dashboard = document.getElementById('admin-dashboard');
   const loginForm = document.getElementById('login-form');
+  const signupForm = document.getElementById('signup-form');
+  const passwordResetForm = document.getElementById('password-reset-form');
+  const passwordUpdateForm = document.getElementById('password-update-form');
   const loginStatus = document.getElementById('login-status');
   const dashboardStatus = document.getElementById('dashboard-status');
   const signOutButton = document.getElementById('sign-out-button');
@@ -17,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const dialog = document.getElementById('response-dialog');
   const closeDialogButton = document.getElementById('close-dialog-button');
   const responseDetails = document.getElementById('response-details');
+  const authForms = [loginForm, signupForm, passwordResetForm, passwordUpdateForm];
+  const backFromPasswordUpdateButton = document.getElementById('back-from-password-update');
   let responses = [];
   let currentPage = 1;
   const pageSize = 25;
@@ -47,6 +52,99 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadSession();
   });
 
+  document.getElementById('show-signup').addEventListener('click', () => showAuthForm(signupForm));
+  document.getElementById('show-password-reset').addEventListener('click', () => {
+    document.getElementById('reset-email').value = document.getElementById('admin-email').value;
+    showAuthForm(passwordResetForm);
+  });
+  document.querySelectorAll('[data-back-to-login]').forEach(button => {
+    button.addEventListener('click', () => showAuthForm(loginForm));
+  });
+  backFromPasswordUpdateButton.addEventListener('click', async () => {
+    await window.questionnaireSupabase.auth.signOut();
+    showAuthForm(loginForm);
+  });
+
+  signupForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const formData = new FormData(signupForm);
+    const password = formData.get('password');
+    if (password !== formData.get('password-confirm')) {
+      showStatus(loginStatus, '兩次輸入的密碼不一致。', true);
+      return;
+    }
+
+    const submitButton = signupForm.querySelector('button[type="submit"]');
+    setButtonBusy(submitButton, true, '送出中');
+    const { data, error } = await window.questionnaireSupabase.auth.signUp({
+      email: formData.get('email'),
+      password,
+      options: { emailRedirectTo: getAdminRedirectUrl() }
+    });
+    setButtonBusy(submitButton, false, '送出帳號申請');
+    if (error) {
+      showStatus(loginStatus, '申請失敗，請確認電子郵件與密碼設定。', true);
+      return;
+    }
+
+    signupForm.reset();
+    if (data.session) {
+      await showAuthorizedSession(data.session);
+      if (dashboard.hidden) {
+        showStatus(loginStatus, '申請已送出。管理員核准前，帳號無法查看問卷資料。', false);
+      }
+    } else {
+      showAuthForm(loginForm);
+      showStatus(loginStatus, '申請已送出。請依電子郵件完成驗證，並等待管理員核准。');
+    }
+  });
+
+  passwordResetForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const submitButton = passwordResetForm.querySelector('button[type="submit"]');
+    setButtonBusy(submitButton, true, '寄送中');
+    const { error } = await window.questionnaireSupabase.auth.resetPasswordForEmail(
+      new FormData(passwordResetForm).get('email'),
+      { redirectTo: getAdminRedirectUrl() }
+    );
+    setButtonBusy(submitButton, false, '寄送重設連結');
+    if (error) {
+      showStatus(loginStatus, '目前無法寄送重設連結，請稍後再試或聯絡管理員。', true);
+      return;
+    }
+
+    showStatus(loginStatus, '若此電子郵件已註冊，您將收到密碼重設連結。請檢查收件匣與垃圾郵件。');
+  });
+
+  passwordUpdateForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const formData = new FormData(passwordUpdateForm);
+    const password = formData.get('password');
+    if (password !== formData.get('password-confirm')) {
+      showStatus(loginStatus, '兩次輸入的密碼不一致。', true);
+      return;
+    }
+
+    const submitButton = passwordUpdateForm.querySelector('button[type="submit"]');
+    setButtonBusy(submitButton, true, '更新中');
+    const { error } = await window.questionnaireSupabase.auth.updateUser({ password });
+    setButtonBusy(submitButton, false, '更新密碼');
+    if (error) {
+      showStatus(loginStatus, '密碼更新失敗，請重新開啟重設連結後再試。', true);
+      return;
+    }
+
+    passwordUpdateForm.reset();
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.hash = '';
+    cleanUrl.searchParams.delete('type');
+    window.history.replaceState(null, '', cleanUrl);
+    await loadSession();
+    if (!dashboard.hidden) {
+      showStatus(dashboardStatus, '密碼已更新。');
+    }
+  });
+
   signOutButton.addEventListener('click', async () => {
     await window.questionnaireSupabase.auth.signOut();
     showLogin();
@@ -65,22 +163,69 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  window.questionnaireSupabase.auth.onAuthStateChange((_event, session) => {
-    if (session) {
-      showDashboard(session);
+  window.questionnaireSupabase.auth.onAuthStateChange(event => {
+    if (event === 'PASSWORD_RECOVERY') {
+      showAuthForm(passwordUpdateForm);
+      backFromPasswordUpdateButton.hidden = false;
     }
   });
 
   loadSession();
 
   async function loadSession() {
+    if (isPasswordRecovery()) {
+      showAuthForm(passwordUpdateForm);
+      backFromPasswordUpdateButton.hidden = false;
+      return;
+    }
     const { data } = await window.questionnaireSupabase.auth.getSession();
     if (data.session) {
-      showDashboard(data.session);
-      await loadResponses();
+      const isAdmin = await showAuthorizedSession(data.session);
+      if (isAdmin) {
+        await loadResponses();
+      }
     } else {
       showLogin();
     }
+  }
+
+  async function showAuthorizedSession(session) {
+    const { data, error } = await window.questionnaireSupabase
+      .from('admin_profiles')
+      .select('user_id')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    if (!error && data) {
+      showDashboard(session);
+      return true;
+    }
+
+    await window.questionnaireSupabase.auth.signOut();
+    showLogin();
+    showStatus(loginStatus, error
+      ? '無法確認管理權限，請稍後再試或聯絡系統管理員。'
+      : '帳號尚未獲管理員核准，核准前無法查看問卷資料。', true);
+    return false;
+  }
+
+  function showAuthForm(activeForm) {
+    authForms.forEach(form => { form.hidden = form !== activeForm; });
+    document.getElementById('show-signup').hidden = activeForm !== loginForm;
+    document.getElementById('show-password-reset').hidden = activeForm !== loginForm;
+    backFromPasswordUpdateButton.hidden = activeForm !== passwordUpdateForm;
+    loginStatus.hidden = true;
+    loginStatus.textContent = '';
+  }
+
+  function getAdminRedirectUrl() {
+    return `${window.location.origin}${window.location.pathname}`;
+  }
+
+  function isPasswordRecovery() {
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const searchParams = new URLSearchParams(window.location.search);
+    return hashParams.get('type') === 'recovery' || searchParams.get('type') === 'recovery';
   }
 
   function showDashboard(session) {
@@ -95,6 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     dashboard.hidden = true;
     signOutButton.hidden = true;
     loginForm.reset();
+    showAuthForm(loginForm);
   }
 
   async function loadResponses() {

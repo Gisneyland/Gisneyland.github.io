@@ -10,17 +10,17 @@
         <label for="nickname" data-i18n="nickname">暱稱</label>
         <button type="button" class="btn-flat question-next" data-question-next>下一題</button>
       </div>
-      <details open>
-        <summary>個人資料與問卷資料使用說明</summary>
-        <div class="privacy-copy" tabindex="0" aria-label="個人資料與問卷資料使用說明全文">
-          <p>
-          本問卷資料僅用於健康管理、篩檢服務與統計分析。資料會由授權的工作人員保管，並依組織的資料保存期限保存；如需查詢、更正或刪除資料，請向篩檢人員提出申請。
-          </p>
-          <span class="privacy-read-sentinel" aria-hidden="true"></span>
-        </div>
-      </details>
       <fieldset class="consent-options question-step" disabled>
         <legend class="sr-only">同意與確認事項</legend>
+        <details open>
+          <summary>個人資料與問卷資料使用說明</summary>
+          <div class="privacy-copy" tabindex="0" aria-label="個人資料與問卷資料使用說明全文">
+            <p>
+              本問卷資料僅用於健康管理、篩檢服務與統計分析。資料會由授權的工作人員保管，並依組織的資料保存期限保存；如需查詢、更正或刪除資料，請向篩檢人員提出申請。
+            </p>
+            <span class="privacy-read-sentinel" aria-hidden="true"></span>
+          </div>
+        </details>
         <label>
           <input type="checkbox" name="agreement" required />
           <span>我同意並配合快速篩檢諮詢及陽性轉介服務，並已知悉篩檢試劑空窗期間可能測不到抗原或抗體。</span>
@@ -38,17 +38,19 @@
         <!-- <div class="input-field">
             <label for="frequency_screening">篩檢頻率</label> -->
             <div class="question-step frequency-question">
-              <label for="frequency_screening">篩檢頻率</label>
+              <div class="frequency-heading">
+                <label for="frequency_screening">篩檢頻率</label>
+                <output class="frequency-screening-value" for="frequency_screening" aria-live="polite">偶爾篩檢</output>
+              </div>
               <input type="range" id="frequency_screening" name="frequency_screening" min="-1" max="1" step="1" value="0" aria-valuetext="偶爾篩檢">
               <div class="frequency-labels text-sm mt-2">
-                <span data-i18n="frequency_screening_never">從未篩檢</span>
-                <span data-i18n="frequency_screening_oftenly">偶爾篩檢</span>
-                <span data-i18n="frequency_screening_regularly">定期篩檢</span>
+                <span data-frequency-value="-1" data-i18n="frequency_screening_never">從未篩檢</span>
+                <span data-frequency-value="0" data-i18n="frequency_screening_oftenly">偶爾篩檢</span>
+                <span data-frequency-value="1" data-i18n="frequency_screening_regularly">定期篩檢</span>
               </div>
-              <output class="frequency-screening-value" for="frequency_screening" aria-live="polite">偶爾篩檢</output>
               <button type="button" class="btn-flat question-next" data-question-next>下一題</button>
          </div>
-      <div class="input-field question-step">
+      <div class="input-field question-step" data-show-if="frequency_screening:0,1">
         <p>
         <input type="month" name="last_screening_at" id="last_screening_at">
         <label for="last_screening_at" data-i18n="last_screening">最近一次篩檢日期</label>

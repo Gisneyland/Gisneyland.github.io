@@ -6,7 +6,7 @@
 
   <div class="profile-fields">
     <div class="question-step profile-question">
-      <div class="input-field">
+      <div class="input-field native-select-field">
         <select id="gender_select" name="gender" required>
           <option value="" disabled selected>請選擇</option>
           <option value="cisman" data-i18n="cisman">順性別男性</option>
@@ -24,7 +24,7 @@
     </div>
 
     <div class="question-step profile-question">
-      <div class="input-field">
+      <div class="input-field native-select-field">
         <select id="orientation_select" name="orientation" required>
           <option value="" disabled selected>請選擇</option>
           <option value="heterosexual" data-i18n="heterosexual">異性戀</option>
@@ -59,7 +59,7 @@
 
     <div class="question-step profile-question">
       <label for="hometown">成年前居住地</label>
-      <input type="search" id="hometown" name="hometown" list="taiwan-admin-options" autocomplete="off" required placeholder="搜尋縣市">
+      <input type="search" id="hometown" name="hometown" autocomplete="off" required placeholder="搜尋縣市" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="hometown-options">
       <div id="hometown-others-field" class="conditional-field" hidden>
         <label for="hometown_others">請填寫其他居住地</label>
         <input type="text" id="hometown_others" name="hometown_others" autocomplete="off">
@@ -68,7 +68,7 @@
 
     <div class="question-step profile-question">
       <label for="residence">目前居住地</label>
-      <input type="search" id="residence" name="residence" list="taiwan-admin-options" autocomplete="off" required placeholder="搜尋縣市">
+      <input type="search" id="residence" name="residence" autocomplete="off" required placeholder="搜尋縣市" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="residence-options">
       <div id="residence-others-field" class="conditional-field" hidden>
         <label for="residence_others">請填寫其他居住地</label>
         <input type="text" id="residence_others" name="residence_others" autocomplete="off">
@@ -76,7 +76,7 @@
     </div>
 
     <div class="question-step profile-question">
-      <div class="input-field">
+      <div class="input-field native-select-field">
         <select id="education" name="education" required>
           <option value="" disabled selected>請選擇</option>
           <option value="illiterate" data-i18n="illiterate">不識字</option>
@@ -92,9 +92,15 @@
     </div>
   </div>
 
-  <datalist id="taiwan-admin-options"></datalist>
   <div class="profile-review question-step">
-    <button type="button" id="profile-review-button" class="btn">確認基本資料</button>
+    <button type="button" id="profile-review-button" class="btn">檢視填答內容</button>
   </div>
-  <p id="profile-review-message" class="profile-review-message" hidden>以上是您這次的填答，請維持在這個頁面，稍後將問卷交給篩檢員完成後續確認。</p>
+  <div id="profile-review-message" class="profile-confirmation question-step" hidden>
+    <p>以下是您本次的填答內容，請確認是否正確。若發現錯誤，請返回修改；確認無誤後，再交給篩檢員完成後續確認。</p>
+    <div id="profile-review-answers" class="profile-review-answers answer-summary"></div>
+    <div class="profile-confirmation-actions">
+      <button type="button" id="profile-confirm-edit" class="btn-flat" data-toggle-answer-edit aria-pressed="false">返回修改</button>
+      <button type="button" id="handoff-screening-button" class="btn">確認並交給篩檢員</button>
+    </div>
+  </div>
 </section>

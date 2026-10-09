@@ -19,7 +19,7 @@ permalink: /admin/
 
   <section id="admin-login" class="admin-panel" aria-labelledby="login-title">
     <h2 id="login-title">管理員登入</h2>
-    <p>請使用 Supabase Auth 中已建立且列入管理員白名單的帳號。</p>
+    <p>已核准的工作人員可登入；新帳號申請需由管理員審核後才能查看資料。</p>
     <form id="login-form" class="admin-form">
       <label for="admin-email">電子郵件</label>
       <input id="admin-email" name="email" type="email" autocomplete="username" required>
@@ -30,6 +30,37 @@ permalink: /admin/
         登入後台
       </button>
     </form>
+    <div class="admin-auth-links">
+      <button id="show-signup" class="admin-button secondary" type="button">申請帳號</button>
+      <button id="show-password-reset" class="admin-button secondary" type="button">忘記密碼</button>
+    </div>
+    <form id="signup-form" class="admin-form" hidden>
+      <h3>申請管理員帳號</h3>
+      <label for="signup-email">電子郵件</label>
+      <input id="signup-email" name="email" type="email" autocomplete="email" required>
+      <label for="signup-password">設定密碼</label>
+      <input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+      <label for="signup-password-confirm">確認密碼</label>
+      <input id="signup-password-confirm" name="password-confirm" type="password" autocomplete="new-password" minlength="8" required>
+      <button class="admin-button" type="submit">送出帳號申請</button>
+      <button class="admin-button secondary" type="button" data-back-to-login>返回登入</button>
+    </form>
+    <form id="password-reset-form" class="admin-form" hidden>
+      <h3>重設密碼</h3>
+      <label for="reset-email">電子郵件</label>
+      <input id="reset-email" name="email" type="email" autocomplete="email" required>
+      <button class="admin-button" type="submit">寄送重設連結</button>
+      <button class="admin-button secondary" type="button" data-back-to-login>返回登入</button>
+    </form>
+    <form id="password-update-form" class="admin-form" hidden>
+      <h3>設定新密碼</h3>
+      <label for="new-password">新密碼</label>
+      <input id="new-password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+      <label for="new-password-confirm">確認新密碼</label>
+      <input id="new-password-confirm" name="password-confirm" type="password" autocomplete="new-password" minlength="8" required>
+      <button class="admin-button" type="submit">更新密碼</button>
+    </form>
+    <button id="back-from-password-update" class="admin-button secondary" type="button" hidden>返回登入</button>
     <p id="login-status" class="admin-status" role="status" hidden></p>
   </section>
 

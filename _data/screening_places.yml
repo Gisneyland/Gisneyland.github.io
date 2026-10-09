@@ -1,0 +1,21 @@
+- name: 風城部屋
+  label: 風城部屋、民族路 25 號 6 樓、新竹市東區
+  coordinates: [120.9718535, 24.8035879]
+  aliases:
+    - 風城部屋
+    - GisneyLand
+    - GisneyLand 風城部屋
+    - 民族路 25 號
+    - RX3C+FP
+  sources:
+    - 在地地標
+- name: 竹南運動公園獅子亭
+  label: 獅子亭（竹南運動公園內，位置約略）
+  coordinates: [120.8881885, 24.6895851]
+  aliases:
+    - 獅子亭
+    - 竹南運動公園 獅子亭
+    - 苗栗竹南運動公園獅子亭
+    - 竹南運動公園
+  sources:
+    - 在地地標

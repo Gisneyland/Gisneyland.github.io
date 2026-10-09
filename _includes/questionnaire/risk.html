@@ -18,8 +18,9 @@
           <legend class="text-lg" data-i18n="frequency_closed_relationship">一年內每次性行為都<span class="text-underline">只跟固定性伴侶</span>發生。</legend>
           <label><input type="radio" name="frequency_closed_relationship" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_closed_relationship" value="no" /><span data-i18n="false">否</span></label>
+          <label><input type="radio" name="frequency_closed_relationship" value="none" /><span>沒有固定性伴侶</span></label>
         </fieldset>
-        <fieldset class="question-group">
+        <fieldset class="question-group" data-show-if="frequency_closed_relationship:yes,no">
           <legend class="text-lg" data-i18n="frequency_closed_relationship">固定性伴侶<span class="text-underline">是愛滋感染者</span>。</legend>
           <label><input type="radio" name="closed_relationship_aids" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="closed_relationship_aids" value="no" /><span data-i18n="false">否</span></label>
@@ -84,7 +85,7 @@
             <button type="button" class="btn-flat question-next" data-question-next>下一題</button>
           </div>
         </fieldset>      
-        <fieldset class="question-group">
+        <fieldset class="question-group" data-show-if="usage_drug:yes">
           <legend class="text-lg" data-i18n="frequency_drug_now">現在還有持續<span class="text-underline">使用成癮藥物</span>。</legend>
           <label><input type="radio" name="frequency_drug_now" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_drug_now" value="no" /><span data-i18n="false">否</span></label>

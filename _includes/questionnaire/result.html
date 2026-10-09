@@ -1,43 +1,79 @@
-<div class="card">
+<section id="screener-panel" class="card question-step">
     <div class="card-content">
       <h2 id="questionnaire-screening" class="card-title" data-i18n="screening" tabindex="-1">篩檢結果</h2>
       <p>此區域由篩檢員填答</p>
       <p id="form-status" class="red-text" role="status" aria-live="polite" hidden></p>
 
-        <div class="row">
+      <section class="screening-answer-summary" aria-labelledby="screening-answer-title">
+        <div class="screening-answer-heading">
+          <div>
+            <h3 id="screening-answer-title">受檢者填答摘要</h3>
+            <p>請先核對答案；如需更正，可返回修改填答內容。</p>
+          </div>
+          <button type="button" id="edit-profile-button" class="btn-flat" data-toggle-answer-edit aria-pressed="false">返回修改</button>
+        </div>
+        <div id="screening-response-answers" class="screening-response-answers answer-summary"></div>
+      </section>
+
+        <div class="screening-fields">
             
-            <div class="col s4">
-                <div class="input-field">
-                <input type="text" name="screener" id="screener" maxlength="80" autocomplete="off">
-                <label for="screener" data-i18n="screener">篩檢員編號</label>
-              </div>
-            </div>
+          <div class="screening-field">
+            <label for="screener" data-i18n="screener">篩檢員編號</label>
+            <input type="text" name="screener" id="screener" maxlength="80" autocomplete="off">
+          </div>
         
-            <div class="col s4">
-              <div class="input-field">
-                <input type="date" name="screening_at" id="screening_at" max="9999-12-31">
-                <label for="screening_at" data-i18n="screening_date">篩檢日期</label>
+          <div class="screening-field">
+            <label for="screening_at" data-i18n="screening_date">篩檢日期</label>
+            <input type="date" name="screening_at" id="screening_at" max="9999-12-31">
+          </div>
+
+          <div class="screening-field screening-place-field">
+            <script id="screening-place-local-data" type="application/json">{{ site.data.screening_places | jsonify }}</script>
+            <label for="screening_place" data-i18n="screening_place">篩檢地點</label>
+            <div class="screening-place-input">
+              <input type="search" name="screening_place" id="screening_place" maxlength="120" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="screening-place-suggestions">
+              <button type="button" id="screening-locate-button" class="btn-flat" aria-label="定位目前位置">
+                <i class="material-icons" aria-hidden="true">my_location</i>
+                <span>定位目前位置</span>
+              </button>
+            </div>
+            <div id="screening-place-suggestions" class="screening-place-suggestions" role="listbox" aria-label="建議地點" hidden></div>
+            <p id="screening-place-status" class="screening-place-status" role="status" aria-live="polite" hidden></p>
+            <div class="screening-place-map-info">
+              <button type="button" id="screening-place-info-button" class="screening-place-info-button" aria-label="地圖與地點資料來源" aria-expanded="false" aria-controls="screening-place-info-popover">
+                <i class="material-icons" aria-hidden="true">info_outline</i>
+              </button>
+              <div id="screening-place-info-popover" class="screening-place-info-popover" role="tooltip" hidden>
+                地圖資料 © OpenStreetMap contributors。地點建議由 Photon、Nominatim 與在地地標清單比對；前兩者皆使用 OpenStreetMap 資料。輸入地點文字會送至這些服務查詢，不會隨問卷答案送出。
               </div>
             </div>
-
-            <div class="col s4">
-              <div class="input-field">
-                <input type="text" name="screening_place" id="screening_place" maxlength="120" autocomplete="off">
-                <label for="screening_place" data-i18n="screening_place">篩檢地點</label>
-              </div>
+            <div id="screening-place-map" class="screening-place-map" hidden>
+              <div id="screening-place-map-canvas" role="application" aria-label="互動式篩檢地點地圖"></div>
             </div>
+          </div>
 
-            <div class="col s4">
-              <div class="input-field col s12">
-                <select multiple name="screening_interpretation">
-                  <option value="hiv_positive" data-i18n="hiv_positive">HIV 陽性</option>
-                  <option value="hiv_negative" data-i18n="hiv_negative">HIV 陰性</option>
-                    <option value="syphilis_positive" data-i18n="syphilis_positive">梅毒陽性</option> 
-                    <option value="syphilis_negative" data-i18n="syphilis_negative">梅毒陰性</option>
-                </select>
-                <label>篩檢判讀</label>
-              </div>
-            </div> 
+          <div class="screening-field screening-interpretation-field">
+            <span class="screening-field-label">篩檢判讀（至少選一項）</span>
+            <div class="screening-interpretation-pairs" role="group" aria-describedby="screening-interpretation-message">
+              <fieldset class="interpretation-pair" data-interpretation-pair="hiv">
+                <legend>HIV</legend>
+                <label><input type="checkbox" name="screening_interpretation[]" value="hiv_positive"><span data-i18n="hiv_positive">HIV 陽性</span></label>
+                <label><input type="checkbox" name="screening_interpretation[]" value="hiv_negative"><span data-i18n="hiv_negative">HIV 陰性</span></label>
+                <div id="hiv-window-period-field" class="screening-hiv-window-period" hidden>
+                  <select name="hiv_window_period" id="hiv_window_period" aria-label="HIV 空窗期" required>
+                    <option value="3_months" selected>三個月空窗期</option>
+                    <option value="1_month">一個月空窗期</option>
+                  </select>
+                </div>
+              </fieldset>
+              <fieldset class="interpretation-pair" data-interpretation-pair="syphilis">
+                <legend>梅毒</legend>
+                <label><input type="checkbox" name="screening_interpretation[]" value="syphilis_positive"><span data-i18n="syphilis_positive">梅毒陽性</span></label>
+                <label><input type="checkbox" name="screening_interpretation[]" value="syphilis_negative"><span data-i18n="syphilis_negative">梅毒陰性</span></label>
+              </fieldset>
+            </div>
+            <p id="screening-interpretation-message" class="screening-interpretation-message" role="alert" aria-live="polite" hidden></p>
+          </div>
             
         </div>
 
