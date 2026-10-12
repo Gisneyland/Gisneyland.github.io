@@ -4,7 +4,7 @@ const RESPONSE_DETAIL_GROUPS = [
   { title: '性行為風險', fields: ['frequency_sex', 'frequency_condom', 'frequency_closed_relationship', 'closed_relationship_aids', 'frequency_online_dating', 'frequency_public_dating', 'frequency_sex_service', 'frequency_sex_consumption'] },
   { title: '物質使用', fields: ['frequency_alcohol', 'frequency_drug', 'usage_drug', 'drug_amphetamine', 'drug_amphetamine_inhalant', 'drug_amphetamine_injection', 'drug_amphetamine_oral', 'drug_ghb', 'drug_mdma', 'drug_ketamine', 'drug_rush', 'drug_mephedrone', 'drug_heroin', 'drug_weed', 'drug_other_choice', 'drug_others', 'frequency_drug_now'] },
   { title: '性病與預防措施', fields: ['frequency_std', 'std_aids', 'std_aids_reason', 'std_genital_warts', 'std_syphilis', 'std_chlamydia', 'std_gonorrhea', 'std_genital_herpes', 'std_hepatitis_a', 'std_hepatitis_c', 'std_other_choice', 'std_others', 'frequency_pep', 'frequency_pep_willingness', 'frequency_prep', 'frequency_prep_willingness'] },
-  { title: '篩檢結果與陽性轉介', fields: ['screener', 'screening_at', 'screening_place', 'screening_interpretation', 'hiv_window_period', 'hiv_positive_contacts', 'hiv_positive_contact_phone', 'hiv_positive_appointment', 'hiv_positive_address', 'hiv_positive_notes', 'screening_photos'] }
+  { title: '篩檢結果與陽性轉介', fields: ['screener', 'screening_at', 'screening_place', 'screening_interpretation', 'hiv_window_period', 'anonymous_consult_code', 'hiv_positive_contacts', 'hiv_positive_contact_phone', 'hiv_positive_appointment', 'hiv_positive_address', 'hiv_positive_notes', 'screening_photos'] }
 ];
 
 const RESPONSE_FIELD_LABELS = {
@@ -33,7 +33,7 @@ const RESPONSE_FIELD_LABELS = {
   frequency_pep_willingness: '有意願使用 PEP', frequency_prep: '聽過 PrEP',
   frequency_prep_willingness: '有意願使用 PrEP', screener: '篩檢員編號',
   screening_at: '篩檢日期', screening_place: '篩檢地點', screening_interpretation: '篩檢判讀',
-  hiv_window_period: 'HIV 空窗期', hiv_positive_contacts: '陽性轉介聯絡方式', hiv_positive_contact_phone: '陽性轉介聯絡電話',
+  hiv_window_period: 'HIV 空窗期', anonymous_consult_code: '匿名諮詢代碼', hiv_positive_contacts: '陽性轉介聯絡方式', hiv_positive_contact_phone: '陽性轉介聯絡電話',
   hiv_positive_appointment: '預約門診', hiv_positive_address: '就診地址', hiv_positive_notes: '陽性轉介備註',
   screening_photos: '陽性試劑照片'
 };
@@ -71,6 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const signupForm = document.getElementById('signup-form');
   const passwordResetForm = document.getElementById('password-reset-form');
   const passwordUpdateForm = document.getElementById('password-update-form');
+  const authForms = [loginForm, signupForm, passwordResetForm, passwordUpdateForm];
+  const backFromPasswordUpdateButton = document.getElementById('back-from-password-update');
   const loginStatus = document.getElementById('login-status');
   const dashboardStatus = document.getElementById('dashboard-status');
   const signOutButton = document.getElementById('sign-out-button');
@@ -82,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const pageStatus = document.getElementById('page-status');
   const searchInput = document.getElementById('search-responses');
   const languageFilter = document.getElementById('language-filter');
+  const consultationFilter = document.getElementById('consultation-filter');
   const responseBody = document.getElementById('responses-body');
   const emptyState = document.getElementById('empty-state');
   const dialog = document.getElementById('response-dialog');
@@ -226,6 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
   nextPageButton.addEventListener('click', () => changePage(1));
   searchInput.addEventListener('input', () => { currentPage = 1; renderResponses(); });
   languageFilter.addEventListener('change', () => { currentPage = 1; renderResponses(); });
+  consultationFilter.addEventListener('change', () => { currentPage = 1; loadResponses(); });
   closeDialogButton.addEventListener('click', () => dialog.close());
   screenerNumberForm.addEventListener('submit', saveScreenerNumber);
   dialog.addEventListener('click', event => {
@@ -378,18 +382,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadResponses() {
     showStatus(dashboardStatus, '資料載入中。');
-    const { data, error } = await window.questionnaireSupabase
-      .from('questionnaire_responses')
-      .select('id, created_at, language, schema_version, response_data')
-      .order('created_at', { ascending: false })
-      .limit(200);
+    const fields = 'id, created_at, language, schema_version, response_data, anonymous_consult_code';
+    const isPendingView = consultationFilter.value === 'pending';
+    let loadedResponses = [];
 
-    if (error) {
-      showStatus(dashboardStatus, '無法載入資料，請確認你的帳號是否在管理員白名單中。', true);
-      return;
+    if (isPendingView) {
+      const batchSize = 200;
+      for (let offset = 0; ; offset += batchSize) {
+        const { data, error } = await window.questionnaireSupabase
+          .from('questionnaire_responses')
+          .select(fields)
+          .is('anonymous_consult_code', null)
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(offset, offset + batchSize - 1);
+
+        if (error) {
+          showStatus(dashboardStatus, '無法載入資料，請確認資料庫已更新且帳號具管理權限。', true);
+          return;
+        }
+
+        loadedResponses.push(...(data || []));
+        if ((data || []).length < batchSize) break;
+      }
+    } else {
+      let query = window.questionnaireSupabase
+        .from('questionnaire_responses')
+        .select(fields)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(200);
+      if (consultationFilter.value === 'completed') {
+        query = query.not('anonymous_consult_code', 'is', null);
+      }
+      const { data, error } = await query;
+
+      if (error) {
+        showStatus(dashboardStatus, '無法載入資料，請確認資料庫已更新且帳號具管理權限。', true);
+        return;
+      }
+      loadedResponses = data || [];
     }
 
-    responses = data || [];
+    responses = loadedResponses;
     currentPage = 1;
     renderResponses();
     showStatus(dashboardStatus, `已載入 ${responses.length} 筆資料。`);
@@ -404,8 +439,12 @@ document.addEventListener('DOMContentLoaded', () => {
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
+      const hasConsultCode = Boolean(getConsultationCode(response));
       return (!keyword || searchable.includes(keyword))
-        && (language === 'all' || response.language === language);
+        && (language === 'all' || response.language === language)
+        && (consultationFilter.value === 'all'
+          || (consultationFilter.value === 'completed' && hasConsultCode)
+          || (consultationFilter.value === 'pending' && !hasConsultCode));
     });
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -431,6 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${escapeHtml(data.screener || '未填寫')}</td>
         <td>${escapeHtml(data.screening_place || '未填寫')}</td>
         <td>${escapeHtml(response.language || '未標示')}</td>
+        <td>${getConsultationCode(response) ? '已完成' : '待處理'}</td>
         <td><button class="table-action" type="button" data-response-id="${response.id}">查看</button></td>
       `;
       row.querySelector('button').addEventListener('click', () => showResponse(response));
@@ -475,7 +515,10 @@ document.addEventListener('DOMContentLoaded', () => {
         formatDate(response.created_at),
         response.language === 'en' ? 'English' : '繁體中文',
         response.schema_version ? `第 ${response.schema_version} 版` : '',
-        ...exportFields.map(({ key }) => hasResponseValue(data[key]) ? formatResponseValue(key, data[key]) : '')
+        ...exportFields.map(({ key }) => {
+          const value = key === 'anonymous_consult_code' ? getConsultationCode(response) : data[key];
+          return hasResponseValue(value) ? formatResponseValue(key, value) : '';
+        })
       ]);
     });
     const csv = rows.map(row => row.map(csvCell).join(',')).join('\r\n');
@@ -503,6 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function showResponse(response) {
     responseDetails.replaceChildren();
     const data = response.response_data || {};
+    appendConsultationWorkflow(response);
     const knownFields = new Set(RESPONSE_DETAIL_GROUPS.flatMap(group => group.fields));
     const groups = [
       {
@@ -529,7 +573,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let sectionIndex = 0;
     groups.forEach(group => {
-      const visibleFields = group.fields.filter(([key, , value]) => key !== 'screening_photos' && hasResponseValue(value));
+      const visibleFields = group.fields.filter(([key, , value]) =>
+        key !== 'screening_photos' && key !== 'anonymous_consult_code' && hasResponseValue(value)
+      );
       if (!visibleFields.length) return;
 
       const section = document.createElement('section');
@@ -556,6 +602,208 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     dialog.showModal();
     appendScreeningPhotos(data.screening_photos).catch(() => {});
+  }
+
+  function getConsultationCode(response) {
+    if (Object.hasOwn(response, 'anonymous_consult_code')) {
+      return response.anonymous_consult_code || '';
+    }
+    return response.response_data?.anonymous_consult_code || '';
+  }
+
+  function appendConsultationWorkflow(response) {
+    const data = response.response_data || {};
+    const section = document.createElement('section');
+    section.className = 'consultation-workflow';
+
+    const heading = document.createElement('h3');
+    heading.textContent = '匿名諮詢處理';
+    const note = document.createElement('p');
+    note.textContent = '以下依匿名諮詢網題目順序整理本站可對照答案。外站未詢問或本站未收集的資料會明確標示，請依受檢者意願在外站補填；完成後將諮詢代碼存回此筆紀錄。';
+
+    const answerFor = key => {
+      if (key === 'frequency_closed_relationship' && data[key] === 'none') return '沒有固定性伴侶';
+      return hasResponseValue(data[key]) ? formatResponseValue(key, data[key]) : '未填答';
+    };
+    const answerWithOther = (key, otherKey) => hasResponseValue(data[otherKey])
+      ? `${answerFor(key)}（${data[otherKey]}）`
+      : answerFor(key);
+    const yesNo = key => typeof data[key] === 'boolean'
+      ? (data[key] ? '是' : '否')
+      : answerFor(key);
+    const responseGroup = (title, fields) => ({
+      title,
+      rows: fields.map(([label, key, value]) => [label, value ?? answerFor(key)])
+    });
+    const stdFields = [
+      ['HIV', 'std_aids'], ['菜花', 'std_genital_warts'], ['梅毒', 'std_syphilis'],
+      ['淋病', 'std_gonorrhea'], ['披衣菌', 'std_chlamydia'], ['疱疹', 'std_genital_herpes'],
+      ['A 型肝炎', 'std_hepatitis_a'], ['C 型肝炎', 'std_hepatitis_c']
+    ].map(([label, key]) => [label, key, yesNo(key)]);
+    if (data.std_aids) stdFields.push(['HIV 再次篩檢原因', 'std_aids_reason', answerFor('std_aids_reason')]);
+    if (data.std_other_choice) stdFields.push(['其他性病', 'std_others', answerFor('std_others')]);
+
+    const drugFields = [
+      ['G 水（GHB）', 'drug_ghb'], ['搖頭丸（MDMA）', 'drug_mdma'], ['愷他命', 'drug_ketamine'],
+      ['Rush', 'drug_rush'], ['喵喵／合成卡西酮', 'drug_mephedrone'], ['海洛因', 'drug_heroin'],
+      ['大麻', 'drug_weed']
+    ].map(([label, key]) => [label, key, yesNo(key)]);
+    const amphetamineRoutes = [
+      ['吸入', data.drug_amphetamine_inhalant],
+      ['注射', data.drug_amphetamine_injection],
+      ['口服', data.drug_amphetamine_oral]
+    ].filter(([, selected]) => selected).map(([label]) => label);
+    drugFields.unshift([
+      '安非他命／甲基安非他命',
+      'drug_amphetamine',
+      data.drug_amphetamine
+        ? `是${amphetamineRoutes.length ? `（${amphetamineRoutes.join('、')}）` : ''}`
+        : yesNo('drug_amphetamine')
+    ]);
+    if (data.drug_other_choice) drugFields.push(['其他藥物', 'drug_others', answerFor('drug_others')]);
+
+    const noSex = data.frequency_sex === 'no';
+    const riskRows = [
+      ['1. 最近一年是否有性行為', 'frequency_sex'],
+      ['2. 每次性行為是否全程使用保險套', 'frequency_condom', noSex ? '未發生性行為' : undefined],
+      ['3. 是否只與固定性伴侶發生性行為', 'frequency_closed_relationship', noSex ? '未發生性行為' : undefined],
+      ['4. 性行為前後或過程中是否飲酒', 'frequency_alcohol', noSex ? '未發生性行為' : undefined],
+      ['5. 性行為前後或過程中是否使用藥物', 'frequency_drug', noSex ? '未發生性行為' : undefined],
+      ['6. 最近一年是否曾感染性病', 'frequency_std'],
+      ...(data.frequency_std === 'yes' ? stdFields : []),
+      ['7. 最近一年是否曾使用成癮藥物', 'usage_drug'],
+      ...(data.usage_drug === 'yes' ? drugFields : []),
+      ...(data.usage_drug === 'yes' ? [['目前是否仍持續使用藥物', 'frequency_drug_now']] : []),
+      ['8a. 透過網路認識非固定伴侶並發生性行為', 'frequency_online_dating', noSex ? '未發生性行為' : undefined],
+      ['8b. 在娛樂場所認識非固定伴侶並發生性行為', 'frequency_public_dating', noSex ? '未發生性行為' : undefined],
+      ['8c. 提供性交易服務', 'frequency_sex_service', noSex ? '未發生性行為' : undefined],
+      ['8d. 性消費／買春', 'frequency_sex_consumption', noSex ? '未發生性行為' : undefined],
+      ['9. 固定性伴侶是否為 HIV 感染者', 'closed_relationship_aids', noSex || data.frequency_closed_relationship === 'none' ? '目前沒有固定性伴侶' : undefined],
+      ['10. 最近一年是否使用過 PEP', 'frequency_pep'],
+      ['11. 是否有意願使用 PEP', 'frequency_pep_willingness'],
+      ['12. 是否聽過 PrEP', 'frequency_prep'],
+      ['13. 是否有意願使用 PrEP', 'frequency_prep_willingness']
+    ];
+    const hometown = answerWithOther('hometown', 'hometown_others');
+    const residence = answerWithOther('residence', 'residence_others');
+    const gender = answerWithOther('gender', 'gender_others');
+    const orientation = answerWithOther('orientation', 'orientation_others');
+    const answerGroups = [
+      {
+        title: '一、風險評估',
+        rows: riskRows.map(([label, key, value]) => [label, value ?? answerFor(key)])
+      },
+      responseGroup('二、基本資料', [
+        ['性別', 'gender', gender], ['國籍', 'nationality'], ['出生年份', 'birth'],
+        ['18 歲以前居住地', 'hometown', hometown], ['目前居住地', 'residence', residence],
+        ['性傾向', 'orientation', orientation], ['教育程度', 'education']
+      ]),
+      {
+        title: '三、篩檢習慣與聯絡資料',
+        rows: [
+          ['是否定期接受 HIV 篩檢', ({ '-1': '從未篩檢', '0': '否（偶爾篩檢）', '1': '是' })[String(data.frequency_screening)] || '未填答'],
+          ['最近一次篩檢日期（本站補充，外站未詢問）', answerFor('last_screening_at')],
+          ['外站選填聯絡方式', '本站未收集；如受檢者同意，請在外站另行詢問並填寫']
+        ]
+      }
+    ];
+    const answerList = document.createElement('div');
+    answerList.className = 'consultation-answer-groups';
+    answerGroups.forEach(group => {
+      const groupSection = document.createElement('section');
+      groupSection.className = 'consultation-answer-group';
+      const groupHeading = document.createElement('h4');
+      groupHeading.textContent = group.title;
+      const details = document.createElement('dl');
+      details.className = 'consultation-answers';
+      group.rows.forEach(([label, value]) => {
+        const term = document.createElement('dt');
+        const description = document.createElement('dd');
+        term.textContent = label;
+        description.textContent = value;
+        details.append(term, description);
+      });
+      groupSection.append(groupHeading, details);
+      answerList.append(groupSection);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'consultation-actions';
+    const openLink = document.createElement('a');
+    openLink.className = 'admin-button secondary';
+    openLink.href = 'https://hiva.cdc.gov.tw/HAANeedScreeningMessage1.aspx';
+    openLink.target = '_blank';
+    openLink.rel = 'noopener noreferrer';
+    openLink.textContent = '開啟匿名諮詢網';
+    const copyButton = document.createElement('button');
+    copyButton.className = 'admin-button secondary';
+    copyButton.type = 'button';
+    copyButton.textContent = '複製對照答案';
+    const copyStatus = document.createElement('p');
+    copyStatus.className = 'admin-status';
+    copyStatus.setAttribute('role', 'status');
+    copyStatus.hidden = true;
+    copyButton.addEventListener('click', async () => {
+      try {
+        const copyText = answerGroups.flatMap(group => [
+          group.title,
+          ...group.rows.map(([label, value]) => `${label}：${value}`)
+        ]).join('\n');
+        await navigator.clipboard.writeText(copyText);
+        showStatus(copyStatus, '對照答案已複製。');
+      } catch {
+        showStatus(copyStatus, '無法複製答案，請確認瀏覽器剪貼簿權限。', true);
+      }
+    });
+    actions.append(openLink, copyButton);
+
+    const codeForm = document.createElement('form');
+    codeForm.className = 'consultation-code-form';
+    const codeLabel = document.createElement('label');
+    codeLabel.textContent = '諮詢代碼';
+    const codeInput = document.createElement('input');
+    codeInput.type = 'text';
+    codeInput.maxLength = 32;
+    codeInput.pattern = '[A-Za-z0-9-]{4,32}';
+    codeInput.autocomplete = 'off';
+    codeInput.required = true;
+    codeInput.value = getConsultationCode(response);
+    codeLabel.append(codeInput);
+    const saveButton = document.createElement('button');
+    saveButton.className = 'admin-button';
+    saveButton.type = 'submit';
+    saveButton.textContent = '儲存代碼';
+    const saveStatus = document.createElement('p');
+    saveStatus.className = 'admin-status';
+    saveStatus.setAttribute('role', 'status');
+    saveStatus.hidden = true;
+    codeForm.append(codeLabel, saveButton);
+    codeForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!codeInput.reportValidity()) return;
+      const code = codeInput.value.trim();
+      setButtonBusy(saveButton, true, '儲存中');
+      const { data: updated, error } = await window.questionnaireSupabase
+        .from('questionnaire_responses')
+        .update({ anonymous_consult_code: code })
+        .eq('id', response.id)
+        .select('id')
+        .maybeSingle();
+      setButtonBusy(saveButton, false, '儲存代碼');
+
+      if (error || !updated) {
+        showStatus(saveStatus, '儲存失敗。請確認資料庫已更新且帳號具管理權限。', true);
+        return;
+      }
+
+      response.anonymous_consult_code = code;
+      response.response_data = { ...response.response_data, anonymous_consult_code: code };
+      renderResponses();
+      showStatus(saveStatus, '諮詢代碼已儲存。');
+    });
+
+    section.append(heading, note, answerList, actions, copyStatus, codeForm, saveStatus);
+    responseDetails.append(section);
   }
 
   async function appendScreeningPhotos(photos) {

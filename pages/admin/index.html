@@ -184,6 +184,12 @@ permalink: /admin/
         <option value="zh-TW">繁體中文</option>
         <option value="en">English</option>
       </select>
+      <label for="consultation-filter">匿名諮詢</label>
+      <select id="consultation-filter">
+        <option value="all">全部</option>
+        <option value="pending">待處理</option>
+        <option value="completed">已完成</option>
+      </select>
     </div>
     <p id="dashboard-status" class="admin-status" role="status" hidden></p>
     <div class="admin-table-wrap" role="region" aria-label="問卷提交紀錄表格，可左右捲動" tabindex="0">
@@ -196,6 +202,7 @@ permalink: /admin/
             <th scope="col">篩檢員</th>
             <th scope="col">地點</th>
             <th scope="col">語言</th>
+            <th scope="col">匿名諮詢</th>
             <th scope="col"><span class="sr-only">操作</span></th>
           </tr>
         </thead>

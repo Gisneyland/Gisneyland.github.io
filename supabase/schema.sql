@@ -4,14 +4,19 @@ create table if not exists public.questionnaire_responses (
   language text not null default 'zh-TW',
   schema_version smallint not null default 1,
   response_data jsonb not null,
+  anonymous_consult_code text,
   constraint questionnaire_language_check check (language in ('zh-TW', 'en')),
   constraint questionnaire_schema_version_check check (schema_version between 1 and 99),
   constraint questionnaire_response_object_check check (jsonb_typeof(response_data) = 'object'),
-  constraint questionnaire_response_size_check check (octet_length(response_data::text) <= 100000)
+  constraint questionnaire_response_size_check check (octet_length(response_data::text) <= 100000),
+  constraint questionnaire_consult_code_check check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}$')
 );
 
 alter table public.questionnaire_responses
   add column if not exists schema_version smallint not null default 1;
+
+alter table public.questionnaire_responses
+  add column if not exists anonymous_consult_code text;
 
 do $$
 begin
@@ -31,7 +36,25 @@ begin
     alter table public.questionnaire_responses
       add constraint questionnaire_response_size_check check (octet_length(response_data::text) <= 100000);
   end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.questionnaire_responses'::regclass
+      and conname = 'questionnaire_consult_code_check'
+  ) then
+    alter table public.questionnaire_responses
+      add constraint questionnaire_consult_code_check
+      check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}$');
+  end if;
 end $$;
+
+update public.questionnaire_responses
+set anonymous_consult_code = nullif(btrim(response_data ->> 'anonymous_consult_code'), '')
+where anonymous_consult_code is null
+  and (response_data ->> 'anonymous_consult_code') ~ '^[A-Za-z0-9-]{4,32}$';
+
+create index if not exists questionnaire_pending_consult_code_idx
+  on public.questionnaire_responses (created_at, id)
+  where anonymous_consult_code is null;
 
 alter table public.questionnaire_responses enable row level security;
 
@@ -93,6 +116,7 @@ revoke all on table public.admin_profiles from anon, authenticated;
 grant select on table public.admin_profiles to authenticated;
 grant update (screener_number) on table public.admin_profiles to authenticated;
 grant select on table public.questionnaire_responses to authenticated;
+grant update (anonymous_consult_code) on table public.questionnaire_responses to authenticated;
 
 drop policy if exists "Admins can view their own profile"
 on public.admin_profiles;
@@ -121,6 +145,28 @@ on public.questionnaire_responses
 for select
 to authenticated
 using (
+  exists (
+    select 1
+    from public.admin_profiles
+    where admin_profiles.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists "Admins can update questionnaire consultation codes"
+on public.questionnaire_responses;
+
+create policy "Admins can update questionnaire consultation codes"
+on public.questionnaire_responses
+for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.admin_profiles
+    where admin_profiles.user_id = (select auth.uid())
+  )
+)
+with check (
   exists (
     select 1
     from public.admin_profiles
