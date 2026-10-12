@@ -48,7 +48,12 @@ Edge Function 會使用 Supabase 自動提供的 `SUPABASE_SERVICE_ROLE_KEY`，�
 
 若尚未部署 Edge Function，設定檔中的函式名稱留空即可使用暫時直接寫入模式。此模式容易被機器人灌資料，只適合開發測試。
 
-正式收集健康資料前，請將頁面上的保存期限、管理員權限、刪除流程、資料外洩應變窗口改成組織正式政策，不要只保留範例文字。Edge Function 仍建議再加入 CAPTCHA 與 rate limit，避免公開端點被大量呼叫。
+正式使用前設定 Resend 郵件：
+
+1. 在 Resend 驗證組織實際擁有的寄件網域，並依 Resend 提供的 DNS 記錄完成網域驗證。選用該網域下的寄件地址，例如 `no-reply@your-verified-domain`。
+2. 在 Supabase `Authentication > Emails > SMTP Settings` 啟用自訂 SMTP：Host `smtp.resend.com`、Port `465`、Username `resend`、Password 填 Resend API key，寄件人使用已驗證的寄件地址。SMTP 密碼/API key 只輸入 Supabase Dashboard，不可提交到 Git。
+
+正式收集健康資料前，請將頁面上的保存期限、管理員權限、刪除流程、資料外洩應變窗口改成組織正式政策，不要只保留範例文字。公開問卷端點仍建議加入 rate limit，避免大量機器人提交。
 
 ## 本地與自動檢查
 
@@ -64,7 +69,7 @@ GitHub Actions 會在每次 push 與 Pull Request 執行相同的 Jekyll build�
 
 後台網址為 `/admin/`，使用 Supabase Auth 登入。問卷資料和新聞/活動管理都限 `admin_profiles` 白名單帳號使用；匿名訪客與一般登入帳號無法管理內容或讀取問卷資料。
 
-設定第一位管理員：
+後台登入頁可申請帳號。申請者需完成 Supabase 電子郵件驗證（若專案有啟用），但帳號不會自動取得後台權限；管理員審核身分後，仍需將使用者加入 `admin_profiles`。忘記密碼可在登入頁寄送重設連結，連結會返回 `/admin/` 設定新密碼。
 
 1. 先在 SQL Editor 執行最新版 [supabase/schema.sql](supabase/schema.sql)，建立/更新問卷、管理員權限與 `site_content` 內容表。
 2. 在 Supabase Dashboard 的 `Authentication > Users` 建立 Email/Password 使用者，並完成 Email 驗證（依專案設定而定）。

@@ -36,6 +36,8 @@ jobs:
         run: |
           node --check assets/js/main.js
           node --check assets/js/i18n.js
+          node --check assets/js/admin.js
+          node --check assets/js/supabase-config.js
 
   # Build job
   build:

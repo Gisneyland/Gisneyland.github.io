@@ -1,3 +1,7 @@
+.admin-body [hidden] {
+  display: none !important;
+}
+
 .admin-body {
   min-height: 100vh;
   min-width: 0;
