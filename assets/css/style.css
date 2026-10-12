@@ -1582,16 +1582,124 @@ textarea:focus {
   gap: 0.4rem;
 }
 
+.staff-session-tool {
+  display: flex;
+  min-width: 0;
+  min-height: 1.8rem;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.4rem;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border-radius: 0.3rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.staff-session-tool[data-state="signed-in"] {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.staff-session-tool[data-state="unbound"],
+.staff-session-tool[data-state="not-staff"],
+.staff-session-tool[data-state="error"] {
+  color: var(--danger, #9f2525);
+}
+
+.staff-session-tool .material-icons {
+  flex: 0 0 auto;
+  font-size: 1.05rem;
+}
+
+.staff-session-tool > span:last-child {
+  min-width: 0;
+}
+
 .tool-label {
   color: var(--text-muted);
   font-size: 0.8rem;
   font-weight: 700;
 }
 
-.tools #google_translate_element {
-  width: 8.5rem;
-  max-width: 8.5rem;
-  overflow: hidden;
+.utility-select {
+  display: block !important;
+  width: 9rem;
+  min-width: 0;
+  height: 2.35rem !important;
+  min-height: 2.35rem;
+  margin: 0;
+  padding: 0.3rem 1.65rem 0.3rem 0.6rem;
+  color: var(--text);
+  background: var(--glass-control);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.35rem;
+  font-size: 0.8rem;
+  line-height: normal;
+  cursor: pointer;
+}
+
+.language-select {
+  width: 9.5rem;
+}
+
+.google-translate-proxy {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.google-translate-proxy.is-interacting {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 1200 !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+  white-space: normal !important;
+  opacity: 0 !important;
+}
+
+.theme-mode-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.15rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+}
+
+.theme-mode-button {
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  min-height: 2.1rem;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.theme-mode-button[aria-pressed="true"] {
+  color: var(--button-text);
+  background: var(--button-bg);
+}
+
+.theme-mode-button .material-icons {
+  font-size: 1.15rem;
 }
 
 /* Keep the language control inside our own toolbar instead of showing
@@ -1937,8 +2045,21 @@ details[open] summary {
     top: 0.5rem;
     right: 0.5rem;
     left: 0.5rem;
+    flex-wrap: wrap;
     justify-content: space-between;
-    gap: 0.5rem;
+    gap: 0.35rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .staff-session-tool {
+    flex: 0 1 auto;
+    max-width: 100%;
+    justify-content: flex-end;
+    order: 3;
+    margin-left: auto;
+    min-height: 1.35rem;
+    padding: 0.05rem 0.25rem;
+    font-size: 0.65rem;
   }
 
   .language-tool,
@@ -1951,19 +2072,29 @@ details[open] summary {
     display: none;
   }
 
-  .tools #google_translate_element {
-    width: 7rem;
-    max-width: 7rem;
+  .language-select {
+    width: 8.5rem;
+    height: 2.2rem !important;
+    min-height: 2.2rem;
   }
 
-  .mode-toggle {
-    min-width: 5.25rem;
-    padding-right: 1.4rem;
+  .theme-mode-picker {
+    padding: 0.1rem;
+  }
+
+  .theme-mode-button {
+    width: 1.9rem;
+    height: 1.9rem;
+    min-height: 1.9rem;
+  }
+
+  .google-translate-proxy {
+    width: 1px !important;
   }
 
   main {
     width: calc(100% - 1rem);
-    margin: 5rem auto 1rem;
+    margin: 6.5rem auto 1rem;
     padding: 1rem;
   }
 

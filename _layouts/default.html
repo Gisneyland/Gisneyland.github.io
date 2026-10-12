@@ -20,7 +20,7 @@
   {% endif %}
 
   <!-- Custom Style -->
-  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}?v=staff-tools-20261011-4">
   
 </head>
 <body{% if page.url == '/hiva/' %} class="questionnaire-page"{% endif %}>
@@ -51,12 +51,12 @@
   <script src="{{ '/assets/js/supabase-config.js' | relative_url }}?v=supabase-setup-1"></script>
 
   <!-- JavaScript i18n.js -->
-  <script src="{{ '/assets/js/i18n.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/i18n.js' | relative_url }}?v=translations-20261011-4"></script>
   {% if page.url == '/hiva/' %}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" crossorigin="anonymous"></script>
   {% endif %}
   <!-- Main JS assets -->
-  <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/main.js' | relative_url }}?v=translations-20261011-4"></script>
   
 </body>
 </html>

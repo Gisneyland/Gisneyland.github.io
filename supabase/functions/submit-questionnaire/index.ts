@@ -44,6 +44,8 @@ Deno.serve(async request => {
       !responseData ||
       typeof responseData !== 'object' ||
       Array.isArray(responseData) ||
+      typeof responseData.screener !== 'string' ||
+      responseData.screener.trim().length === 0 ||
       !['zh-TW', 'en'].includes(language) ||
       schemaVersion !== 1 ||
       JSON.stringify(responseData).length > 100_000

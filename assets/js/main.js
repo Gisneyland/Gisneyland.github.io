@@ -3,48 +3,54 @@ const taiwanAdminLocations = [
   '臺中市', '彰化縣', '南投縣', '雲林縣', '嘉義市', '嘉義縣', '臺南市',
   '高雄市', '屏東縣', '宜蘭縣', '花蓮縣', '臺東縣', '澎湖縣', '金門縣', '連江縣', '其他'
 ];
+let selectedPageLanguage = 'zh-TW';
+let googleMachineTranslationActive = false;
 
 document.addEventListener('DOMContentLoaded', function() {
   initializeQuestionnaireFields();
+  const staffSessionReady = initializeStaffSessionIndicator();
 
   // 初始化 Materialize 元件
   if (window.M) {
     M.FloatingActionButton.init(document.querySelectorAll('.fixed-action-btn'));
     M.Tooltip.init(document.querySelectorAll('.tooltipped'));
     const siteSelects = Array.from(document.querySelectorAll('select'))
-      .filter(select => !select.closest('#questionnaire-form'));
+      .filter(select => !select.closest('#questionnaire-form') && !select.classList.contains('utility-select'));
     M.FormSelect.init(siteSelects);
   }
 
   // 模式初始化
   const savedMode = localStorage.getItem('site-mode') || 'auto';
   setMode(savedMode);
-  const modeToggle = document.getElementById('mode-toggle');
-  if (modeToggle) {
-    modeToggle.addEventListener('change', event => {
-      setMode(event.target.value);
-    });
-  }
+  document.querySelectorAll('[data-site-mode]').forEach(button => {
+    button.addEventListener('click', () => setMode(button.dataset.siteMode));
+  });
 
   // 語言初始化
-  const userLang = navigator.language || navigator.userLanguage;
-  const defaultLang = userLang.startsWith("en") ? "en" : "zh-TW";
-  setLanguage(defaultLang);
   const langSelect = document.getElementById("language-select");
+  const browserLanguage = (navigator.language || navigator.userLanguage || 'zh-TW').split('-')[0].toLowerCase();
+  const languageAliases = {
+    zh: 'zh-TW', en: 'en', id: 'id', th: 'th', vi: 'vi', my: 'my', tl: 'tl', km: 'km', bn: 'bn'
+  };
+  const defaultLanguage = languageAliases[browserLanguage] || 'zh-TW';
   if (langSelect) {
-    langSelect.value = defaultLang;
-    langSelect.addEventListener("change", e => {
-      setLanguage(e.target.value);
+    langSelect.value = defaultLanguage;
+    langSelect.addEventListener('change', event => {
+      setPageLanguage(event.target.value);
     });
   }
+  setPageLanguage(defaultLanguage);
 
   const questionnaireForm = document.getElementById('questionnaire-form');
   if (questionnaireForm) {
+    const screenerNumberReady = initializeScreenerNumber(questionnaireForm, staffSessionReady);
     initializeQuestionnaire(questionnaireForm);
     questionnaireForm.addEventListener('submit', async function(event) {
       event.preventDefault();
-        if (!validateScreeningInterpretation(questionnaireForm)) return;
       const status = document.getElementById('form-status');
+      await screenerNumberReady;
+      if (!validateScreenerNumber(questionnaireForm)) return;
+      if (!validateScreeningInterpretation(questionnaireForm)) return;
 
       if (!window.questionnaireSupabase) {
         showFormStatus(status, '資料服務尚未完成設定，請聯絡網站管理員。', true);
@@ -234,6 +240,130 @@ function validateScreeningInterpretation(form) {
   }
   if (!hasSelection) inputs[0]?.focus();
   return hasSelection;
+}
+
+async function initializeStaffSessionIndicator() {
+  const indicator = document.querySelector('.staff-session-tool');
+  const label = document.getElementById('staff-session-status');
+  if (!indicator || !label) return { state: 'unknown' };
+
+  const setState = (state, key, fallback) => {
+    indicator.dataset.state = state;
+    label.textContent = i18n[selectedPageLanguage]?.[key] || fallback;
+  };
+
+  if (!window.questionnaireSupabase) {
+    setState('error', 'staff_status_error', '無法確認登入狀態');
+    return { state: 'error' };
+  }
+
+  setState('checking', 'staff_status_checking', '確認工作人員登入狀態');
+  let sessionData;
+  let sessionError;
+  try {
+    ({ data: sessionData, error: sessionError } = await window.questionnaireSupabase.auth.getSession());
+  } catch (error) {
+    sessionError = error;
+  }
+
+  if (sessionError) {
+    setState('error', 'staff_status_error', '無法確認登入狀態');
+    return { state: 'error' };
+  }
+  if (!sessionData.session) {
+    setState('signed-out', 'staff_status_signed_out', '工作人員未登入');
+    return { state: 'signed-out' };
+  }
+
+  try {
+    const { data: profile, error } = await window.questionnaireSupabase
+      .from('admin_profiles')
+      .select('screener_number')
+      .eq('user_id', sessionData.session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      setState('error', 'staff_status_error', '無法確認工作人員權限');
+      return { state: 'error', session: sessionData.session };
+    }
+    if (!profile) {
+      setState('not-staff', 'staff_status_not_authorized', '目前帳號不是授權工作人員');
+      return { state: 'not-staff', session: sessionData.session };
+    }
+
+    const screenerNumber = String(profile.screener_number || '').trim();
+    if (!screenerNumber) {
+      setState('unbound', 'staff_status_unbound', '工作人員已登入，編號尚未綁定');
+      return { state: 'unbound', session: sessionData.session };
+    }
+
+    setState('signed-in', 'staff_status_signed_in', '工作人員已登入');
+    return { state: 'staff', session: sessionData.session, screenerNumber };
+  } catch {
+    setState('error', 'staff_status_error', '無法確認工作人員權限');
+    return { state: 'error', session: sessionData.session };
+  }
+}
+
+async function initializeScreenerNumber(form, staffSessionReady) {
+  const input = form.querySelector('#screener');
+  const status = document.getElementById('screener-status');
+  if (!input || !window.questionnaireSupabase) return;
+
+  form.addEventListener('reset', () => {
+    window.setTimeout(() => {
+      if (input.dataset.bindingReady === 'true') {
+        input.value = input.dataset.boundScreenerNumber || '';
+      }
+    }, 0);
+  });
+
+  const staffState = await staffSessionReady;
+  if (staffState.state === 'signed-out') return;
+  input.dataset.accountBindingRequired = 'true';
+  input.dataset.bindingReady = 'false';
+  input.readOnly = true;
+  input.value = '';
+
+  if (staffState.state !== 'staff') {
+    const messages = {
+      unbound: '此帳號尚未綁定篩檢員編號。請先至管理後台完成綁定。',
+      'not-staff': '目前登入帳號未列入工作人員名單，無法完成篩檢。',
+      error: '無法確認工作人員登入狀態，請重新整理或聯絡管理員。'
+    };
+    setScreenerNumberStatus(status, messages[staffState.state] || messages.error, true);
+    return;
+  }
+
+  input.value = staffState.screenerNumber;
+  input.dataset.bindingReady = 'true';
+  input.dataset.boundScreenerNumber = staffState.screenerNumber;
+  setScreenerNumberStatus(status, `已自動帶入篩檢員編號：${staffState.screenerNumber}`);
+}
+
+function validateScreenerNumber(form) {
+  const input = form.querySelector('#screener');
+  const status = document.getElementById('screener-status');
+  const hasNumber = Boolean(input?.value.trim());
+  const accountBindingReady = input?.dataset.accountBindingRequired !== 'true'
+    || input.dataset.bindingReady === 'true';
+
+  if (hasNumber && accountBindingReady) return true;
+
+  const message = !hasNumber
+    ? '篩檢員編號為必填，請先完成綁定或填寫編號。'
+    : '此登入帳號尚未綁定篩檢員編號，請先至管理後台完成設定。';
+  setScreenerNumberStatus(status, message, true);
+  input?.focus();
+  return false;
+}
+
+function setScreenerNumberStatus(status, message, isError = false) {
+  if (!status) return;
+  status.textContent = message;
+  status.setAttribute('role', isError ? 'alert' : 'status');
+  status.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+  status.hidden = !message;
 }
 
 function initializeScreeningPlace(inputId = 'screening_place', idPrefix = 'screening-place', locateButtonId = 'screening-locate-button') {
@@ -1383,10 +1513,9 @@ function setMode(mode) {
   html.dataset.mode = selectedMode;
   localStorage.setItem('site-mode', selectedMode);
 
-  const modeToggle = document.getElementById('mode-toggle');
-  if (modeToggle) {
-    modeToggle.value = selectedMode;
-  }
+  document.querySelectorAll('[data-site-mode]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.siteMode === selectedMode));
+  });
 }
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
@@ -1405,6 +1534,76 @@ function googleTranslateElementInit() {
     },
     'google_translate_element'
   );
+  window.setTimeout(() => applyGoogleTranslation(selectedPageLanguage), 0);
+}
+
+function setPageLanguage(language) {
+  selectedPageLanguage = language;
+  setLanguage(language);
+  document.documentElement.lang = language;
+  applyGoogleTranslation(language);
+}
+
+function applyGoogleTranslation(language, attempts = 20, menuOpened = false) {
+  const proxy = document.getElementById('google_translate_element');
+  const frames = Array.from(document.querySelectorAll('iframe'));
+  const frameDocument = frame => {
+    try {
+      return frame.contentDocument;
+    } catch {
+      return null;
+    }
+  };
+  const translatedToolbar = frames
+    .map(frameDocument)
+    .find(frame => frame?.body?.innerText.includes('顯示原文'));
+
+  if (language === 'zh-TW') {
+    const showOriginalButton = Array.from(translatedToolbar?.querySelectorAll('button') || [])
+      .find(button => button.textContent.includes('顯示原文'));
+    if (showOriginalButton) {
+      showOriginalButton.click();
+      googleMachineTranslationActive = false;
+    } else if (googleMachineTranslationActive && attempts > 0) {
+      window.setTimeout(() => applyGoogleTranslation(language, attempts - 1), 250);
+    }
+    proxy?.classList.remove('is-interacting');
+    return;
+  }
+
+  const googleLanguageNames = {
+    id: '印尼文', bn: '孟加拉文', en: '英文', th: '泰文',
+    km: '高棉文', tl: '菲律賓文', vi: '越南文', my: '緬甸文'
+  };
+  const targetLanguageName = googleLanguageNames[language];
+  if (!targetLanguageName) return;
+
+  proxy?.classList.add('is-interacting');
+  const menuFrame = frames.find(frame => {
+    const rect = frame.getBoundingClientRect();
+    const body = frameDocument(frame)?.body;
+    return rect.width > 0 && rect.height > 0 && body?.innerText.includes(targetLanguageName);
+  });
+  const languageLink = Array.from(frameDocument(menuFrame)?.querySelectorAll('a') || [])
+    .find(link => link.textContent.includes(targetLanguageName));
+
+  if (languageLink) {
+    languageLink.click();
+    googleMachineTranslationActive = true;
+    window.setTimeout(() => proxy?.classList.remove('is-interacting'), 250);
+    return;
+  }
+
+  const menuButton = proxy?.querySelector('a[aria-haspopup="true"]');
+  if (menuButton && !menuOpened) {
+    menuButton.click();
+    menuOpened = true;
+  }
+  if (attempts > 0) {
+    window.setTimeout(() => applyGoogleTranslation(language, attempts - 1, menuOpened), 250);
+  } else {
+    proxy?.classList.remove('is-interacting');
+  }
 }
 
 // 快速回到頂端

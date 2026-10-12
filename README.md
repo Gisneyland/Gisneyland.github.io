@@ -75,15 +75,15 @@ GitHub Actions 會在每次 push 與 Pull Request 執行相同的 Jekyll build�
 
 設定第一位管理員，或核准一筆帳號申請：
 
-1. 使用者從 `/admin/` 申請帳號後，在 Supabase Dashboard 的 `Authentication > Users` 確認帳號與電子郵件驗證狀態。第一位管理員可直接在此建立 Email/Password 使用者。
-2. 複製該使用者的 UUID，在 SQL Editor 執行：
+1. 先在 SQL Editor 執行最新版 [supabase/schema.sql](supabase/schema.sql)，新增篩檢員編號欄位與權限。
+2. 使用者從 `/admin/` 申請帳號後，在 Supabase Dashboard 的 `Authentication > Users` 確認帳號與電子郵件驗證狀態。第一位管理員可直接在此建立 Email/Password 使用者。
+3. 複製該使用者的 UUID，在 SQL Editor 執行：
 
 ```sql
-insert into public.admin_profiles (user_id)
-values ('YOUR_AUTH_USER_UUID');
+insert into public.admin_profiles (user_id, screener_number)
+values ('YOUR_AUTH_USER_UUID', 'YOUR_ASSIGNED_SCREENER_NUMBER');
 ```
 
-3. 將 [supabase/schema.sql](supabase/schema.sql) 完整執行一次，確認 `admin_profiles` 與問卷的 RLS policy 已建立。
-4. 開啟 `https://gisneyland.github.io/admin/` 登入。後台支援搜尋、語言篩選、重新整理與單筆詳細檢視。
+4. 開啟 `https://gisneyland.github.io/admin/` 登入。後台支援篩檢員編號綁定、搜尋、語言篩選、重新整理與單筆詳細檢視。
 
-後台不提供匿名讀取、資料修改或刪除功能。健康資料屬敏感資訊，請只把必要的工作人員加入白名單，並定期檢查 Supabase Auth 使用者與 `admin_profiles`。移除 `admin_profiles` 中的使用者即可撤銷後台讀取權限。
+後台不提供匿名讀取、問卷資料修改或刪除功能；已核准的工作人員只能更新自己帳號的篩檢員編號。健康資料屬敏感資訊，請只把必要的工作人員加入白名單，並定期檢查 Supabase Auth 使用者與 `admin_profiles`。移除 `admin_profiles` 中的使用者即可撤銷後台讀取權限。

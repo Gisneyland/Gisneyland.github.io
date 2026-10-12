@@ -11,10 +11,17 @@ permalink: /admin/
       <h1 id="admin-title">問卷管理後台</h1>
       <p class="admin-subtitle">僅供授權工作人員查看健康問卷資料。</p>
     </div>
-    <button id="sign-out-button" class="admin-button secondary" type="button" hidden>
-      <span class="material-icons notranslate" translate="no" aria-hidden="true">logout</span>
-      登出
-    </button>
+    <div class="admin-header-actions">
+      <a id="open-questionnaire-button" class="admin-button secondary" href="{{ '/hiva/' | relative_url }}" target="_blank" rel="noopener" hidden>
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">assignment</span>
+        回到問卷
+        <span class="sr-only">（在新分頁開啟）</span>
+      </a>
+      <button id="sign-out-button" class="admin-button secondary" type="button" hidden>
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">logout</span>
+        登出
+      </button>
+    </div>
   </div>
 
   <section id="admin-login" class="admin-panel" aria-labelledby="login-title">
@@ -81,6 +88,20 @@ permalink: /admin/
         </button>
       </div>
     </div>
+    <section class="admin-panel screener-binding-panel" aria-labelledby="screener-binding-title">
+      <div>
+        <h2 id="screener-binding-title">我的篩檢員編號</h2>
+        <p class="admin-muted">設定後，登入此帳號回到問卷時會自動帶入。每個編號只能綁定一個帳號。</p>
+      </div>
+      <form id="screener-number-form" class="screener-number-form">
+        <label for="screener-number-input">篩檢員編號</label>
+        <div class="screener-number-controls">
+          <input id="screener-number-input" name="screener_number" type="text" maxlength="80" autocomplete="off" required disabled>
+          <button id="save-screener-number" class="admin-button" type="submit" disabled>儲存編號</button>
+        </div>
+      </form>
+      <p id="screener-number-status" class="admin-status" role="status" hidden></p>
+    </section>
     <div class="admin-stats" aria-label="問卷統計">
       <div class="stat-card"><span>目前載入</span><strong id="total-count">0</strong><small>筆問卷</small></div>
       <div class="stat-card"><span>繁體中文</span><strong id="zh-count">0</strong><small>筆</small></div>
@@ -130,5 +151,5 @@ permalink: /admin/
       <span class="material-icons notranslate" translate="no" aria-hidden="true">close</span>
     </button>
   </div>
-  <dl id="response-details" class="response-details"></dl>
+  <div id="response-details" class="response-sections"></div>
 </dialog>

@@ -47,18 +47,51 @@ for insert
 to anon
 with check (
   jsonb_typeof(response_data) = 'object'
+  and jsonb_typeof(response_data -> 'screener') = 'string'
+  and length(btrim(response_data ->> 'screener')) > 0
   and schema_version = 1
 );
 
 create table if not exists public.admin_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  screener_number text
 );
+
+alter table public.admin_profiles
+  add column if not exists screener_number text;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.admin_profiles'::regclass
+      and conname = 'admin_profiles_screener_number_nonempty'
+  ) then
+    alter table public.admin_profiles
+      add constraint admin_profiles_screener_number_nonempty
+      check (screener_number is null or length(btrim(screener_number)) > 0);
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.admin_profiles'::regclass
+      and conname = 'admin_profiles_screener_number_required'
+  ) then
+    alter table public.admin_profiles
+      add constraint admin_profiles_screener_number_required
+      check (screener_number is not null and length(btrim(screener_number)) > 0) not valid;
+  end if;
+end $$;
+
+create unique index if not exists admin_profiles_screener_number_unique
+  on public.admin_profiles (lower(btrim(screener_number)))
+  where screener_number is not null;
 
 alter table public.admin_profiles enable row level security;
 
 revoke all on table public.admin_profiles from anon, authenticated;
 grant select on table public.admin_profiles to authenticated;
+grant update (screener_number) on table public.admin_profiles to authenticated;
 grant select on table public.questionnaire_responses to authenticated;
 
 drop policy if exists "Admins can view their own profile"
@@ -69,6 +102,16 @@ on public.admin_profiles
 for select
 to authenticated
 using (user_id = (select auth.uid()));
+
+drop policy if exists "Admins can update their own screener number"
+on public.admin_profiles;
+
+create policy "Admins can update their own screener number"
+on public.admin_profiles
+for update
+to authenticated
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
 
 drop policy if exists "Admins can view questionnaire responses"
 on public.questionnaire_responses;

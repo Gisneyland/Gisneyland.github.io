@@ -19,7 +19,8 @@
             
           <div class="screening-field">
             <label for="screener" data-i18n="screener">篩檢員編號</label>
-            <input type="text" name="screener" id="screener" maxlength="80" autocomplete="off">
+            <input type="text" name="screener" id="screener" maxlength="80" autocomplete="off" required aria-describedby="screener-status">
+            <p id="screener-status" class="screening-place-status" role="status" aria-live="polite" hidden></p>
           </div>
         
           <div class="screening-field">

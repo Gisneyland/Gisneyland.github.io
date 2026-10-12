@@ -1,14 +1,35 @@
   <div class="tools" aria-label="網站工具">
     <div class="language-tool">
-      <span class="tool-label">語言</span>
-      <div id="google_translate_element" class="notranslate"></div>
+      <span class="tool-label" data-i18n="language">語言</span>
+      <select id="language-select" class="utility-select language-select" aria-label="選擇語言" data-i18n-aria-label="choose_language">
+        <option value="zh-TW" lang="zh-TW">繁體中文</option>
+        <option value="en" lang="en">English</option>
+        <option value="id" lang="id">Bahasa Indonesia</option>
+        <option value="th" lang="th">ไทย</option>
+        <option value="vi" lang="vi">Tiếng Việt</option>
+        <option value="my" lang="my">မြန်မာ</option>
+        <option value="tl" lang="tl">Filipino</option>
+        <option value="km" lang="km">ភាសាខ្មែរ</option>
+        <option value="bn" lang="bn">বাংলা</option>
+      </select>
+      <div id="google_translate_element" class="google-translate-proxy notranslate" aria-hidden="true"></div>
     </div>
     <div class="theme-tool">
-      <label for="mode-toggle" class="mode-label">主題</label>
-      <select id="mode-toggle" class="mode-toggle" aria-label="選擇顯示模式">
-        <option value="auto">自動</option>
-        <option value="light">明亮</option>
-        <option value="dark">暗黑</option>
-      </select>
+      <span class="mode-label" data-i18n="theme">主題</span>
+      <div class="theme-mode-picker" role="group" aria-label="選擇顯示模式" data-i18n-aria-label="choose_theme_mode">
+        <button class="theme-mode-button" type="button" data-site-mode="auto" aria-label="自動主題" data-i18n-aria-label="theme_auto" data-i18n-title="theme_auto" aria-pressed="true" title="自動主題">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">brightness_auto</span>
+        </button>
+        <button class="theme-mode-button" type="button" data-site-mode="light" aria-label="明亮主題" data-i18n-aria-label="theme_light" data-i18n-title="theme_light" aria-pressed="false" title="明亮主題">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">light_mode</span>
+        </button>
+        <button class="theme-mode-button" type="button" data-site-mode="dark" aria-label="暗黑主題" data-i18n-aria-label="theme_dark" data-i18n-title="theme_dark" aria-pressed="false" title="暗黑主題">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">dark_mode</span>
+        </button>
+      </div>
+    </div>
+    <div class="staff-session-tool" data-state="checking">
+      <span class="material-icons notranslate" translate="no" aria-hidden="true">account_circle</span>
+      <span id="staff-session-status" role="status" aria-live="polite">確認工作人員登入狀態</span>
     </div>
   </div>
