@@ -56,24 +56,34 @@ permalink: /activity/
 
 <section class="card">
   <div class="card-content">
-    <h2>活動行事曆與公共資訊</h2>
-    <div class="event-list">
-      <article class="event-card">
-        <span class="event-tag">2026</span>
-        <h3>風城部屋 5–9 月活動行事</h3>
-        <p>過去官網中多次出現月報與行事曆，顯示社群服務不只是節慶，而是持續性的場域安排與服務節奏。</p>
-      </article>
-      <article class="event-card">
-        <span class="event-tag">外展</span>
-        <h3>桃園、新竹、苗栗外展篩檢</h3>
-        <p>外展服務是官網中反覆被強調的項目之一，讓篩檢與關懷走進社區與偏鄉場域。</p>
-      </article>
-      <article class="event-card">
-        <span class="event-tag">新聞</span>
-        <h3>新聞稿與倡議紀錄</h3>
-        <p>包括「627 全民愛滋篩檢日」、「彩虹文化祭」、「同志勇敢出櫃」與多項性別友善新聞稿。</p>
-      </article>
+    <div class="calendar-heading">
+      <h2>活動行事曆與公共資訊</h2>
+      <details id="calendar-info-popover" class="calendar-info-popover">
+        <summary aria-label="開放時段與假日說明" title="開放時段與假日說明">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">info_outline</span>
+        </summary>
+        <div class="calendar-info-card">
+          <p>固定開放時段：週二至週六 14:00–22:00；國定假日休館。</p>
+          <div class="calendar-info-sources">
+            <p><span>開放時段來源</span><a href="https://hackmd.io/@HsinchuPride/Welcome" target="_blank" rel="noopener noreferrer">風城部屋團隊</a></p>
+            <p><span>國定假日來源</span><a href="https://www.dgpa.gov.tw/informationlist?uid=30" target="_blank" rel="noopener noreferrer">人事行政總處辦公日曆</a></p>
+          </div>
+          <button id="calendar-export-button" class="calendar-export-button" type="button">
+            <span class="material-icons notranslate" translate="no" aria-hidden="true">download</span>
+            加入行事曆
+          </button>
+        </div>
+      </details>
     </div>
+    <div id="activity-calendar" aria-label="活動行事曆"></div>
+    <p id="activity-calendar-status" class="calendar-status" role="status" aria-live="polite">行事曆載入中。</p>
+    <section id="activity-event-details" class="activity-event-details" aria-live="polite" hidden>
+      <h3 id="activity-event-title"></h3>
+      <p id="activity-event-date"></p>
+      <p id="activity-event-location"></p>
+      <p id="activity-event-summary"></p>
+      <a id="activity-event-link" hidden>活動詳情</a>
+    </section>
   </div>
 </section>
 

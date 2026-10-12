@@ -1,136 +1,280 @@
-// 多語系字典
-const i18n = {
-  "zh-TW": {
-    home: "首頁",
-    homepage: "首頁",
-    about: "關於中心",
-    services: "服務",
-    news: "最新消息",
-    contact: "聯絡",
-    pride: "彩虹文化祭",
-    screening: "篩檢",
-    activity: "活動",
+const localeOrder = ['zh-TW', 'en', 'id', 'th', 'vi', 'my', 'tl', 'km', 'bn'];
 
-    title: "自我健康管理問卷",
-    questionnaire_sections: "問卷區段導覽",
-    basic_info: "基本資料",
-    nickname: "暱稱",
-    agreement: "我同意提供此問卷資料作為健康管理用途",
-
-    gender: "性別認同",
-    cisman: "順性別男性",
-    ciswoman: "順性別女性",
-    transgender: "跨性別",
-    nonbinary: "非二元性別",
-
-    orientation: "性傾向",
-    heterosexual: "異性戀",
-    homosexual: "同性戀",
-    bisexual: "雙性戀",
-    orientation_others: "其他",
-
-    education: "教育程度",
-    elementary: "小學",
-    junior_high: "國中",
-    senior_high: "高中",
-    bachelor: "大學",
-    master: "碩士",
-    doctor: "博士",
-
-    residence: "居住地",
-    hsinchu_city: "新竹市",
-    hsinchu_county: "新竹縣",
-    miaoli_county: "苗栗縣",
-    taoyuan_city: "桃園市",
-    residence_others: "其他",
-
-    screening_section: "檢測紀錄",
-    last_screening: "最近一次篩檢日期",
-    screening_place: "篩檢地點",
-    screening_hiv: "HIV 篩檢",
-    screening_syphilis: "梅毒篩檢",
-
-    submit: "送出問卷"
-  },
-  "en": {
-    home: "Home",
-    homepage: "Home",
-    about: "About Us",
-    services: "Services",
-    news: "News",
-    contact: "Contact",
-    pride: "Pride Festival",
-    screening: "Screening",
-    activity: "Activities",
-
-    title: "Self Health Management Questionnaire",
-    questionnaire_sections: "Questionnaire sections",
-    basic_info: "Basic Information",
-    nickname: "Nickname",
-    agreement: "I agree to provide this questionnaire data for health management purposes",
-
-    gender: "Gender Identity",
-    cisman: "Cisgender Male",
-    ciswoman: "Cisgender Female",
-    transgender: "Transgender",
-    nonbinary: "Non-binary",
-
-    orientation: "Sexual Orientation",
-    heterosexual: "Heterosexual",
-    homosexual: "Homosexual",
-    bisexual: "Bisexual",
-    orientation_others: "Others",
-
-    education: "Education Level",
-    elementary: "Elementary",
-    junior_high: "Junior High",
-    senior_high: "Senior High",
-    bachelor: "Bachelor",
-    master: "Master",
-    doctor: "Doctor",
-
-    residence: "Residence",
-    hsinchu_city: "Hsinchu City",
-    hsinchu_county: "Hsinchu County",
-    miaoli_county: "Miaoli County",
-    taoyuan_city: "Taoyuan City",
-    residence_others: "Others",
-
-    screening_section: "Screening Record",
-    last_screening: "Last Screening Date",
-    screening_place: "Screening Place",
-    screening_hiv: "HIV Screening",
-    screening_syphilis: "Syphilis Screening",
-
-    submit: "Submit Questionnaire"
-  }
+const translationRows = {
+  language: ['語言', 'Language', 'Bahasa', 'ภาษา', 'Ngôn ngữ', 'ဘာသာစကား', 'Wika', 'ភាសា', 'ভাষা'],
+  choose_language: ['選擇語言', 'Choose language', 'Pilih bahasa', 'เลือกภาษา', 'Chọn ngôn ngữ', 'ဘာသာစကားရွေးရန်', 'Pumili ng wika', 'ជ្រើសរើសភាសា', 'ভাষা নির্বাচন করুন'],
+  theme: ['主題', 'Theme', 'Tema', 'ธีม', 'Giao diện', 'အပြင်အဆင်', 'Tema', 'រចនាប័ទ្ម', 'থিম'],
+  choose_theme_mode: ['選擇顯示模式', 'Choose display mode', 'Pilih mode tampilan', 'เลือกโหมดการแสดงผล', 'Chọn chế độ hiển thị', 'ပြသမှုပုံစံ ရွေးရန်', 'Pumili ng display mode', 'ជ្រើសរើសរបៀបបង្ហាញ', 'প্রদর্শন মোড নির্বাচন করুন'],
+  theme_auto: ['自動主題', 'Automatic theme', 'Tema otomatis', 'ธีมอัตโนมัติ', 'Giao diện tự động', 'အလိုအလျောက်အပြင်အဆင်', 'Awtomatikong tema', 'ស្បែកស្វ័យប្រវត្តិ', 'স্বয়ংক্রিয় থিম'],
+  theme_light: ['明亮主題', 'Light theme', 'Tema terang', 'ธีมสว่าง', 'Giao diện sáng', 'အလင်းအပြင်အဆင်', 'Maliwanag na tema', 'ស្បែកភ្លឺ', 'হালকা থিম'],
+  theme_dark: ['暗黑主題', 'Dark theme', 'Tema gelap', 'ธีมมืด', 'Giao diện tối', 'အမှောင်အပြင်အဆင်', 'Madilim na tema', 'ស្បែកងងឹត', 'গাঢ় থিম'],
+  staff_status_checking: ['確認工作人員登入狀態', 'Checking staff sign-in', 'Memeriksa login staf', 'กำลังตรวจสอบการเข้าสู่ระบบของเจ้าหน้าที่', 'Đang kiểm tra đăng nhập nhân viên', 'ဝန်ထမ်းဝင်ရောက်မှုကို စစ်ဆေးနေသည်', 'Sinusuri ang pag-login ng staff', 'កំពុងពិនិត្យការចូលរបស់បុគ្គលិក', 'কর্মীর লগইন যাচাই হচ্ছে'],
+  staff_status_signed_in: ['工作人員已登入', 'Staff signed in', 'Staf sudah masuk', 'เจ้าหน้าที่เข้าสู่ระบบแล้ว', 'Nhân viên đã đăng nhập', 'ဝန်ထမ်း ဝင်ရောက်ထားသည်', 'Naka-sign in ang staff', 'បុគ្គលិកបានចូលប្រើ', 'কর্মী লগইন করেছেন'],
+  staff_status_signed_out: ['工作人員未登入', 'Staff not signed in', 'Staf belum masuk', 'เจ้าหน้าที่ยังไม่ได้เข้าสู่ระบบ', 'Nhân viên chưa đăng nhập', 'ဝန်ထမ်း မဝင်ရောက်ရသေးပါ', 'Hindi naka-sign in ang staff', 'បុគ្គលិកមិនទាន់បានចូលប្រើ', 'কর্মী লগইন করেননি'],
+  staff_status_unbound: ['工作人員已登入，編號尚未綁定', 'Staff signed in; ID not linked', 'Staf masuk; nomor belum ditautkan', 'เข้าสู่ระบบแล้ว แต่ยังไม่ได้ผูกหมายเลข', 'Đã đăng nhập nhưng chưa liên kết mã', 'ဝင်ရောက်ထားသော်လည်း နံပါတ်မချိတ်ဆက်ရသေးပါ', 'Naka-sign in; hindi pa naka-link ang ID', 'បានចូលប្រើ ប៉ុន្តែមិនទាន់ភ្ជាប់លេខ', 'লগইন হয়েছে; আইডি যুক্ত হয়নি'],
+  staff_status_not_authorized: ['目前帳號不是授權工作人員', 'This account is not an authorized staff account', 'Akun ini bukan akun staf yang berwenang', 'บัญชีนี้ไม่ได้รับอนุญาตให้เป็นเจ้าหน้าที่', 'Tài khoản này không phải nhân viên được cấp quyền', 'ဤအကောင့်သည် ခွင့်ပြုထားသောဝန်ထမ်းအကောင့်မဟုတ်ပါ', 'Hindi awtorisadong staff account ang account na ito', 'គណនីនេះមិនមែនជាគណនីបុគ្គលិកដែលបានអនុញ្ញាតទេ', 'এই অ্যাকাউন্ট অনুমোদিত কর্মী অ্যাকাউন্ট নয়'],
+  staff_status_error: ['無法確認工作人員登入狀態', 'Unable to verify staff sign-in', 'Tidak dapat memastikan login staf', 'ไม่สามารถยืนยันการเข้าสู่ระบบของเจ้าหน้าที่', 'Không thể xác minh đăng nhập nhân viên', 'ဝန်ထမ်းဝင်ရောက်မှုကို အတည်မပြုနိုင်ပါ', 'Hindi ma-verify ang pag-login ng staff', 'មិនអាចផ្ទៀងផ្ទាត់ការចូលរបស់បុគ្គលិកបានទេ', 'কর্মীর লগইন যাচাই করা যাচ্ছে না'],
+  home: ['首頁', 'Home', 'Beranda', 'หน้าแรก', 'Trang chủ', 'ပင်မစာမျက်နှာ', 'Home', 'ទំព័រដើម', 'হোম'],
+  homepage: ['首頁', 'Home', 'Beranda', 'หน้าแรก', 'Trang chủ', 'ပင်မစာမျက်နှာ', 'Home', 'ទំព័រដើម', 'হোম'],
+  about: ['關於中心', 'About the Center', 'Tentang Pusat', 'เกี่ยวกับศูนย์', 'Về trung tâm', 'စင်တာအကြောင်း', 'Tungkol sa Center', 'អំពីមជ្ឈមណ្ឌល', 'কেন্দ্র সম্পর্কে'],
+  services: ['服務', 'Services', 'Layanan', 'บริการ', 'Dịch vụ', 'ဝန်ဆောင်မှုများ', 'Mga Serbisyo', 'សេវាកម្ម', 'সেবা'],
+  news: ['最新消息', 'News', 'Berita', 'ข่าวสาร', 'Tin tức', 'သတင်းများ', 'Balita', 'ព័ត៌មាន', 'সংবাদ'],
+  contact: ['聯絡', 'Contact', 'Kontak', 'ติดต่อ', 'Liên hệ', 'ဆက်သွယ်ရန်', 'Makipag-ugnayan', 'ទំនាក់ទំនង', 'যোগাযোগ'],
+  pride: ['彩虹文化祭', 'Pride Festival', 'Festival Pride', 'เทศกาลไพรด์', 'Lễ hội Tự hào', 'Pride ပွဲတော်', 'Pride Festival', 'មហោស្រព Pride', 'প্রাইড উৎসব'],
+  activity: ['活動', 'Activities', 'Kegiatan', 'กิจกรรม', 'Hoạt động', 'လှုပ်ရှားမှုများ', 'Mga Aktibidad', 'សកម្មភាព', 'কার্যক্রম'],
+  health_agency_project: ['衛生福利部疾病管制署計畫', 'Taiwan CDC Program, Ministry of Health and Welfare', 'Program CDC Taiwan, Kementerian Kesehatan dan Kesejahteraan', 'โครงการ CDC ไต้หวัน กระทรวงสาธารณสุขและสวัสดิการ', 'Chương trình CDC Đài Loan, Bộ Y tế và Phúc lợi', 'ထိုင်ဝမ် CDC၊ ကျန်းမာရေးနှင့် လူမှုဖူလုံရေးဝန်ကြီးဌာန အစီအစဉ်', 'Programa ng Taiwan CDC, Ministry of Health and Welfare', 'កម្មវិធី CDC តៃវ៉ាន់ ក្រសួងសុខាភិបាល និងសុខុមាលភាព', 'তাইওয়ান CDC, স্বাস্থ্য ও কল্যাণ মন্ত্রণালয়ের প্রকল্প'],
+  frequency_screening: ['篩檢頻率', 'Screening frequency', 'Frekuensi skrining', 'ความถี่ในการตรวจ', 'Tần suất xét nghiệm', 'စစ်ဆေးမှုအကြိမ်ရေ', 'Dalas ng screening', 'ប្រេកង់នៃការធ្វើតេស្ត', 'স্ক্রিনিংয়ের ঘনত্ব'],
+  no_fixed_partner: ['沒有固定性伴侶', 'No steady partner', 'Tidak memiliki pasangan tetap', 'ไม่มีคู่นอนประจำ', 'Không có bạn tình cố định', 'ပုံမှန်လိင်ဆက်ဆံဖော်မရှိပါ', 'Walang regular na kapareha', 'គ្មានដៃគូថេរ', 'স্থায়ী সঙ্গী নেই'],
+  other: ['其他', 'Other', 'Lainnya', 'อื่น ๆ', 'Khác', 'အခြား', 'Iba pa', 'ផ្សេងទៀត', 'অন্যান্য'],
+  title: ['自我健康管理問卷', 'Self-Health Check Questionnaire', 'Kuesioner Pemeriksaan Kesehatan Mandiri', 'แบบสอบถามประเมินสุขภาพตนเอง', 'Bảng tự đánh giá sức khỏe', 'ကိုယ်တိုင်ကျန်းမာရေးစစ်ဆေးမှု မေးခွန်းလွှာ', 'Talatanungan sa Sariling Pagsusuri ng Kalusugan', 'កម្រងសំណួរពិនិត្យសុខភាពខ្លួនឯង', 'স্বাস্থ্য-স্বমূল্যায়ন প্রশ্নমালা'],
+  questionnaire_sections: ['問卷區段導覽', 'Questionnaire sections', 'Bagian kuesioner', 'ส่วนต่าง ๆ ของแบบสอบถาม', 'Các phần của bảng hỏi', 'မေးခွန်းလွှာကဏ္ဍများ', 'Mga seksyon ng talatanungan', 'ផ្នែកនៃកម្រងសំណួរ', 'প্রশ্নমালার বিভাগ'],
+  notice_title: ['篩檢須知', 'Screening Guidelines', 'Informasi Skrining', 'ข้อมูลการตรวจคัดกรอง', 'Thông tin xét nghiệm', 'စစ်ဆေးမှုဆိုင်ရာ အချက်အလက်', 'Impormasyon sa Screening', 'ព័ត៌មានអំពីការធ្វើតេស្ត', 'স্ক্রিনিং তথ্য'],
+  notice_paragraph: ['您好，定期檢視自我健康，可以提升傳染疾病的預防知識並降低感染風險。快速篩檢可能受空窗期影響而未能測出感染；若結果為陽性，篩檢人員將協助轉介醫療服務。所有篩檢資料皆保密，謝謝。Taiwan AIDS Organization', 'Hello. Regular health check-ins can strengthen prevention knowledge and help reduce infection risks. Rapid tests may not detect an infection during the window period. If a result is positive, the screener will help arrange a medical referral. All screening information is confidential. Taiwan AIDS Organization', 'Halo. Pemeriksaan kesehatan rutin membantu meningkatkan pengetahuan pencegahan dan mengurangi risiko infeksi. Tes cepat mungkin belum mendeteksi infeksi selama masa jendela. Jika hasilnya positif, petugas akan membantu merujuk ke layanan medis. Semua informasi pemeriksaan dirahasiakan. Taiwan AIDS Organization', 'สวัสดี การตรวจสุขภาพตนเองเป็นประจำช่วยเพิ่มความรู้ในการป้องกันและลดความเสี่ยงต่อการติดเชื้อ การตรวจแบบรวดเร็วอาจไม่พบเชื้อในช่วงระยะฟักตัว หากผลเป็นบวก เจ้าหน้าที่จะช่วยส่งต่อไปยังบริการทางการแพทย์ ข้อมูลการตรวจทั้งหมดเป็นความลับ Taiwan AIDS Organization', 'Xin chào. Tự kiểm tra sức khỏe định kỳ giúp nâng cao kiến thức phòng bệnh và giảm nguy cơ lây nhiễm. Xét nghiệm nhanh có thể chưa phát hiện nhiễm bệnh trong thời kỳ cửa sổ. Nếu kết quả dương tính, nhân viên sẽ hỗ trợ kết nối dịch vụ y tế. Mọi thông tin xét nghiệm đều được bảo mật. Taiwan AIDS Organization', 'မင်္ဂလာပါ။ ကျန်းမာရေးကို ပုံမှန်စစ်ဆေးခြင်းသည် ကူးစက်ရောဂါကာကွယ်ရေး အသိပညာကို မြှင့်တင်ပြီး ကူးစက်နိုင်ခြေကို လျှော့ချပေးသည်။ အမြန်စစ်ဆေးမှုသည် window period အတွင်း ကူးစက်မှုကို မတွေ့နိုင်ပါ။ ရလဒ်အပေါင်းဖြစ်ပါက ဆေးဘက်ဆိုင်ရာဝန်ဆောင်မှုသို့ လွှဲပြောင်းပေးရန် ဝန်ထမ်းက ကူညီမည်။ စစ်ဆေးမှုအချက်အလက်အားလုံးကို လျှို့ဝှက်ထားပါသည်။ Taiwan AIDS Organization', 'Kumusta. Ang regular na pagsusuri sa kalusugan ay nagpapalawak ng kaalaman sa pag-iwas at nakababawas ng panganib ng impeksiyon. Maaaring hindi makita ng rapid test ang impeksiyon sa window period. Kung positibo ang resulta, tutulungan ka ng screener na makakuha ng serbisyong medikal. Kumpidensiyal ang lahat ng impormasyon. Taiwan AIDS Organization', 'សួស្តី។ ការត្រួតពិនិត្យសុខភាពជាប្រចាំជួយបង្កើនចំណេះដឹងការពារ និងកាត់បន្ថយហានិភ័យឆ្លង។ ការធ្វើតេស្តរហ័សអាចមិនរកឃើញការឆ្លងក្នុងអំឡុងពេល window period។ ប្រសិនបើលទ្ធផលវិជ្ជមាន បុគ្គលិកនឹងជួយបញ្ជូនទៅសេវាវេជ្ជសាស្ត្រ។ ព័ត៌មានតេស្តទាំងអស់ត្រូវបានរក្សាជាការសម្ងាត់។ Taiwan AIDS Organization', 'স্বাগতম। নিয়মিত স্বাস্থ্য পরীক্ষা প্রতিরোধবিষয়ক জ্ঞান বাড়ায় এবং সংক্রমণের ঝুঁকি কমাতে সহায়তা করে। উইন্ডো পিরিয়ডে দ্রুত পরীক্ষায় সংক্রমণ ধরা নাও পড়তে পারে। ফল পজিটিভ হলে কর্মী চিকিৎসাসেবায় রেফার করতে সহায়তা করবেন। পরীক্ষার সব তথ্য গোপন রাখা হয়। Taiwan AIDS Organization'],
+  risk_title: ['風險評估', 'Risk Assessment', 'Penilaian Risiko', 'การประเมินความเสี่ยง', 'Đánh giá nguy cơ', 'အန္တရာယ်အကဲဖြတ်ခြင်း', 'Pagtatasa ng Panganib', 'ការវាយតម្លៃហានិភ័យ', 'ঝুঁকি মূল্যায়ন'],
+  risk_relationship_title: ['性行為', 'Sexual Activity', 'Aktivitas Seksual', 'พฤติกรรมทางเพศ', 'Hoạt động tình dục', 'လိင်ပိုင်းဆိုင်ရာ အပြုအမူ', 'Aktibidad na Sekswal', 'សកម្មភាពផ្លូវភេទ', 'যৌন আচরণ'],
+  risk_substance_title: ['物質使用', 'Substance Use', 'Penggunaan Zat', 'การใช้สาร', 'Sử dụng chất', 'မူးယစ်ပစ္စည်း သုံးစွဲမှု', 'Paggamit ng Substance', 'ការប្រើប្រាស់សារធាតុ', 'মাদকদ্রব্য ব্যবহার'],
+  risk_condition_title: ['風險控管', 'Risk Prevention', 'Pencegahan Risiko', 'การป้องกันความเสี่ยง', 'Phòng ngừa nguy cơ', 'အန္တရာယ်ကာကွယ်ရေး', 'Pag-iwas sa Panganib', 'ការការពារហានិភ័យ', 'ঝুঁকি প্রতিরোধ'],
+  profile_title: ['基本資料', 'Basic Information', 'Informasi Dasar', 'ข้อมูลพื้นฐาน', 'Thông tin cơ bản', 'အခြေခံအချက်အလက်', 'Pangunahing Impormasyon', 'ព័ត៌មានមូលដ្ឋាន', 'প্রাথমিক তথ্য'],
+  basic_info: ['基本資料', 'Basic Information', 'Informasi Dasar', 'ข้อมูลพื้นฐาน', 'Thông tin cơ bản', 'အခြေခံအချက်အလက်', 'Pangunahing Impormasyon', 'ព័ត៌មានមូលដ្ឋាន', 'প্রাথমিক তথ্য'],
+  nickname: ['暱稱', 'Nickname', 'Nama panggilan', 'ชื่อเล่น', 'Tên gọi', 'အမည်ပြောင်', 'Palayaw', 'ឈ្មោះហៅក្រៅ', 'ডাকনাম'],
+  agreement: ['我同意提供此問卷資料作為健康管理用途', 'I agree to provide this information for health management purposes', 'Saya setuju memberikan data kuesioner ini untuk pengelolaan kesehatan', 'ข้าพเจ้ายินยอมให้ใช้ข้อมูลแบบสอบถามเพื่อการดูแลสุขภาพ', 'Tôi đồng ý cung cấp dữ liệu này cho mục đích quản lý sức khỏe', 'ကျန်းမာရေးစီမံခန့်ခွဲမှုအတွက် မေးခွန်းလွှာအချက်အလက် ပေးရန် သဘောတူပါသည်', 'Sumasang-ayon akong ibigay ang datos na ito para sa pangangalaga ng kalusugan', 'ខ្ញុំយល់ព្រមផ្តល់ទិន្នន័យនេះសម្រាប់ការគ្រប់គ្រងសុខភាព', 'স্বাস্থ্য ব্যবস্থাপনার জন্য এই তথ্য দিতে সম্মত'],
+  consent_screening: ['我同意並配合快速篩檢諮詢及陽性轉介服務，並已知悉空窗期間可能測不到抗原或抗體。', 'I agree to rapid screening counseling and referral services, and understand that tests may not detect infection during the window period.', 'Saya setuju mengikuti konseling skrining cepat dan layanan rujukan, serta memahami bahwa infeksi mungkin belum terdeteksi selama masa jendela.', 'ข้าพเจ้ายินยอมรับคำปรึกษาและบริการส่งต่อ และเข้าใจว่าการตรวจอาจไม่พบเชื้อในช่วงระยะฟักตัว', 'Tôi đồng ý tư vấn xét nghiệm nhanh và hỗ trợ chuyển tuyến; tôi hiểu xét nghiệm có thể chưa phát hiện bệnh trong thời kỳ cửa sổ.', 'အမြန်စစ်ဆေးမှု အကြံပေးခြင်းနှင့် လွှဲပြောင်းဝန်ဆောင်မှုကို သဘောတူပြီး window period အတွင်း ရောဂါမတွေ့နိုင်ကြောင်း သိရှိပါသည်။', 'Sumasang-ayon ako sa counseling at referral para sa rapid screening at nauunawaang maaaring hindi makita ang impeksiyon sa window period.', 'ខ្ញុំយល់ព្រមទទួលការប្រឹក្សា និងបញ្ជូនបន្ត ហើយយល់ថាតេស្តអាចមិនរកឃើញក្នុងរយៈពេល window period។', 'দ্রুত স্ক্রিনিং পরামর্শ ও রেফারেল সেবায় সম্মত; উইন্ডো পিরিয়ডে সংক্রমণ ধরা নাও পড়তে পারে তা জানি'],
+  consent_needle: ['我同意篩檢員以扎針採血的方式進行快速篩檢。', 'I consent to a finger-prick blood sample for rapid screening.', 'Saya setuju menjalani skrining cepat dengan sampel darah dari tusukan jari.', 'ข้าพเจ้ายินยอมให้เก็บเลือดจากปลายนิ้วเพื่อตรวจคัดกรองแบบรวดเร็ว', 'Tôi đồng ý lấy máu đầu ngón tay để xét nghiệm nhanh.', 'အမြန်စစ်ဆေးရန် လက်ချောင်းဖောက်၍ သွေးယူခြင်းကို သဘောတူပါသည်။', 'Pumapayag ako sa pagkuha ng dugo sa pamamagitan ng tusok sa daliri para sa rapid screening.', 'ខ្ញុំយល់ព្រមឱ្យយកឈាមពីចុងម្រាមដៃសម្រាប់តេស្តរហ័ស។', 'দ্রুত পরীক্ষার জন্য আঙুল ফুটিয়ে রক্ত নিতে সম্মত'],
+  consent_privacy: ['我已閱讀並同意上述資料使用說明。', 'I have read and agree to the data-use notice above.', 'Saya telah membaca dan menyetujui penjelasan penggunaan data di atas.', 'ข้าพเจ้าได้อ่านและยอมรับคำชี้แจงการใช้ข้อมูลข้างต้น', 'Tôi đã đọc và đồng ý với thông báo sử dụng dữ liệu ở trên.', 'အထက်ပါ အချက်အလက်အသုံးပြုမှု အသိပေးချက်ကို ဖတ်ရှုပြီး သဘောတူပါသည်။', 'Nabasa at sinasang-ayunan ko ang paunawa sa paggamit ng datos sa itaas.', 'ខ្ញុំបានអាន និងយល់ព្រមតាមសេចក្តីជូនដំណឹងខាងលើ។', 'উপরের তথ্য ব্যবহারের বিজ্ঞপ্তি পড়েছি ও সম্মত'],
+  consent_heading: ['同意與確認事項', 'Consent and confirmation', 'Persetujuan dan konfirmasi', 'การยินยอมและการยืนยัน', 'Đồng ý và xác nhận', 'သဘောတူညီချက်နှင့် အတည်ပြုချက်', 'Pahintulot at kumpirmasyon', 'ការយល់ព្រម និងការបញ្ជាក់', 'সম্মতি ও নিশ্চিতকরণ'],
+  privacy_notice_title: ['個人資料與問卷資料使用說明', 'Personal and questionnaire data use notice', 'Pemberitahuan penggunaan data pribadi dan kuesioner', 'คำชี้แจงการใช้ข้อมูลส่วนบุคคลและข้อมูลแบบสอบถาม', 'Thông báo sử dụng dữ liệu cá nhân và dữ liệu khảo sát', 'ကိုယ်ရေးအချက်အလက်နှင့် မေးခွန်းလွှာအသုံးပြုမှု အသိပေးချက်', 'Paunawa sa paggamit ng personal at questionnaire data', 'សេចក្តីជូនដំណឹងអំពីការប្រើប្រាស់ទិន្នន័យផ្ទាល់ខ្លួន និងកម្រងសំណួរ', 'ব্যক্তিগত ও প্রশ্নমালার তথ্য ব্যবহারের বিজ্ঞপ্তি'],
+  privacy_notice_full: ['個人資料與問卷資料使用說明全文', 'Full personal and questionnaire data use notice', 'Pemberitahuan lengkap penggunaan data pribadi dan kuesioner', 'คำชี้แจงฉบับเต็มเกี่ยวกับการใช้ข้อมูลส่วนบุคคลและแบบสอบถาม', 'Toàn văn thông báo sử dụng dữ liệu cá nhân và khảo sát', 'ကိုယ်ရေးအချက်အလက်နှင့် မေးခွန်းလွှာအသုံးပြုမှု အသိပေးချက် အပြည့်အစုံ', 'Buong paunawa sa paggamit ng personal at questionnaire data', 'សេចក្តីជូនដំណឹងពេញលេញអំពីការប្រើប្រាស់ទិន្នន័យ', 'তথ্য ব্যবহারের সম্পূর্ণ বিজ্ঞপ্তি'],
+  privacy_notice_body: ['本問卷資料僅用於健康管理、篩檢服務與統計分析。資料會由授權工作人員保管，並依組織的資料保存期限保存；如需查詢、更正或刪除資料，請向篩檢人員提出申請。', 'Questionnaire data is used only for health management, screening services, and statistical analysis. Authorized staff safeguard the data according to the organization’s retention policy. Contact screening staff to request access, correction, or deletion.', 'Data kuesioner hanya digunakan untuk pengelolaan kesehatan, layanan skrining, dan analisis statistik. Data dijaga staf berwenang sesuai kebijakan penyimpanan organisasi. Hubungi petugas skrining untuk meminta akses, koreksi, atau penghapusan.', 'ข้อมูลแบบสอบถามใช้เพื่อการดูแลสุขภาพ บริการตรวจคัดกรอง และการวิเคราะห์สถิติเท่านั้น เจ้าหน้าที่ที่ได้รับอนุญาตจะดูแลข้อมูลตามระยะเวลาการเก็บรักษาขององค์กร หากต้องการเข้าถึง แก้ไข หรือลบข้อมูล โปรดติดต่อเจ้าหน้าที่ตรวจ', 'Dữ liệu khảo sát chỉ dùng cho quản lý sức khỏe, dịch vụ xét nghiệm và phân tích thống kê. Nhân viên được ủy quyền bảo vệ dữ liệu theo thời hạn lưu trữ của tổ chức. Hãy liên hệ nhân viên xét nghiệm để yêu cầu xem, sửa hoặc xóa dữ liệu.', 'မေးခွန်းလွှာအချက်အလက်ကို ကျန်းမာရေးစီမံခန့်ခွဲမှု၊ စစ်ဆေးမှုဝန်ဆောင်မှုနှင့် စာရင်းအင်းခွဲခြမ်းစိတ်ဖြာမှုအတွက်သာ အသုံးပြုသည်။ ခွင့်ပြုထားသောဝန်ထမ်းများက အဖွဲ့အစည်း၏ သိမ်းဆည်းကာလအတိုင်း ထိန်းသိမ်းမည်။ ကြည့်ရှုရန်၊ ပြင်ဆင်ရန် သို့မဟုတ် ဖျက်ရန် စစ်ဆေးရေးဝန်ထမ်းထံ ဆက်သွယ်ပါ။', 'Gagamitin lamang ang datos para sa pamamahala ng kalusugan, screening, at pagsusuring estadistikal. Poprotektahan ito ng awtorisadong staff ayon sa patakaran sa pagtatago ng organisasyon. Makipag-ugnayan sa screener para humiling ng access, pagwawasto, o pagbura.', 'ទិន្នន័យកម្រងសំណួរប្រើសម្រាប់ការគ្រប់គ្រងសុខភាព សេវាធ្វើតេស្ត និងការវិភាគស្ថិតិប៉ុណ្ណោះ។ បុគ្គលិកដែលបានអនុញ្ញាតនឹងការពារទិន្នន័យតាមគោលការណ៍រក្សាទុករបស់អង្គការ។ សូមទាក់ទងបុគ្គលិកដើម្បីស្នើមើល កែ ឬលុបទិន្នន័យ។', 'প্রশ্নমালার তথ্য শুধু স্বাস্থ্য ব্যবস্থাপনা, স্ক্রিনিং সেবা ও পরিসংখ্যান বিশ্লেষণে ব্যবহৃত হয়। অনুমোদিত কর্মীরা প্রতিষ্ঠানের সংরক্ষণ নীতি অনুযায়ী তথ্য রক্ষা করবেন। তথ্য দেখা, সংশোধন বা মুছতে স্ক্রিনিং কর্মীর সঙ্গে যোগাযোগ করুন।'],
+  question_next: ['下一題', 'Next question', 'Pertanyaan berikutnya', 'คำถามถัดไป', 'Câu tiếp theo', 'နောက်မေးခွန်း', 'Susunod na tanong', 'សំណួរបន្ទាប់', 'পরের প্রশ্ন'],
+  question_previous: ['上一題', 'Previous question', 'Pertanyaan sebelumnya', 'คำถามก่อนหน้า', 'Câu trước', 'ယခင်မေးခွန်း', 'Nakaraang tanong', 'សំណួរមុន', 'আগের প্রশ্ন'],
+  birth_year: ['出生年份', 'Birth year', 'Tahun lahir', 'ปีเกิด', 'Năm sinh', 'မွေးသက္ကရာဇ်', 'Taon ng kapanganakan', 'ឆ្នាំកំណើត', 'জন্মসাল'],
+  choose_birth_year: ['請選擇年份', 'Select a year', 'Pilih tahun', 'เลือกปี', 'Chọn năm', 'နှစ်ရွေးပါ', 'Pumili ng taon', 'ជ្រើសរើសឆ្នាំ', 'বছর নির্বাচন করুন'],
+  choose_option: ['請選擇', 'Please select', 'Silakan pilih', 'โปรดเลือก', 'Vui lòng chọn', 'ရွေးချယ်ပါ', 'Pumili', 'សូមជ្រើសរើស', 'অনুগ্রহ করে নির্বাচন করুন'],
+  nationality: ['國籍（可複選）', 'Nationality (select all that apply)', 'Kewarganegaraan (dapat memilih lebih dari satu)', 'สัญชาติ (เลือกได้หลายข้อ)', 'Quốc tịch (có thể chọn nhiều)', 'နိုင်ငံသားဖြစ်မှု (တစ်ခုထက်ပိုရွေးနိုင်သည်)', 'Nasyonalidad (maaaring pumili ng marami)', 'សញ្ជាតិ (អាចជ្រើសច្រើន)', 'জাতীয়তা (একাধিক নির্বাচন করা যাবে)'],
+  hometown: ['成年前居住地', 'Where you lived before adulthood', 'Tempat tinggal sebelum dewasa', 'ที่อยู่ก่อนเป็นผู้ใหญ่', 'Nơi sống trước tuổi trưởng thành', 'အရွယ်မရောက်မီ နေထိုင်ခဲ့သည့်နေရာ', 'Tirahan bago maging adulto', 'ទីកន្លែងរស់នៅមុនពេញវ័យ', 'প্রাপ্তবয়স্ক হওয়ার আগে বসবাসের স্থান'],
+  residence: ['目前居住地', 'Current residence', 'Tempat tinggal saat ini', 'ที่อยู่ปัจจุบัน', 'Nơi cư trú hiện tại', 'လက်ရှိနေထိုင်ရာ', 'Kasalukuyang tirahan', 'ទីលំនៅបច្ចុប្បន្ន', 'বর্তমান বাসস্থান'],
+  other_gender_prompt: ['請填寫其他性別', 'Please specify another gender', 'Tuliskan gender lainnya', 'โปรดระบุเพศอื่น', 'Vui lòng ghi rõ giới tính khác', 'အခြားလိင်ကို ဖော်ပြပါ', 'Pakisulat ang ibang kasarian', 'សូមបញ្ជាក់ភេទផ្សេងទៀត', 'অন্যান্য লিঙ্গ উল্লেখ করুন'],
+  other_orientation_prompt: ['請填寫其他性傾向', 'Please specify another orientation', 'Tuliskan orientasi lainnya', 'โปรดระบุรสนิยมทางเพศอื่น', 'Vui lòng ghi rõ xu hướng khác', 'အခြားလိင်စိတ်တိမ်းညွတ်မှုကို ဖော်ပြပါ', 'Pakisulat ang ibang oryentasyon', 'សូមបញ្ជាក់ទំនោរផ្លូវភេទផ្សេងទៀត', 'অন্যান্য যৌন অভিমুখিতা উল্লেখ করুন'],
+  other_hometown_prompt: ['請填寫其他成年前居住地', 'Please specify another place lived before adulthood', 'Tuliskan tempat tinggal lain sebelum dewasa', 'โปรดระบุที่อยู่ก่อนเป็นผู้ใหญ่อื่น', 'Vui lòng ghi rõ nơi sống khác trước tuổi trưởng thành', 'အရွယ်မရောက်မီ အခြားနေထိုင်ရာကို ဖော်ပြပါ', 'Pakisulat ang ibang tirahan bago naging adulto', 'សូមបញ្ជាក់ទីកន្លែងរស់នៅផ្សេងមុនពេញវ័យ', 'প্রাপ্তবয়স্ক হওয়ার আগে অন্য বাসস্থান উল্লেখ করুন'],
+  other_residence_prompt: ['請填寫其他居住地', 'Please specify another residence', 'Tuliskan tempat tinggal lainnya', 'โปรดระบุที่อยู่อื่น', 'Vui lòng ghi rõ nơi cư trú khác', 'အခြားနေထိုင်ရာကို ဖော်ပြပါ', 'Pakisulat ang ibang tirahan', 'សូមបញ្ជាក់ទីលំនៅផ្សេងទៀត', 'অন্যান্য বাসস্থান উল্লেখ করুন'],
+  other_drug_prompt: ['請填寫其他成癮藥物', 'Please specify other substances', 'Tuliskan zat lainnya', 'โปรดระบุสารอื่น ๆ', 'Vui lòng ghi rõ chất khác', 'အခြားပစ္စည်းကို ဖော်ပြပါ', 'Pakisulat ang iba pang substance', 'សូមបញ្ជាក់សារធាតុផ្សេងទៀត', 'অন্যান্য পদার্থ উল্লেখ করুন'],
+  other_std_prompt: ['請填寫其他性病', 'Please specify another STI', 'Tuliskan IMS lainnya', 'โปรดระบุโรคติดต่อทางเพศสัมพันธ์อื่น', 'Vui lòng ghi rõ bệnh khác', 'အခြား STI ကို ဖော်ပြပါ', 'Pakisulat ang iba pang STI', 'សូមបញ្ជាក់ជំងឺកាមរោគផ្សេងទៀត', 'অন্যান্য STI উল্লেখ করুন'],
+  review_answers: ['檢視填答內容', 'Review answers', 'Tinjau jawaban', 'ตรวจสอบคำตอบ', 'Xem lại câu trả lời', 'အဖြေများကို ပြန်စစ်ရန်', 'Suriin ang mga sagot', 'ពិនិត្យចម្លើយ', 'উত্তর পর্যালোচনা করুন'],
+  review_instructions: ['以下是您本次的填答內容，請確認是否正確。若發現錯誤，請返回修改；確認無誤後，再交給篩檢員完成後續確認。', 'Please review your answers below. Go back to make corrections, or hand them to the screener when everything is correct.', 'Periksa jawaban Anda di bawah ini. Kembali untuk mengubah jika ada kesalahan, atau serahkan kepada petugas jika sudah benar.', 'โปรดตรวจสอบคำตอบด้านล่าง หากพบข้อผิดพลาดให้ย้อนกลับไปแก้ไข เมื่อถูกต้องแล้วจึงส่งให้เจ้าหน้าที่ตรวจ', 'Vui lòng kiểm tra câu trả lời bên dưới. Quay lại chỉnh sửa nếu có sai sót; khi đã đúng, hãy chuyển cho nhân viên xét nghiệm.', 'အောက်ပါအဖြေများကို စစ်ဆေးပါ။ အမှားရှိပါက ပြန်ပြင်ပြီး မှန်ကန်ပါက စစ်ဆေးသူထံ ပေးပို့ပါ။', 'Suriin ang iyong mga sagot sa ibaba. Bumalik upang magwasto kung may mali, o ibigay sa screener kapag tama na.', 'សូមពិនិត្យចម្លើយខាងក្រោម។ ត្រឡប់ទៅកែ ប្រសិនបើមានកំហុស ហើយប្រគល់ឱ្យអ្នកធ្វើតេស្តនៅពេលត្រឹមត្រូវ។', 'নিচের উত্তরগুলো যাচাই করুন। ভুল থাকলে ফিরে সম্পাদনা করুন; ঠিক হলে স্ক্রিনারের কাছে দিন।'],
+  return_to_edit: ['返回修改', 'Back to edit', 'Kembali untuk mengubah', 'กลับไปแก้ไข', 'Quay lại chỉnh sửa', 'ပြင်ဆင်ရန် ပြန်သွားပါ', 'Bumalik para mag-edit', 'ត្រឡប់ទៅកែសម្រួល', 'সম্পাদনায় ফিরুন'],
+  handoff_screening: ['確認並交給篩檢員', 'Confirm and hand over to screener', 'Konfirmasi dan serahkan kepada petugas skrining', 'ยืนยันและส่งต่อให้เจ้าหน้าที่ตรวจ', 'Xác nhận và chuyển cho nhân viên xét nghiệm', 'အတည်ပြုပြီး စစ်ဆေးသူထံ လွှဲပါ', 'Kumpirmahin at ibigay sa screener', 'បញ្ជាក់ ហើយប្រគល់ទៅអ្នកធ្វើតេស្ត', 'নিশ্চিত করে স্ক্রিনারের কাছে দিন'],
+  screener_instructions: ['此區域由篩檢員填答', 'For screener use', 'Bagian ini diisi petugas skrining', 'ส่วนนี้สำหรับเจ้าหน้าที่ตรวจกรอก', 'Phần này do nhân viên xét nghiệm điền', 'ဤအပိုင်းကို စစ်ဆေးသူက ဖြည့်ရန်', 'Para sa screener', 'ផ្នែកនេះសម្រាប់អ្នកធ្វើតេស្តបំពេញ', 'এই অংশ স্ক্রিনার পূরণ করবেন'],
+  screening_answer_title: ['受檢者填答摘要', 'Participant answer summary', 'Ringkasan jawaban peserta', 'สรุปคำตอบของผู้รับการตรวจ', 'Tóm tắt câu trả lời', 'စစ်ဆေးခံသူ၏ အဖြေအကျဉ်း', 'Buod ng sagot ng kalahok', 'សង្ខេបចម្លើយអ្នកចូលរួម', 'অংশগ্রহণকারীর উত্তরের সারাংশ'],
+  screening_answer_instructions: ['請先核對答案；如需更正，可返回修改填答內容。', 'Please review the answers. Return to edit if anything needs correction.', 'Periksa jawaban terlebih dahulu. Kembali untuk mengubah jika perlu.', 'โปรดตรวจสอบคำตอบก่อน หากต้องการแก้ไขให้ย้อนกลับไปแก้ไข', 'Vui lòng kiểm tra câu trả lời; quay lại để chỉnh sửa nếu cần.', 'အဖြေများကို စစ်ဆေးပါ။ ပြင်ဆင်ရန်လိုပါက ပြန်သွားပါ။', 'Suriin muna ang mga sagot. Bumalik para mag-edit kung may kailangang itama.', 'សូមពិនិត្យចម្លើយ។ ត្រឡប់ទៅកែ ប្រសិនបើត្រូវការកែតម្រូវ។', 'উত্তরগুলো যাচাই করুন; সংশোধন দরকার হলে সম্পাদনায় ফিরুন।'],
+  locate_current: ['定位目前位置', 'Locate current location', 'Tentukan lokasi saat ini', 'ระบุตำแหน่งปัจจุบัน', 'Định vị hiện tại', 'လက်ရှိတည်နေရာကို ရှာရန်', 'Hanapin ang kasalukuyang lokasyon', 'កំណត់ទីតាំងបច្ចុប្បន្ន', 'বর্তমান অবস্থান নির্ণয় করুন'],
+  map_source_label: ['地圖與地點資料來源', 'Map and place data sources', 'Sumber peta dan lokasi', 'แหล่งที่มาของแผนที่และสถานที่', 'Nguồn dữ liệu bản đồ và địa điểm', 'မြေပုံနှင့်နေရာအချက်အလက် အရင်းအမြစ်', 'Pinagmulan ng mapa at lugar', 'ប្រភពទិន្នន័យផែនទី និងទីតាំង', 'মানচিত্র ও স্থানের তথ্যসূত্র'],
+  map_source_notice: ['地圖資料 © OpenStreetMap contributors。地點建議由 Photon、Nominatim 與在地地標清單比對；輸入地點文字會送至這些服務查詢，不會隨問卷答案送出。', 'Map data © OpenStreetMap contributors. Place suggestions use Photon, Nominatim, and local landmarks. Typed locations are sent to these services for lookup and are not included in questionnaire responses.', 'Data peta © OpenStreetMap contributors. Saran lokasi menggunakan Photon, Nominatim, dan daftar tempat lokal. Teks lokasi yang diketik dikirim ke layanan tersebut untuk pencarian dan tidak disertakan dalam jawaban kuesioner.', 'ข้อมูลแผนที่ © OpenStreetMap contributors คำแนะนำสถานที่ใช้ Photon, Nominatim และรายการสถานที่ในพื้นที่ ข้อความสถานที่ที่พิมพ์จะถูกส่งไปค้นหาและไม่รวมในคำตอบแบบสอบถาม', 'Dữ liệu bản đồ © OpenStreetMap contributors. Gợi ý địa điểm dùng Photon, Nominatim và danh sách địa điểm địa phương. Địa chỉ nhập vào được gửi để tra cứu, không lưu cùng câu trả lời khảo sát.', 'မြေပုံဒေတာ © OpenStreetMap contributors။ နေရာအကြံပြုချက်များကို Photon၊ Nominatim နှင့် ဒေသခံနေရာစာရင်းမှ ရယူသည်။ ရိုက်ထည့်သောနေရာကို ရှာဖွေရန် ဝန်ဆောင်မှုများထံ ပေးပို့သော်လည်း မေးခွန်းလွှာအဖြေနှင့်အတူ မပို့ပါ။', 'Map data © OpenStreetMap contributors. Gumagamit ang mga mungkahi ng Photon, Nominatim, at lokal na landmark. Ipinapadala ang inilagay na lokasyon para hanapin at hindi isinasama sa sagot sa questionnaire.', 'ទិន្នន័យផែនទី © OpenStreetMap contributors។ ការណែនាំទីតាំងប្រើ Photon, Nominatim និងបញ្ជីទីតាំងមូលដ្ឋាន។ អត្ថបទទីតាំងដែលវាយនឹងផ្ញើទៅសេវាទាំងនេះសម្រាប់ស្វែងរក ហើយមិនភ្ជាប់ជាមួយចម្លើយកម្រងសំណួរទេ។', 'মানচিত্রের তথ্য © OpenStreetMap contributors. স্থান প্রস্তাবে Photon, Nominatim ও স্থানীয় তালিকা ব্যবহৃত হয়। টাইপ করা স্থান খোঁজার জন্য পাঠানো হয়, প্রশ্নমালার উত্তরের সঙ্গে সংরক্ষিত হয় না।'],
+  map_suggestions: ['地址建議', 'Address suggestions', 'Saran alamat', 'คำแนะนำที่อยู่', 'Gợi ý địa chỉ', 'လိပ်စာအကြံပြုချက်များ', 'Mga mungkahi sa address', 'ការណែនាំអាសយដ្ឋាន', 'ঠিকানার পরামর্শ'],
+  screener_location_map: ['互動式篩檢地點地圖', 'Interactive screening location map', 'Peta lokasi skrining interaktif', 'แผนที่สถานที่ตรวจแบบโต้ตอบ', 'Bản đồ địa điểm xét nghiệm tương tác', 'အပြန်အလှန်အသုံးပြုနိုင်သော စစ်ဆေးရာနေရာမြေပုံ', 'Interactive na mapa ng screening', 'ផែនទីទីតាំងធ្វើតេស្តអន្តរកម្ម', 'ইন্টারেক্টিভ স্ক্রিনিং স্থান মানচিত্র'],
+  referral_location_map: ['就診地址地圖', 'Clinic address map', 'Peta alamat klinik', 'แผนที่ที่อยู่คลินิก', 'Bản đồ địa chỉ cơ sở khám', 'ဆေးခန်းလိပ်စာမြေပုံ', 'Mapa ng address ng klinika', 'ផែនទីអាសយដ្ឋានគ្លីនិក', 'ক্লিনিকের ঠিকানার মানচিত্র'],
+  recommendation_places: ['建議地點', 'Suggested places', 'Tempat yang disarankan', 'สถานที่แนะนำ', 'Địa điểm gợi ý', 'အကြံပြုထားသောနေရာများ', 'Mga iminungkahing lugar', 'ទីតាំងដែលបានណែនាំ', 'প্রস্তাবিত স্থান'],
+  other: ['其他', 'Other', 'Lainnya', 'อื่น ๆ', 'Khác', 'အခြား', 'Iba pa', 'ផ្សេងទៀត', 'অন্যান্য'],
+  no_results: ['沒有符合的縣市', 'No matching region found', 'Tidak ada wilayah yang cocok', 'ไม่พบจังหวัดที่ตรงกัน', 'Không tìm thấy tỉnh/thành phù hợp', 'ကိုက်ညီသောဒေသ မတွေ့ပါ', 'Walang tumugmang rehiyon', 'រកមិនឃើញតំបន់ដែលត្រូវគ្នា', 'মিলযুক্ত অঞ্চল পাওয়া যায়নি'],
+  location_error_unsupported: ['此瀏覽器不支援定位，請直接輸入地點。', 'This browser does not support location. Enter a place manually.', 'Browser ini tidak mendukung lokasi. Masukkan tempat secara manual.', 'เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง โปรดพิมพ์สถานที่', 'Trình duyệt không hỗ trợ định vị. Vui lòng nhập địa điểm.', 'ဤဘရောက်ဆာတွင် တည်နေရာမရနိုင်ပါ။ နေရာကို ကိုယ်တိုင်ရိုက်ထည့်ပါ။', 'Hindi sinusuportahan ng browser ang lokasyon. Mag-type ng lugar.', 'កម្មវិធីរុករកនេះមិនគាំទ្រទីតាំងទេ។ សូមវាយទីតាំងដោយដៃ។', 'এই ব্রাউজার অবস্থান সমর্থন করে না। স্থান লিখুন।'],
+  location_error_permission: ['未取得定位權限，仍可直接輸入或搜尋地點。', 'Location permission was not granted. You can still enter or search for a place.', 'Izin lokasi tidak diberikan. Anda tetap dapat memasukkan atau mencari tempat.', 'ไม่ได้รับอนุญาตตำแหน่ง คุณยังพิมพ์หรือค้นหาสถานที่ได้', 'Chưa được cấp quyền vị trí. Bạn vẫn có thể nhập hoặc tìm địa điểm.', 'တည်နေရာခွင့်ပြုချက် မရပါ။ နေရာကို ရိုက်ထည့် သို့မဟုတ် ရှာနိုင်ပါသည်။', 'Hindi naibigay ang pahintulot sa lokasyon. Maaari ka pa ring mag-type o maghanap.', 'មិនបានអនុញ្ញាតទីតាំងទេ។ អ្នកនៅតែអាចវាយ ឬស្វែងរកទីតាំងបាន។', 'অবস্থানের অনুমতি মেলেনি। তবুও স্থান লিখতে বা খুঁজতে পারবেন।'],
+  location_error_unavailable: ['目前無法取得位置，請直接輸入或搜尋地點。', 'Unable to get your location. Enter or search for a place.', 'Lokasi tidak dapat diperoleh. Masukkan atau cari tempat.', 'ไม่สามารถรับตำแหน่งได้ โปรดพิมพ์หรือค้นหาสถานที่', 'Không thể lấy vị trí. Vui lòng nhập hoặc tìm địa điểm.', 'တည်နေရာမရနိုင်ပါ။ နေရာကို ရိုက်ထည့် သို့မဟုတ် ရှာပါ။', 'Hindi makuha ang lokasyon. Mag-type o maghanap ng lugar.', 'មិនអាចទទួលបានទីតាំងទេ។ សូមវាយ ឬស្វែងរកទីតាំង។', 'অবস্থান পাওয়া যায়নি। স্থান লিখুন বা খুঁজুন।'],
+  location_no_results: ['沒有符合的縣市', 'No matching region found', 'Tidak ada wilayah yang cocok', 'ไม่พบจังหวัดที่ตรงกัน', 'Không tìm thấy tỉnh/thành phù hợp', 'ကိုက်ညီသောဒေသ မတွေ့ပါ', 'Walang tumugmang rehiyon', 'រកមិនឃើញតំបន់ដែលត្រូវគ្នា', 'মিলযুক্ত অঞ্চল পাওয়া যায়নি'],
+  location_result_sources: ['Photon', 'Photon', 'Photon', 'Photon', 'Photon', 'Photon', 'Photon', 'Photon', 'Photon'],
+  std_other_question: ['其他性病', 'Other STI', 'IMS lainnya', 'โรคติดต่อทางเพศสัมพันธ์อื่น', 'Bệnh lây truyền qua đường tình dục khác', 'အခြား STI', 'Iba pang STI', 'ជំងឺកាមរោគផ្សេងទៀត', 'অন্যান্য STI'],
+  drug_other_question: ['其他成癮藥物', 'Other addictive substances', 'Zat adiktif lainnya', 'สารเสพติดอื่น', 'Chất gây nghiện khác', 'အခြားစွဲလမ်းစေသောပစ္စည်း', 'Iba pang nakaaadik na substance', 'សារធាតុញៀនផ្សេងទៀត', 'অন্যান্য আসক্তিকর পদার্থ'],
+  relationship_aids_question: ['固定性伴侶是愛滋感染者。', 'Is your steady partner living with HIV?', 'Apakah pasangan tetap Anda hidup dengan HIV?', 'คู่นอนประจำของคุณเป็นผู้ติดเชื้อเอชไอวีหรือไม่?', 'Bạn tình cố định của bạn có sống chung với HIV không?', 'ပုံမှန်လိင်ဆက်ဆံဖော်သည် HIV ပိုးရှိသူ ဖြစ်ပါသလား။', 'May HIV ba ang regular mong kapareha?', 'តើដៃគូថេររបស់អ្នកមានមេរោគអេដស៍ឬទេ?', 'আপনার স্থায়ী সঙ্গী কি HIV নিয়ে বসবাস করছেন?'],
+  question_next: ['下一題', 'Next question', 'Pertanyaan berikutnya', 'คำถามถัดไป', 'Câu tiếp theo', 'နောက်မေးခွန်း', 'Susunod na tanong', 'សំណួរបន្ទាប់', 'পরের প্রশ্ন'],
+  question_previous: ['上一題', 'Previous question', 'Pertanyaan sebelumnya', 'คำถามก่อนหน้า', 'Câu trước', 'ယခင်မေးခွန်း', 'Nakaraang tanong', 'សំណួរមុន', 'আগের প্রশ্ন'],
+  profile_review: ['檢視填答內容', 'Review answers', 'Tinjau jawaban', 'ตรวจสอบคำตอบ', 'Xem lại câu trả lời', 'အဖြေများကို ပြန်စစ်ရန်', 'Suriin ang mga sagot', 'ពិនិត្យចម្លើយ', 'উত্তর পর্যালোচনা করুন'],
+  return_to_edit: ['返回修改', 'Back to edit', 'Kembali untuk mengubah', 'กลับไปแก้ไข', 'Quay lại chỉnh sửa', 'ပြင်ဆင်ရန် ပြန်သွားပါ', 'Bumalik para mag-edit', 'ត្រឡប់ទៅកែសម្រួល', 'সম্পাদনায় ফিরুন'],
+  handoff_screening: ['確認並交給篩檢員', 'Confirm and hand over to screener', 'Konfirmasi dan serahkan kepada petugas skrining', 'ยืนยันและส่งต่อให้เจ้าหน้าที่ตรวจ', 'Xác nhận và chuyển cho nhân viên xét nghiệm', 'အတည်ပြုပြီး စစ်ဆေးသူထံ လွှဲပါ', 'Kumpirmahin at ibigay sa screener', 'បញ្ជាក់ ហើយប្រគល់ទៅអ្នកធ្វើតេស្ត', 'নিশ্চিত করে স্ক্রিনারের কাছে দিন'],
+  screener_instructions: ['此區域由篩檢員填答', 'For screener use', 'Bagian ini diisi petugas skrining', 'ส่วนนี้สำหรับเจ้าหน้าที่ตรวจกรอก', 'Phần này do nhân viên xét nghiệm điền', 'ဤအပိုင်းကို စစ်ဆေးသူက ဖြည့်ရန်', 'Para sa screener', 'ផ្នែកនេះសម្រាប់អ្នកធ្វើតេស្តបំពេញ', 'এই অংশ স্ক্রিনার পূরণ করবেন'],
+  screening_answer_title: ['受檢者填答摘要', 'Participant answer summary', 'Ringkasan jawaban peserta', 'สรุปคำตอบของผู้รับการตรวจ', 'Tóm tắt câu trả lời', 'စစ်ဆေးခံသူ၏ အဖြေအကျဉ်း', 'Buod ng sagot ng kalahok', 'សង្ខេបចម្លើយអ្នកចូលរួម', 'অংশগ্রহণকারীর উত্তরের সারাংশ'],
+  screening_answer_instructions: ['請先核對答案；如需更正，可返回修改填答內容。', 'Please review the answers. Return to edit if anything needs correction.', 'Periksa jawaban terlebih dahulu. Kembali untuk mengubah jika perlu.', 'โปรดตรวจสอบคำตอบก่อน หากต้องการแก้ไขให้ย้อนกลับไปแก้ไข', 'Vui lòng kiểm tra câu trả lời; quay lại để chỉnh sửa nếu cần.', 'အဖြေများကို စစ်ဆေးပါ။ ပြင်ဆင်ရန်လိုပါက ပြန်သွားပါ။', 'Suriin muna ang mga sagot. Bumalik para mag-edit kung may kailangang itama.', 'សូមពិនិត្យចម្លើយ។ ត្រឡប់ទៅកែ ប្រសិនបើត្រូវការកែតម្រូវ។', 'উত্তরগুলো যাচাই করুন; সংশোধন দরকার হলে সম্পাদনায় ফিরুন।'],
+  screening_interpretation_label: ['篩檢判讀（至少選一項）', 'Screening result (select at least one)', 'Hasil skrining (pilih minimal satu)', 'ผลการตรวจ (เลือกอย่างน้อยหนึ่งข้อ)', 'Kết quả xét nghiệm (chọn ít nhất một)', 'စစ်ဆေးမှုရလဒ် (အနည်းဆုံးတစ်ခုရွေးပါ)', 'Resulta ng screening (pumili ng kahit isa)', 'លទ្ធផលតេស្ត (ជ្រើសយ៉ាងតិចមួយ)', 'স্ক্রিনিং ফলাফল (অন্তত একটি বেছে নিন)'],
+  question_validation: ['請至少選擇一項篩檢判讀。', 'Select at least one screening result.', 'Pilih minimal satu hasil skrining.', 'โปรดเลือกผลการตรวจอย่างน้อยหนึ่งข้อ', 'Vui lòng chọn ít nhất một kết quả xét nghiệm.', 'စစ်ဆေးမှုရလဒ် အနည်းဆုံးတစ်ခု ရွေးပါ။', 'Pumili ng kahit isang resulta ng screening.', 'សូមជ្រើសរើសលទ្ធផលតេស្តយ៉ាងតិចមួយ។', 'অন্তত একটি স্ক্রিনিং ফলাফল বেছে নিন។']
+  ,gender: ['性別', 'Gender', 'Gender', 'เพศ', 'Giới tính', 'လိင်', 'Kasarian', 'ភេទ', 'লিঙ্গ'],
+  cisman: ['順性別男性', 'Cisgender man', 'Laki cisgender', 'ชายซิสเจนเดอร์', 'Nam cisgender', 'မွေးရာပါ အမျိုးသား', 'Cisgender na lalaki', 'បុរសស៊ីសជេនឌ័រ', 'সিসজেন্ডার পুরুষ'],
+  transman: ['跨性別男性', 'Transgender man', 'Laki transgender', 'ชายข้ามเพศ', 'Nam chuyển giới', 'လိင်ပြောင်း အမျိုးသား', 'Transgender na lalaki', 'បុរសប្តូរភេទ', 'ট্রান্সজেন্ডার পুরুষ'],
+  ciswoman: ['順性別女性', 'Cisgender woman', 'Perempuan cisgender', 'หญิงซิสเจนเดอร์', 'Nữ cisgender', 'မွေးရာပါ အမျိုးသမီး', 'Cisgender na babae', 'ស្ត្រីស៊ីសជេនឌ័រ', 'সিসজেন্ডার নারী'],
+  transwoman: ['跨性別女性', 'Transgender woman', 'Perempuan transgender', 'หญิงข้ามเพศ', 'Nữ chuyển giới', 'လိင်ပြောင်း အမျိုးသမီး', 'Transgender na babae', 'ស្ត្រីប្តូរភេទ', 'ট্রান্সজেন্ডার নারী'],
+  gender_others: ['其他性別', 'Another gender', 'Gender lainnya', 'เพศอื่น', 'Giới tính khác', 'အခြားလိင်', 'Ibang kasarian', 'ភេទផ្សេងទៀត', 'অন্যান্য লিঙ্গ'],
+  transgender: ['跨性別', 'Transgender', 'Transgender', 'คนข้ามเพศ', 'Người chuyển giới', 'လိင်ပြောင်း', 'Transgender', 'អ្នកប្តូរភេទ', 'ট্রান্সজেন্ডার'],
+  nonbinary: ['非二元性別', 'Non-binary', 'Nonbiner', 'นอนไบนารี', 'Phi nhị nguyên giới', 'ဒွိစုံမဟုတ်သော', 'Non-binary', 'មិនមែនពីរភេទ', 'নন-বাইনারি'],
+  orientation: ['性傾向', 'Sexual orientation', 'Orientasi seksual', 'รสนิยมทางเพศ', 'Xu hướng tính dục', 'လိင်စိတ်တိမ်းညွတ်မှု', 'Oryentasyong sekswal', 'ទំនោរផ្លូវភេទ', 'যৌন অভিমুখিতা'],
+  heterosexual: ['異性戀', 'Heterosexual', 'Heteroseksual', 'รักต่างเพศ', 'Dị tính', 'လိင်ကွဲချစ်သူ', 'Heteroseksuwal', 'ស្រឡាញ់ភេទផ្ទុយគ្នា', 'বিষমকামী'],
+  homosexual: ['同性戀', 'Homosexual', 'Homoseksual', 'รักเพศเดียวกัน', 'Đồng tính', 'လိင်တူချစ်သူ', 'Homoseksuwal', 'ស្រឡាញ់ភេទដូចគ្នា', 'সমকামী'],
+  bisexual: ['雙性戀', 'Bisexual', 'Biseksual', 'ไบเซ็กชวล', 'Song tính', 'လိင်နှစ်မျိုးလုံးကို စိတ်ဝင်စားသူ', 'Biseksuwal', 'ស្រឡាញ់បានច្រើនភេទ', 'উভকামী'],
+  orientation_others: ['其他性傾向', 'Another orientation', 'Orientasi lainnya', 'รสนิยมอื่น', 'Xu hướng khác', 'အခြားလိင်စိတ်တိမ်းညွတ်မှု', 'Iba pang oryentasyon', 'ទំនោរផ្សេងទៀត', 'অন্যান্য অভিমুখিতা'],
+  birth_year: ['出生年份', 'Birth year', 'Tahun lahir', 'ปีเกิด', 'Năm sinh', 'မွေးသက္ကရာဇ်', 'Taon ng kapanganakan', 'ឆ្នាំកំណើត', 'জন্মসাল'],
+  nationality: ['國籍', 'Nationality', 'Kewarganegaraan', 'สัญชาติ', 'Quốc tịch', 'နိုင်ငံသားဖြစ်မှု', 'Nasyonalidad', 'សញ្ជាតិ', 'জাতীয়তা'],
+  nationality_search: ['輸入國家或地區搜尋', 'Search countries or regions', 'Cari negara atau wilayah', 'ค้นหาประเทศหรือภูมิภาค', 'Tìm quốc gia hoặc khu vực', 'နိုင်ငံ သို့မဟုတ် ဒေသကို ရှာရန်', 'Maghanap ng bansa o rehiyon', 'ស្វែងរកប្រទេស ឬតំបន់', 'দেশ বা অঞ্চল খুঁজুন'],
+  nationality_hint: ['部分國家限制雙重國籍，選擇這類國籍時此欄會改為單選。各地規定可能因個人情況不同，請以當地法規為準。', 'Some countries restrict dual citizenship. Selecting one of these will make this field single-select. Rules vary by individual circumstances; follow local law.', 'Beberapa negara membatasi kewarganegaraan ganda. Memilihnya akan mengubah kolom ini menjadi pilihan tunggal. Aturan berbeda menurut kondisi; ikuti hukum setempat.', 'บางประเทศจำกัดการถือสองสัญชาติ เมื่อเลือกสัญชาติเหล่านี้จะเลือกได้เพียงหนึ่งรายการ กฎอาจแตกต่างตามกรณี โปรดปฏิบัติตามกฎหมายท้องถิ่น', 'Một số quốc gia hạn chế song tịch; khi chọn, mục này chỉ cho phép chọn một. Quy định tùy trường hợp, hãy tuân thủ luật địa phương.', 'နိုင်ငံအချို့တွင် နိုင်ငံသားနှစ်မျိုးကို ကန့်သတ်ထားသည်။ ထိုနိုင်ငံကိုရွေးပါက တစ်ခုသာရွေးနိုင်မည်။ ဒေသဆိုင်ရာဥပဒေကို လိုက်နာပါ။', 'May mga bansang naglilimita sa dual citizenship. Isang bansa lang ang maaaring piliin kapag pinili ang mga ito. Sundin ang lokal na batas.', 'ប្រទេសខ្លះកំណត់សញ្ជាតិពីរ។ ការជ្រើសរើសប្រទេសទាំងនេះនឹងអនុញ្ញាតឱ្យជ្រើសបានតែមួយ។ សូមអនុវត្តតាមច្បាប់មូលដ្ឋាន។', 'কিছু দেশে দ্বৈত নাগরিকত্ব সীমিত। এগুলো বেছে নিলে একটিই নির্বাচন করা যাবে। স্থানীয় আইন অনুসরণ করুন।'],
+  hometown: ['成年前居住地', 'Where you lived before adulthood', 'Tempat tinggal sebelum dewasa', 'ที่อยู่ก่อนเป็นผู้ใหญ่', 'Nơi sống trước tuổi trưởng thành', 'အရွယ်မရောက်မီ နေထိုင်ခဲ့သည့်နေရာ', 'Tirahan bago maging adulto', 'ទីកន្លែងរស់នៅមុនពេញវ័យ', 'প্রাপ্তবয়স্ক হওয়ার আগে বসবাসের স্থান'],
+  residence: ['目前居住地', 'Current residence', 'Tempat tinggal saat ini', 'ที่อยู่ปัจจุบัน', 'Nơi cư trú hiện tại', 'လက်ရှိနေထိုင်ရာ', 'Kasalukuyang tirahan', 'ទីលំនៅបច្ចុប្បន្ន', 'বর্তমান বাসস্থান'],
+  education: ['教育程度', 'Education level', 'Pendidikan terakhir', 'ระดับการศึกษา', 'Trình độ học vấn', 'ပညာရေးအဆင့်', 'Antas ng edukasyon', 'កម្រិតសិក្សា', 'শিক্ষার স্তর'],
+  illiterate: ['不識字', 'No formal literacy', 'Tidak bisa membaca', 'อ่านไม่ออกเขียนไม่ได้', 'Không biết chữ', 'စာမတတ်', 'Hindi marunong bumasa o sumulat', 'មិនចេះអក្សរ', 'নিরক্ষর'],
+  primary: ['小學', 'Primary school', 'Sekolah dasar', 'ประถมศึกษา', 'Tiểu học', 'မူလတန်း', 'Elementarya', 'បឋមសិក្សា', 'প্রাথমিক'],
+  junior_high: ['國中', 'Junior high school', 'Sekolah menengah pertama', 'มัธยมต้น', 'Trung học cơ sở', 'အလယ်တန်း', 'Junior high school', 'អនុវិទ្យាល័យ', 'নিম্ন মাধ্যমিক'],
+  senior_high: ['高中', 'Senior high school', 'Sekolah menengah atas', 'มัธยมปลาย', 'Trung học phổ thông', 'အထက်တန်း', 'Senior high school', 'វិទ្យាល័យ', 'উচ্চ মাধ্যমিক'],
+  university: ['大學', 'University', 'Universitas', 'มหาวิทยาลัย', 'Đại học', 'တက္ကသိုလ်', 'Unibersidad', 'សាកលវិទ្យាល័យ', 'বিশ্ববিদ্যালয়'],
+  master: ['碩士', 'Master’s degree', 'Magister', 'ปริญญาโท', 'Thạc sĩ', 'မဟာဘွဲ့', 'Master’s degree', 'អនុបណ្ឌិត', 'স্নাতকোত্তর'],
+  phd: ['博士', 'Doctoral degree', 'Doktor', 'ปริญญาเอก', 'Tiến sĩ', 'ပါရဂူဘွဲ့', 'Doctorate', 'បណ្ឌិត', 'ডক্টরেট'],
+  residence_others: ['其他居住地', 'Other residence', 'Tempat tinggal lainnya', 'ที่อยู่อื่น', 'Nơi cư trú khác', 'အခြားနေထိုင်ရာ', 'Iba pang tirahan', 'ទីលំនៅផ្សេងទៀត', 'অন্যান্য বাসস্থান'],
+  hsinchu_city: ['新竹市', 'Hsinchu City', 'Kota Hsinchu', 'นครซินจู๋', 'Thành phố Tân Trúc', 'ဟင်းချူးမြို့', 'Lungsod ng Hsinchu', 'ក្រុងស៊ីនជូ', 'সিনচু শহর'],
+  hsinchu_county: ['新竹縣', 'Hsinchu County', 'Kabupaten Hsinchu', 'เทศมณฑลซินจู๋', 'Huyện Tân Trúc', 'ဟင်းချူးခရိုင်', 'Lalawigan ng Hsinchu', 'ស្រុកស៊ីនជូ', 'সিনচু কাউন্টি'],
+  miaoli_county: ['苗栗縣', 'Miaoli County', 'Kabupaten Miaoli', 'เทศมณฑลเหมียวลี่', 'Huyện Miêu Lật', 'မြောင်လီခရိုင်', 'Lalawigan ng Miaoli', 'ស្រុកមៀវលី', 'মিয়াওলি কাউন্টি'],
+  taoyuan_city: ['桃園市', 'Taoyuan City', 'Kota Taoyuan', 'นครเถาหยวน', 'Thành phố Đào Viên', 'ထောင်ယွမ်မြို့', 'Lungsod ng Taoyuan', 'ក្រុងតៅយ័ន', 'তাওইউয়ান শহর'],
+  frequency_screening_never: ['從未篩檢', 'Never screened', 'Belum pernah skrining', 'ไม่เคยตรวจ', 'Chưa từng xét nghiệm', 'တစ်ခါမှ မစစ်ဆေးဖူး', 'Hindi pa nasusuri', 'មិនធ្លាប់ធ្វើតេស្ត', 'কখনও স্ক্রিনিং করিনি'],
+  frequency_screening_oftenly: ['偶爾篩檢', 'Occasionally screened', 'Sesekali skrining', 'ตรวจเป็นครั้งคราว', 'Thỉnh thoảng xét nghiệm', 'တစ်ခါတစ်ရံ စစ်ဆေးသည်', 'Paminsan-minsang nagpapasuri', 'ធ្វើតេស្តម្ដងម្កាល', 'মাঝে মাঝে স্ক্রিনিং করি'],
+  frequency_screening_regularly: ['定期篩檢', 'Regularly screened', 'Rutin skrining', 'ตรวจเป็นประจำ', 'Xét nghiệm định kỳ', 'ပုံမှန်စစ်ဆေးသည်', 'Regular na nagpapasuri', 'ធ្វើតេស្តជាប្រចាំ', 'নিয়মিত স্ক্রিনিং করি'],
+  last_screening: ['最近一次篩檢日期', 'Date of last screening', 'Tanggal skrining terakhir', 'วันที่ตรวจครั้งล่าสุด', 'Ngày xét nghiệm gần nhất', 'နောက်ဆုံးစစ်ဆေးသည့်နေ့', 'Petsa ng huling screening', 'កាលបរិច្ឆេទធ្វើតេស្តចុងក្រោយ', 'সর্বশেষ স্ক্রিনিংয়ের তারিখ'],
+  frequency_screening: ['篩檢頻率', 'Screening frequency', 'Frekuensi skrining', 'ความถี่ในการตรวจ', 'Tần suất xét nghiệm', 'စစ်ဆေးမှုအကြိမ်ရေ', 'Dalas ng screening', 'ប្រេកង់នៃការធ្វើតេស្ត', 'স্ক্রিনিংয়ের ঘনত্ব'],
+  hiv_window_period: ['HIV 空窗期', 'HIV window period', 'Masa jendela HIV', 'ระยะ window period ของ HIV', 'Thời kỳ cửa sổ HIV', 'HIV window period', 'Window period ng HIV', 'រយៈពេល window period របស់ HIV', 'HIV উইন্ডো পিরিয়ড'],
+  health_agency_project: ['衛生福利部疾病管制署計畫', 'Taiwan CDC Program, Ministry of Health and Welfare', 'Program CDC Taiwan, Kementerian Kesehatan dan Kesejahteraan', 'โครงการ CDC ไต้หวัน กระทรวงสาธารณสุขและสวัสดิการ', 'Chương trình CDC Đài Loan, Bộ Y tế và Phúc lợi', 'ထိုင်ဝမ် CDC၊ ကျန်းမာရေးနှင့် လူမှုဖူလုံရေးဝန်ကြီးဌာန အစီအစဉ်', 'Programa ng Taiwan CDC, Ministry of Health and Welfare', 'កម្មវិធី CDC តៃវ៉ាន់ ក្រសួងសុខាភិបាល និងសុខុមាលភាព', 'তাইওয়ান CDC, স্বাস্থ্য ও কল্যাণ মন্ত্রণালয়ের প্রকল্প'],
+  notice_paragraph: ['您好，定期檢視自我健康，可以提升傳染疾病的預防知識並降低感染風險。快速篩檢可能受空窗期影響而未能測出感染；若結果為陽性，篩檢人員將協助轉介醫療服務。所有篩檢資料皆保密，謝謝。Taiwan AIDS Organization', 'Hello. Regular health check-ins can strengthen prevention knowledge and help reduce infection risks. Rapid tests may not detect an infection during the window period. If a result is positive, the screener will help arrange a medical referral. All screening information is confidential. Taiwan AIDS Organization', 'Halo. Pemeriksaan kesehatan rutin membantu meningkatkan pengetahuan pencegahan dan mengurangi risiko infeksi. Tes cepat mungkin belum mendeteksi infeksi selama masa jendela. Jika hasilnya positif, petugas akan membantu merujuk ke layanan medis. Semua informasi pemeriksaan dirahasiakan. Taiwan AIDS Organization', 'สวัสดี การตรวจสุขภาพตนเองเป็นประจำช่วยเพิ่มความรู้ในการป้องกันและลดความเสี่ยงต่อการติดเชื้อ การตรวจแบบรวดเร็วอาจไม่พบเชื้อในช่วงระยะฟักตัว หากผลเป็นบวก เจ้าหน้าที่จะช่วยส่งต่อไปยังบริการทางการแพทย์ ข้อมูลการตรวจทั้งหมดเป็นความลับ Taiwan AIDS Organization', 'Xin chào. Tự kiểm tra sức khỏe định kỳ giúp nâng cao kiến thức phòng bệnh và giảm nguy cơ lây nhiễm. Xét nghiệm nhanh có thể chưa phát hiện nhiễm bệnh trong thời kỳ cửa sổ. Nếu kết quả dương tính, nhân viên sẽ hỗ trợ kết nối dịch vụ y tế. Mọi thông tin xét nghiệm đều được bảo mật. Taiwan AIDS Organization', 'မင်္ဂလာပါ။ ကျန်းမာရေးကို ပုံမှန်စစ်ဆေးခြင်းသည် ကူးစက်ရောဂါကာကွယ်ရေး အသိပညာကို မြှင့်တင်ပြီး ကူးစက်နိုင်ခြေကို လျှော့ချပေးသည်။ အမြန်စစ်ဆေးမှုသည် window period အတွင်း ကူးစက်မှုကို မတွေ့နိုင်ပါ။ ရလဒ်အပေါင်းဖြစ်ပါက ဆေးဘက်ဆိုင်ရာဝန်ဆောင်မှုသို့ လွှဲပြောင်းပေးရန် ဝန်ထမ်းက ကူညီမည်။ စစ်ဆေးမှုအချက်အလက်အားလုံးကို လျှို့ဝှက်ထားပါသည်။ Taiwan AIDS Organization', 'Kumusta. Ang regular na pagsusuri sa kalusugan ay nagpapalawak ng kaalaman sa pag-iwas at nakababawas ng panganib ng impeksiyon. Maaaring hindi makita ng rapid test ang impeksiyon sa window period. Kung positibo ang resulta, tutulungan ka ng screener na makakuha ng serbisyong medikal. Kumpidensiyal ang lahat ng impormasyon. Taiwan AIDS Organization', 'សួស្តី។ ការត្រួតពិនិត្យសុខភាពជាប្រចាំជួយបង្កើនចំណេះដឹងការពារ និងកាត់បន្ថយហានិភ័យឆ្លង។ ការធ្វើតេស្តរហ័សអាចមិនរកឃើញការឆ្លងក្នុងអំឡុងពេល window period។ ប្រសិនបើលទ្ធផលវិជ្ជមាន បុគ្គលិកនឹងជួយបញ្ជូនទៅសេវាវេជ្ជសាស្ត្រ។ ព័ត៌មានតេស្តទាំងអស់ត្រូវបានរក្សាជាការសម្ងាត់។ Taiwan AIDS Organization', 'স্বাগতম। নিয়মিত স্বাস্থ্য পরীক্ষা প্রতিরোধবিষয়ক জ্ঞান বাড়ায় এবং সংক্রমণের ঝুঁকি কমাতে সহায়তা করে। উইন্ডো পিরিয়ডে দ্রুত পরীক্ষায় সংক্রমণ ধরা নাও পড়তে পারে। ফল পজিটিভ হলে কর্মী চিকিৎসাসেবায় রেফার করতে সহায়তা করবেন। পরীক্ষার সব তথ্য গোপন রাখা হয়। Taiwan AIDS Organization'],
+  frequency_sex: ['一年內有與人發生陰道交、肛交或口交的性行為。', 'In the past year, have you had vaginal, anal, or oral sex?', 'Dalam setahun terakhir, apakah Anda melakukan seks vaginal, anal, atau oral?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณมีเพศสัมพันธ์ทางช่องคลอด ทวารหนัก หรือทางปากหรือไม่?', 'Trong năm qua, bạn có quan hệ tình dục qua âm đạo, hậu môn hoặc bằng miệng không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း မိန်းမကိုယ်၊ စအို သို့မဟုတ် ပါးစပ်ဖြင့် လိင်ဆက်ဆံခဲ့ပါသလား။', 'Sa nakaraang taon, nakipagtalik ka ba sa vaginal, anal, o oral na paraan?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានរួមភេទតាមទ្វារមាស រន្ធគូថ ឬមាត់ដែរឬទេ?', 'গত এক বছরে যোনি, পায়ুপথ বা মুখমৈথুন করেছেন কি?'],
+  frequency_condom: ['一年內每次陰道交、肛交或口交都全程正確使用保險套。', 'In the past year, did you use a condom correctly from start to finish every time you had vaginal, anal, or oral sex?', 'Dalam setahun terakhir, apakah Anda selalu menggunakan kondom dengan benar dari awal hingga akhir saat berhubungan seks?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณใช้ถุงยางอนามัยอย่างถูกต้องตั้งแต่เริ่มจนจบทุกครั้งหรือไม่?', 'Trong năm qua, bạn có luôn sử dụng bao cao su đúng cách từ đầu đến cuối mỗi lần quan hệ không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း လိင်ဆက်ဆံတိုင်း အစမှအဆုံး ကွန်ဒုံးကို မှန်ကန်စွာ အသုံးပြုခဲ့ပါသလား။', 'Sa nakaraang taon, tama bang gumamit ka ng condom mula simula hanggang dulo sa bawat pakikipagtalik?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានប្រើស្រោមអនាម័យត្រឹមត្រូវពីដើមដល់ចប់រាល់ពេលឬទេ?', 'গত এক বছরে প্রতিবার যৌনমিলনে শুরু থেকে শেষ পর্যন্ত সঠিকভাবে কনডম ব্যবহার করেছেন কি?'],
+  frequency_closed_relationship: ['一年內每次性行為都只跟固定性伴侶發生。', 'In the past year, did you have sex only with a steady partner?', 'Dalam setahun terakhir, apakah Anda hanya berhubungan seks dengan pasangan tetap?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณมีเพศสัมพันธ์กับคู่นอนประจำเท่านั้นหรือไม่?', 'Trong năm qua, bạn chỉ quan hệ với bạn tình cố định phải không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း ပုံမှန်လိင်ဆက်ဆံဖော်တစ်ဦးတည်းနှင့်သာ လိင်ဆက်ဆံခဲ့ပါသလား။', 'Sa nakaraang taon, sa regular na kapareha ka lang ba nakipagtalik?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នករួមភេទតែជាមួយដៃគូថេរម្នាក់ប៉ុណ្ណោះឬទេ?', 'গত এক বছরে শুধু স্থায়ী যৌনসঙ্গীর সঙ্গেই যৌনমিলন করেছেন কি?'],
+  closed_relationship_aids: ['固定性伴侶是愛滋感染者。', 'Is your steady partner living with HIV?', 'Apakah pasangan tetap Anda hidup dengan HIV?', 'คู่นอนประจำของคุณเป็นผู้ติดเชื้อเอชไอวีหรือไม่?', 'Bạn tình cố định của bạn có sống chung với HIV không?', 'ပုံမှန်လိင်ဆက်ဆံဖော်သည် HIV ပိုးရှိသူ ဖြစ်ပါသလား။', 'May HIV ba ang regular mong kapareha?', 'តើដៃគូថេររបស់អ្នកមានមេរោគអេដស៍ឬទេ?', 'আপনার স্থায়ী সঙ্গী কি HIV নিয়ে বসবাস করছেন?'],
+  frequency_online_dating: ['最近一年內有透過網路認識其他性伴侶並發生性行為。', 'In the past year, did you meet sexual partners online and have sex with them?', 'Dalam setahun terakhir, apakah Anda bertemu pasangan seksual melalui internet lalu berhubungan seks?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณพบคู่นอนผ่านอินเทอร์เน็ตและมีเพศสัมพันธ์หรือไม่?', 'Trong năm qua, bạn có gặp bạn tình qua mạng và quan hệ tình dục không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း အင်တာနက်မှတစ်ဆင့် လိင်ဆက်ဆံဖော်တွေ့ပြီး လိင်ဆက်ဆံခဲ့ပါသလား။', 'Sa nakaraang taon, may nakilala ka bang sexual partner online at nakipagtalik?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានជួបដៃគូផ្លូវភេទតាមអ៊ីនធឺណិត ហើយរួមភេទដែរឬទេ?', 'গত এক বছরে অনলাইনে যৌনসঙ্গীর সঙ্গে পরিচিত হয়ে যৌনমিলন করেছেন কি?'],
+  frequency_public_dating: ['最近一年內有透過三溫暖、酒吧、健身房等娛樂場所認識其他性伴侶並發生性行為。', 'In the past year, did you meet sexual partners at venues such as saunas, bars, or gyms and have sex with them?', 'Dalam setahun terakhir, apakah Anda bertemu pasangan seksual di tempat seperti sauna, bar, atau pusat kebugaran lalu berhubungan seks?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณพบคู่นอนในสถานที่ เช่น ซาวน่า บาร์ หรือยิม แล้วมีเพศสัมพันธ์หรือไม่?', 'Trong năm qua, bạn có gặp bạn tình tại sauna, quán bar, phòng tập hoặc địa điểm giải trí khác rồi quan hệ không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း sauna၊ ဘား သို့မဟုတ် အားကစားရုံကဲ့သို့ နေရာများတွင် လိင်ဆက်ဆံဖော်တွေ့ပြီး လိင်ဆက်ဆံခဲ့ပါသလား။', 'Sa nakaraang taon, may nakilala ka bang sexual partner sa sauna, bar, gym o iba pang lugar at nakipagtalik?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានជួបដៃគូផ្លូវភេទនៅសូណា បារ កន្លែងហាត់ប្រាណ ឬកន្លែងកម្សាន្ត ហើយរួមភេទដែរឬទេ?', 'গত এক বছরে সনা, বার বা জিমের মতো স্থানে যৌনসঙ্গীর সঙ্গে পরিচিত হয়ে যৌনমিলন করেছেন কি?'],
+  frequency_sex_work: ['最近一年內有從事性工作或提供性交易服務。', 'In the past year, have you provided sexual services for payment?', 'Dalam setahun terakhir, apakah Anda memberikan layanan seksual berbayar?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณให้บริการทางเพศเพื่อแลกกับค่าตอบแทนหรือไม่?', 'Trong năm qua, bạn có cung cấp dịch vụ tình dục có trả phí không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း ငွေကြေးအတွက် လိင်ဝန်ဆောင်မှုပေးခဲ့ပါသလား။', 'Sa nakaraang taon, nagbigay ka ba ng serbisyong sekswal kapalit ng bayad?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានផ្តល់សេវាផ្លូវភេទដោយទទួលប្រាក់ឬទេ?', 'গত এক বছরে অর্থের বিনিময়ে যৌনসেবা দিয়েছেন কি?'],
+  frequency_sex_consumption: ['最近一年內有進行性消費或買春。', 'In the past year, have you paid for sex?', 'Dalam setahun terakhir, apakah Anda membayar untuk layanan seksual?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณเคยจ่ายเงินเพื่อมีเพศสัมพันธ์หรือไม่?', 'Trong năm qua, bạn có trả tiền để quan hệ tình dục không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း လိင်ဆက်ဆံမှုအတွက် ငွေပေးခဲ့ပါသလား။', 'Sa nakaraang taon, nagbayad ka ba para sa sex?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានចំណាយប្រាក់ដើម្បីរួមភេទឬទេ?', 'গত এক বছরে যৌনসেবার জন্য অর্থ দিয়েছেন কি?'],
+  no_fixed_partner: ['沒有固定性伴侶', 'No steady partner', 'Tidak memiliki pasangan tetap', 'ไม่มีคู่นอนประจำ', 'Không có bạn tình cố định', 'ပုံမှန်လိင်ဆက်ဆံဖော်မရှိပါ', 'Walang regular na kapareha', 'គ្មានដៃគូថេរ', 'স্থায়ী সঙ্গী নেই'],
+  unknown: ['不知道', 'Not sure', 'Tidak tahu', 'ไม่ทราบ', 'Không biết', 'မသိပါ', 'Hindi alam', 'មិនដឹង', 'জানি না'],
+  true: ['是', 'Yes', 'Ya', 'ใช่', 'Có', 'ဟုတ်ကဲ့', 'Oo', 'បាទ/ចាស', 'হ্যাঁ'],
+  false: ['否', 'No', 'Tidak', 'ไม่ใช่', 'Không', 'မဟုတ်ပါ', 'Hindi', 'ទេ', 'না'],
+  other: ['其他', 'Other', 'Lainnya', 'อื่น ๆ', 'Khác', 'အခြား', 'Iba pa', 'ផ្សេងទៀត', 'অন্যান্য'],
+  frequency_alcohol: ['一年內曾在性行為前、後或過程中飲酒。', 'In the past year, have you used alcohol before, during, or after sex?', 'Dalam setahun terakhir, apakah Anda minum alkohol sebelum, saat, atau setelah berhubungan seks?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณดื่มแอลกอฮอล์ก่อน ระหว่าง หรือหลังมีเพศสัมพันธ์หรือไม่?', 'Trong năm qua, bạn có uống rượu bia trước, trong hoặc sau khi quan hệ không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း လိင်မဆက်ဆံမီ၊ ဆက်ဆံနေစဉ် သို့မဟုတ် ပြီးနောက် အရက်သောက်ခဲ့ပါသလား။', 'Sa nakaraang taon, uminom ka ba ng alak bago, habang, o pagkatapos makipagtalik?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានផឹកស្រាមុន ពេលកំពុង ឬក្រោយពេលរួមភេទឬទេ?', 'গত এক বছরে যৌনমিলনের আগে, সময়ে বা পরে অ্যালকোহল পান করেছেন কি?'],
+  frequency_drug: ['一年內曾在性行為前、後或過程中使用娛樂性藥物。', 'In the past year, have you used recreational drugs before, during, or after sex?', 'Dalam setahun terakhir, apakah Anda menggunakan narkoba rekreasional sebelum, saat, atau setelah berhubungan seks?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณใช้สารเสพติดเพื่อสันทนาการก่อน ระหว่าง หรือหลังมีเพศสัมพันธ์หรือไม่?', 'Trong năm qua, bạn có sử dụng chất kích thích trước, trong hoặc sau khi quan hệ không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း လိင်မဆက်ဆံမီ၊ ဆက်ဆံနေစဉ် သို့မဟုတ် ပြီးနောက် အပျော်သုံးမူးယစ်ဆေး သုံးခဲ့ပါသလား။', 'Sa nakaraang taon, gumamit ka ba ng recreational drugs bago, habang, o pagkatapos makipagtalik?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានប្រើសារធាតុកម្សាន្តមុន ពេលកំពុង ឬក្រោយពេលរួមភេទឬទេ?', 'গত এক বছরে যৌনমিলনের আগে, সময়ে বা পরে বিনোদনমূলক মাদক ব্যবহার করেছেন কি?'],
+  usage_drug: ['一年內曾使用成癮藥物。', 'In the past year, have you used addictive substances?', 'Dalam setahun terakhir, apakah Anda menggunakan zat adiktif?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณเคยใช้สารเสพติดหรือไม่?', 'Trong năm qua, bạn có sử dụng chất gây nghiện không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း စွဲလမ်းစေနိုင်သော ပစ္စည်းများ သုံးခဲ့ပါသလား။', 'Sa nakaraang taon, gumamit ka ba ng nakaaadik na substance?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានប្រើសារធាតុញៀនឬទេ?', 'গত এক বছরে আসক্তিকর পদার্থ ব্যবহার করেছেন কি?'],
+  drug_amphetamine: ['安非他命、甲基安非他命（冰、煙）', 'Amphetamine or methamphetamine', 'Amfetamin atau metamfetamin', 'แอมเฟตามีนหรือเมทแอมเฟตามีน', 'Amphetamine hoặc methamphetamine', 'အမ်ဖက်တမင်း သို့မဟုတ် မက်သမ်ဖက်တမင်း', 'Amphetamine o methamphetamine', 'អំហ្វេតាមីន ឬមេតំហ្វេតាមីន', 'অ্যামফেটামিন বা মেথামফেটামিন'],
+  drug_amphetamine_inhalant: ['吸入劑', 'Inhaled', 'Dihirup', 'แบบสูดดม', 'Dạng hít', 'ရှူသွင်း', 'Nilalanghap', 'ប្រភេទស្រូប', 'শ্বাসের মাধ্যমে'],
+  drug_amphetamine_injection: ['注射劑', 'Injected', 'Disuntik', 'แบบฉีด', 'Dạng tiêm', 'ထိုးသွင်း', 'Itinuturok', 'ប្រភេទចាក់', 'ইনজেকশনের মাধ্যমে'],
+  drug_amphetamine_oral: ['口服劑', 'Oral', 'Diminum', 'แบบรับประทาน', 'Dạng uống', 'သောက်သုံး', 'Ini oral', 'ប្រភេទលេប', 'মুখে সেবন'],
+  drug_ghb: ['神仙水（G水、GHB）', 'GHB', 'GHB', 'GHB', 'GHB', 'GHB', 'GHB', 'GHB', 'GHB'],
+  drug_mdma: ['搖頭丸（E、MDMA）', 'MDMA (ecstasy)', 'MDMA (ekstasi)', 'MDMA (ยาอี)', 'MDMA (thuốc lắc)', 'MDMA (အက်စတက်စီ)', 'MDMA (ecstasy)', 'MDMA (អិចស្តាស៊ី)', 'MDMA (এক্সট্যাসি)'],
+  drug_ketamine: ['愷他命（K他命、K）', 'Ketamine', 'Ketamin', 'เคตามีน', 'Ketamine', 'ကက်တမင်း', 'Ketamine', 'ខេតាមីន', 'কেটামিন'],
+  drug_rush: ['快樂水（Rush）', 'Rush (alkyl nitrites)', 'Rush (alkil nitrit)', 'Rush (อัลคิลไนไตรต์)', 'Rush (alkyl nitrite)', 'Rush (alkyl nitrite)', 'Rush (alkyl nitrite)', 'Rush (អាល់គីល នីទ្រីត)', 'Rush (অ্যালকাইল নাইট্রাইট)'],
+  drug_mephedrone: ['合成卡西酮類物質（喵喵）', 'Synthetic cathinones (mephedrone)', 'Katinon sintetis (mephedrone)', 'คาทิโนนสังเคราะห์ (เมเฟโดรน)', 'Cathinone tổng hợp (mephedrone)', 'ဓာတု cathinone (mephedrone)', 'Synthetic cathinones (mephedrone)', 'កាធីណូនសំយោគ (mephedrone)', 'সিনথেটিক ক্যাথিনোন (মেফেড্রোন)'],
+  drug_heroin: ['海洛因', 'Heroin', 'Heroin', 'เฮโรอีน', 'Heroin', 'ဟီးရိုးအင်း', 'Heroin', 'ហេរ៉ូអ៊ីន', 'হেরোইন'],
+  drug_weed: ['大麻', 'Cannabis', 'Ganja', 'กัญชา', 'Cần sa', 'ဆေးခြောက်', 'Cannabis', 'កញ្ឆា', 'গাঁজা'],
+  drug_others: ['請填寫其他成癮藥物', 'Please specify other substances', 'Tuliskan zat lainnya', 'โปรดระบุสารอื่น ๆ', 'Vui lòng ghi rõ chất khác', 'အခြားပစ္စည်းကို ဖော်ပြပါ', 'Pakisulat ang iba pang substance', 'សូមបញ្ជាក់សារធាតុផ្សេងទៀត', 'অন্যান্য পদার্থ উল্লেখ করুন'],
+  other_drug_question: ['其他成癮藥物', 'Other addictive substances', 'Zat adiktif lainnya', 'สารเสพติดอื่น', 'Chất gây nghiện khác', 'အခြားစွဲလမ်းစေသောပစ္စည်း', 'Iba pang nakaaadik na substance', 'សារធាតុញៀនផ្សេងទៀត', 'অন্যান্য আসক্তিকর পদার্থ'],
+  other_std_question: ['其他性病', 'Other STI', 'IMS lainnya', 'โรคติดต่อทางเพศสัมพันธ์อื่น', 'Bệnh lây truyền qua đường tình dục khác', 'အခြား STI', 'Iba pang STI', 'ជំងឺកាមរោគផ្សេងទៀត', 'অন্যান্য STI'],
+  frequency_drug_now: ['目前仍持續使用成癮藥物。', 'Are you currently still using addictive substances?', 'Apakah Anda masih menggunakan zat adiktif saat ini?', 'ปัจจุบันคุณยังใช้สารเสพติดอยู่หรือไม่?', 'Hiện tại bạn còn sử dụng chất gây nghiện không?', 'လက်ရှိတွင် စွဲလမ်းစေသော ပစ္စည်းများ ဆက်လက်သုံးစွဲနေပါသလား။', 'Gumagamit ka pa ba ngayon ng nakaaadik na substance?', 'បច្ចុប្បន្ន តើអ្នកនៅតែប្រើសារធាតុញៀនឬទេ?', 'এখনও কি আসক্তিকর পদার্থ ব্যবহার করছেন?'],
+  frequency_std: ['一年內曾感染性病。', 'In the past year, have you had a sexually transmitted infection?', 'Dalam setahun terakhir, apakah Anda pernah mengalami infeksi menular seksual?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณเคยติดเชื้อทางเพศสัมพันธ์หรือไม่?', 'Trong năm qua, bạn có từng mắc bệnh lây truyền qua đường tình dục không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း လိင်မှတစ်ဆင့် ကူးစက်သောရောဂါ ရှိခဲ့ပါသလား။', 'Sa nakaraang taon, nagkaroon ka ba ng sexually transmitted infection?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកធ្លាប់មានជំងឺឆ្លងតាមផ្លូវភេទឬទេ?', 'গত এক বছরে যৌনবাহিত সংক্রমণ হয়েছে কি?'],
+  std_aids: ['愛滋', 'HIV', 'HIV', 'เอชไอวี', 'HIV', 'HIV', 'HIV', 'HIV', 'HIV'],
+  std_aids_reason: ['再次篩檢的原因', 'Reason for repeat screening', 'Alasan skrining ulang', 'เหตุผลที่ตรวจซ้ำ', 'Lý do xét nghiệm lại', 'ထပ်မံစစ်ဆေးရသည့်အကြောင်းရင်း', 'Dahilan ng muling screening', 'មូលហេតុនៃការធ្វើតេស្តឡើងវិញ', 'পুনরায় স্ক্রিনিংয়ের কারণ'],
+  std_genital_warts: ['菜花（尖形濕疣）', 'Genital warts', 'Kutil kelamin', 'หูดหงอนไก่', 'Mụn cóc sinh dục', 'လိင်အင်္ဂါကြွက်နို့', 'Genital warts', 'ឬសប្រដាប់ភេទ', 'যৌনাঙ্গের আঁচিল'],
+  std_syphilis: ['梅毒', 'Syphilis', 'Sifilis', 'ซิฟิลิส', 'Giang mai', 'ဆစ်ဖလစ်', 'Syphilis', 'រោគស្វាយ', 'সিফিলিস'],
+  std_chlamydia: ['披衣菌', 'Chlamydia', 'Klamidia', 'คลามีเดีย', 'Chlamydia', 'Chlamydia', 'Chlamydia', 'ក្លាមីឌៀ', 'ক্ল্যামাইডিয়া'],
+  std_gonorrhea: ['淋病', 'Gonorrhea', 'Gonore', 'หนองใน', 'Bệnh lậu', 'ဂနိုရောဂါ', 'Gonorrhea', 'ប្រមេះ', 'গনোরিয়া'],
+  std_genital_herpes: ['性皰疹', 'Genital herpes', 'Herpes genital', 'เริมที่อวัยวะเพศ', 'Herpes sinh dục', 'လိင်အင်္ဂါရေယုန်', 'Genital herpes', 'អ៊ែរប៉េសប្រដាប់ភេទ', 'যৌনাঙ্গের হারপিস'],
+  std_hepatitis_a: ['A 型肝炎', 'Hepatitis A', 'Hepatitis A', 'ไวรัสตับอักเสบเอ', 'Viêm gan A', 'အသည်းရောင်အသားဝါ အေ', 'Hepatitis A', 'រលាកថ្លើមប្រភេទ A', 'হেপাটাইটিস এ'],
+  std_hepatitis_c: ['C 型肝炎', 'Hepatitis C', 'Hepatitis C', 'ไวรัสตับอักเสบซี', 'Viêm gan C', 'အသည်းရောင်အသားဝါ စီ', 'Hepatitis C', 'រលាកថ្លើមប្រភេទ C', 'হেপাটাইটিস সি'],
+  std_others: ['請填寫其他性病', 'Please specify another STI', 'Tuliskan IMS lainnya', 'โปรดระบุโรคติดต่อทางเพศสัมพันธ์อื่น', 'Vui lòng ghi rõ bệnh khác', 'အခြား STI ကို ဖော်ပြပါ', 'Pakisulat ang iba pang STI', 'សូមបញ្ជាក់ជំងឺកាមរោគផ្សេងទៀត', 'অন্যান্য STI উল্লেখ করুন'],
+  frequency_pep: ['最近一年內有使用暴露後預防投藥（PEP）。', 'In the past year, have you used post-exposure prophylaxis (PEP)?', 'Dalam setahun terakhir, apakah Anda menggunakan profilaksis pascapajanan (PEP)?', 'ในช่วงหนึ่งปีที่ผ่านมา คุณเคยใช้ยา PEP หลังสัมผัสเชื้อหรือไม่?', 'Trong năm qua, bạn có sử dụng PEP sau phơi nhiễm không?', 'ပြီးခဲ့သည့်တစ်နှစ်အတွင်း PEP ဆေးကို သုံးခဲ့ပါသလား။', 'Sa nakaraang taon, gumamit ka ba ng post-exposure prophylaxis (PEP)?', 'ក្នុងរយៈពេលមួយឆ្នាំកន្លងមក តើអ្នកបានប្រើថ្នាំ PEP ក្រោយប៉ះពាល់មេរោគឬទេ?', 'গত এক বছরে PEP ব্যবহার করেছেন কি?'],
+  frequency_pep_willingness: ['發生高風險性行為 72 小時內，有意願自費使用 PEP 降低感染風險。', 'Would you consider paying for PEP within 72 hours of a high-risk exposure?', 'Apakah Anda bersedia membayar PEP dalam 72 jam setelah pajanan berisiko tinggi?', 'หากมีความเสี่ยงสูง คุณยินดีจ่ายเพื่อรับ PEP ภายใน 72 ชั่วโมงหรือไม่?', 'Nếu có nguy cơ cao, bạn có sẵn sàng tự chi trả PEP trong vòng 72 giờ không?', 'အန္တရာယ်မြင့် ထိတွေ့မှုဖြစ်ပြီး ၇၂ နာရီအတွင်း PEP အတွက် ကိုယ်တိုင်ပေးချေရန် ဆန္ဒရှိပါသလား။', 'Handa ka bang magbayad para sa PEP sa loob ng 72 oras matapos ang high-risk exposure?', 'ប្រសិនបើមានហានិភ័យខ្ពស់ តើអ្នកមានឆន្ទៈបង់ថ្លៃ PEP ក្នុងរយៈពេល ៧២ ម៉ោងឬទេ?', 'উচ্চঝুঁকির সংস্পর্শের ৭২ ঘণ্টার মধ্যে PEP নিতে নিজে খরচ করতে ইচ্ছুক কি?'],
+  frequency_prep: ['聽過暴露前預防投藥（PrEP）。', 'Have you heard of pre-exposure prophylaxis (PrEP)?', 'Apakah Anda pernah mendengar profilaksis prapajanan (PrEP)?', 'คุณเคยได้ยินเกี่ยวกับยา PrEP ก่อนสัมผัสเชื้อหรือไม่?', 'Bạn đã nghe về PrEP dự phòng trước phơi nhiễm chưa?', 'ထိတွေ့မှုမတိုင်မီ ကာကွယ်ဆေး PrEP အကြောင်း ကြားဖူးပါသလား။', 'Narinig mo na ba ang pre-exposure prophylaxis (PrEP)?', 'តើអ្នកធ្លាប់ឮអំពីថ្នាំ PrEP មុនប៉ះពាល់មេរោគឬទេ?', 'PrEP সম্পর্কে শুনেছেন কি?'],
+  frequency_prep_willingness: ['有意願使用 PrEP 並配合安全性行為，預防 HIV 感染。', 'Would you consider PrEP together with safer-sex practices to prevent HIV?', 'Apakah Anda bersedia menggunakan PrEP bersama praktik seks yang lebih aman untuk mencegah HIV?', 'คุณยินดีใช้ PrEP ควบคู่กับการมีเพศสัมพันธ์ที่ปลอดภัยขึ้นเพื่อป้องกัน HIV หรือไม่?', 'Bạn có sẵn sàng dùng PrEP kết hợp thực hành tình dục an toàn hơn để phòng HIV không?', 'HIV ကာကွယ်ရန် PrEP ကို ပိုမိုလုံခြုံသော လိင်ဆက်ဆံမှုနှင့်အတူ သုံးရန် ဆန္ဒရှိပါသလား။', 'Handa ka bang gumamit ng PrEP kasama ng mas ligtas na pakikipagtalik upang maiwasan ang HIV?', 'តើអ្នកមានឆន្ទៈប្រើ PrEP រួមជាមួយការរួមភេទដែលមានសុវត្ថិភាពជាងមុន ដើម្បីការពារ HIV ឬទេ?', 'HIV প্রতিরোধে নিরাপদ যৌন আচরণের সঙ্গে PrEP নিতে ইচ্ছুক কি?'],
+  true: ['是', 'Yes', 'Ya', 'ใช่', 'Có', 'ဟုတ်ကဲ့', 'Oo', 'បាទ/ចាស', 'হ্যাঁ'],
+  false: ['否', 'No', 'Tidak', 'ไม่ใช่', 'Không', 'မဟုတ်ပါ', 'Hindi', 'ទេ', 'না'],
+  unknown: ['不知道', 'Not sure', 'Tidak tahu', 'ไม่ทราบ', 'Không biết', 'မသိပါ', 'Hindi alam', 'មិនដឹង', 'জানি না'],
+  screening: ['篩檢結果', 'Screening Results', 'Hasil Skrining', 'ผลการตรวจคัดกรอง', 'Kết quả xét nghiệm', 'စစ်ဆေးမှုရလဒ်', 'Mga Resulta ng Screening', 'លទ្ធផលតេស្ត', 'স্ক্রিনিং ফলাফল'],
+  screener: ['篩檢員編號', 'Screener ID', 'Nomor petugas skrining', 'รหัสเจ้าหน้าที่ตรวจ', 'Mã nhân viên xét nghiệm', 'စစ်ဆေးသူအမှတ်', 'ID ng screener', 'លេខសម្គាល់អ្នកធ្វើតេស្ត', 'স্ক্রিনার আইডি'],
+  screening_date: ['篩檢日期', 'Screening date', 'Tanggal skrining', 'วันที่ตรวจ', 'Ngày xét nghiệm', 'စစ်ဆေးသည့်ရက်', 'Petsa ng screening', 'កាលបរិច្ឆេទធ្វើតេស្ត', 'স্ক্রিনিংয়ের তারিখ'],
+  screening_place: ['篩檢地點', 'Screening location', 'Lokasi skrining', 'สถานที่ตรวจ', 'Địa điểm xét nghiệm', 'စစ်ဆေးသည့်နေရာ', 'Lokasyon ng screening', 'ទីតាំងធ្វើតេស្ត', 'স্ক্রিনিংয়ের স্থান'],
+  screening_hiv: ['HIV 篩檢', 'HIV screening', 'Skrining HIV', 'การตรวจ HIV', 'Xét nghiệm HIV', 'HIV စစ်ဆေးမှု', 'HIV screening', 'ការធ្វើតេស្ត HIV', 'HIV স্ক্রিনিং'],
+  screening_syphilis: ['梅毒篩檢', 'Syphilis screening', 'Skrining sifilis', 'การตรวจซิฟิลิส', 'Xét nghiệm giang mai', 'ဆစ်ဖလစ်စစ်ဆေးမှု', 'Syphilis screening', 'ការធ្វើតេស្តរោគស្វាយ', 'সিফিলিস স্ক্রিনিং'],
+  hiv_positive: ['HIV 陽性', 'HIV positive', 'HIV positif', 'ผล HIV เป็นบวก', 'HIV dương tính', 'HIV ပိုးတွေ့', 'Positibo sa HIV', 'HIV វិជ្ជមាន', 'HIV পজিটিভ'],
+  hiv_negative: ['HIV 陰性', 'HIV negative', 'HIV negatif', 'ผล HIV เป็นลบ', 'HIV âm tính', 'HIV ပိုးမတွေ့', 'Negatibo sa HIV', 'HIV អវិជ្ជមាន', 'HIV নেগেটিভ'],
+  syphilis_positive: ['梅毒陽性', 'Syphilis positive', 'Sifilis positif', 'ผลซิฟิลิสเป็นบวก', 'Giang mai dương tính', 'ဆစ်ဖလစ်ပိုးတွေ့', 'Positibo sa syphilis', 'រោគស្វាយវិជ្ជមាន', 'সিফিলিস পজিটিভ'],
+  syphilis_negative: ['梅毒陰性', 'Syphilis negative', 'Sifilis negatif', 'ผลซิฟิลิสเป็นลบ', 'Giang mai âm tính', 'ဆစ်ဖလစ်ပိုးမတွေ့', 'Negatibo sa syphilis', 'រោគស្វាយអវិជ្ជមាន', 'সিফিলিস নেগেটিভ'],
+  three_months: ['三個月空窗期', 'Three-month window period', 'Masa jendela tiga bulan', 'ระยะ window period 3 เดือน', 'Thời kỳ cửa sổ ba tháng', 'သုံးလ window period', 'Tatlong buwang window period', 'រយៈពេល window period បីខែ', 'তিন মাসের উইন্ডো পিরিয়ড'],
+  one_month: ['一個月空窗期', 'One-month window period', 'Masa jendela satu bulan', 'ระยะ window period 1 เดือน', 'Thời kỳ cửa sổ một tháng', 'တစ်လ window period', 'Isang buwang window period', 'រយៈពេល window period មួយខែ', 'এক মাসের উইন্ডো পিরিয়ড'],
+  hiv_positive_referral: ['HIV 陽性轉介（選填）', 'HIV-positive referral (optional)', 'Rujukan HIV positif (opsional)', 'การส่งต่อกรณี HIV เป็นบวก (ไม่บังคับ)', 'Hỗ trợ chuyển tuyến HIV dương tính (không bắt buộc)', 'HIV ပိုးတွေ့ပါက လွှဲပြောင်းခြင်း (မဖြစ်မနေမဟုတ်ပါ)', 'Referral para sa positibo sa HIV (opsyonal)', 'ការបញ្ជូនបន្តករណី HIV វិជ្ជមាន (ស្រេចចិត្ត)', 'HIV পজিটিভ রেফারেল (ঐচ্ছিক)'],
+  referral_contact_phone: ['聯絡電話', 'Contact phone', 'Nomor telepon kontak', 'เบอร์โทรติดต่อ', 'Số điện thoại liên hệ', 'ဆက်သွယ်ရန်ဖုန်း', 'Numero ng telepono', 'លេខទូរស័ព្ទទំនាក់ទំនង', 'যোগাযোগের ফোন'],
+  referral_appointment: ['預約門診', 'Clinic appointment', 'Janji temu klinik', 'นัดหมายคลินิก', 'Lịch hẹn khám', 'ဆေးခန်းချိန်းဆိုမှု', 'Appointment sa klinika', 'ការណាត់ជួបគ្លីនិក', 'ক্লিনিক অ্যাপয়েন্টমেন্ট'],
+  referral_address: ['就診地址', 'Clinic address', 'Alamat klinik', 'ที่อยู่คลินิก', 'Địa chỉ cơ sở khám', 'ဆေးခန်းလိပ်စာ', 'Address ng klinika', 'អាសយដ្ឋានគ្លីនិក', 'ক্লিনিকের ঠিকানা'],
+  referral_notes: ['備註', 'Notes', 'Catatan', 'หมายเหตุ', 'Ghi chú', 'မှတ်ချက်', 'Mga Tala', 'កំណត់ចំណាំ', 'মন্তব্য'],
+  screening_photo_add: ['拍攝或上傳試劑照片（選填）', 'Take or upload test photo (optional)', 'Ambil atau unggah foto tes (opsional)', 'ถ่ายหรืออัปโหลดรูปชุดตรวจ (ไม่บังคับ)', 'Chụp hoặc tải ảnh que thử (không bắt buộc)', 'စစ်ဆေးကိရိယာ ဓာတ်ပုံ ရိုက်/တင်ရန် (မဖြစ်မနေမဟုတ်ပါ)', 'Kumuha o mag-upload ng larawan ng test (opsyonal)', 'ថត ឬផ្ទុកឡើងរូបភាពឧបករណ៍តេស្ត (ស្រេចចិត្ត)', 'টেস্ট কিটের ছবি তুলুন বা আপলোড করুন (ঐচ্ছিক)'],
+  screening_photo_remove: ['移除照片', 'Remove photo', 'Hapus foto', 'ลบรูปภาพ', 'Xóa ảnh', 'ဓာတ်ပုံ ဖယ်ရှားရန်', 'Alisin ang larawan', 'លុបរូបភាព', 'ছবি সরান'],
+  referral_contact_methods: ['聯絡方式', 'Contact methods', 'Metode kontak', 'ช่องทางติดต่อ', 'Phương thức liên hệ', 'ဆက်သွယ်ရန်နည်းလမ်းများ', 'Mga paraan ng pakikipag-ugnayan', 'វិធីទំនាក់ទំនង', 'যোগাযোগের মাধ্যম'],
+  contact_add: ['新增聯絡方式', 'Add contact method', 'Tambah metode kontak', 'เพิ่มช่องทางติดต่อ', 'Thêm phương thức liên hệ', 'ဆက်သွယ်ရန်နည်းလမ်း ထည့်ရန်', 'Magdagdag ng paraan ng pakikipag-ugnayan', 'បន្ថែមវិធីទំនាក់ទំនង', 'যোগাযোগের মাধ্যম যোগ করুন'],
+  contact_remove: ['移除這個聯絡方式', 'Remove this contact method', 'Hapus metode kontak ini', 'ลบช่องทางติดต่อนี้', 'Xóa phương thức liên hệ này', 'ဤဆက်သွယ်ရန်နည်းလမ်းကို ဖယ်ရှားရန်', 'Alisin ang paraang ito', 'លុបវិធីទំនាក់ទំនងនេះ', 'এই যোগাযোগের মাধ্যম সরান'],
+  contact_type: ['聯絡方式類型', 'Contact method type', 'Jenis metode kontak', 'ประเภทช่องทางติดต่อ', 'Loại phương thức liên hệ', 'ဆက်သွယ်ရန်နည်းလမ်း အမျိုးအစား', 'Uri ng paraan ng pakikipag-ugnayan', 'ប្រភេទវិធីទំនាក់ទំនង', 'যোগাযোগের ধরন'],
+  contact_phone: ['電話', 'Phone', 'Telepon', 'โทรศัพท์', 'Điện thoại', 'ဖုန်း', 'Telepono', 'ទូរស័ព្ទ', 'ফোন'],
+  contact_phone_kind: ['電話類型', 'Phone type', 'Jenis telepon', 'ประเภทโทรศัพท์', 'Loại điện thoại', 'ဖုန်းအမျိုးအစား', 'Uri ng telepono', 'ប្រភេទទូរស័ព្ទ', 'ফোনের ধরন'],
+  contact_mobile: ['手機', 'Mobile', 'Seluler', 'มือถือ', 'Di động', 'မိုဘိုင်း', 'Mobile', 'ទូរស័ព្ទដៃ', 'মোবাইল'],
+  contact_landline: ['市話', 'Landline', 'Telepon rumah', 'โทรศัพท์บ้าน', 'Điện thoại bàn', 'အိမ်သုံးဖုန်း', 'Landline', 'ទូរស័ព្ទផ្ទះ', 'ল্যান্ডলাইন'],
+  contact_address: ['通訊地址', 'Mailing address', 'Alamat surat', 'ที่อยู่ติดต่อ', 'Địa chỉ liên lạc', 'စာပို့လိပ်စာ', 'Mailing address', 'អាសយដ្ឋានទំនាក់ទំនង', 'যোগাযোগের ঠিকানা'],
+  contact_address_map: ['通訊地址地圖', 'Mailing address map', 'Peta alamat surat', 'แผนที่ที่อยู่ติดต่อ', 'Bản đồ địa chỉ liên lạc', 'စာပို့လိပ်စာမြေပုံ', 'Mapa ng mailing address', 'ផែនទីអាសយដ្ឋានទំនាក់ទំនង', 'যোগাযোগের ঠিকানার মানচিত্র'],
+  submit: ['送出問卷', 'Submit questionnaire', 'Kirim kuesioner', 'ส่งแบบสอบถาม', 'Gửi bảng hỏi', 'မေးခွန်းလွှာ ပေးပို့ရန်', 'Isumite ang talatanungan', 'ដាក់ស្នើកម្រងសំណួរ', 'প্রশ্নমালা জমা দিন'],
+  question_next: ['下一題', 'Next question', 'Pertanyaan berikutnya', 'คำถามถัดไป', 'Câu tiếp theo', 'နောက်မေးခွန်း', 'Susunod na tanong', 'សំណួរបន្ទាប់', 'পরের প্রশ্ন'],
+  question_previous: ['上一題', 'Previous question', 'Pertanyaan sebelumnya', 'คำถามก่อนหน้า', 'Câu trước', 'ယခင်မေးခွန်း', 'Nakaraang tanong', 'សំណួរមុន', 'আগের প্রশ্ন'],
+  profile_review: ['檢視填答內容', 'Review answers', 'Tinjau jawaban', 'ตรวจสอบคำตอบ', 'Xem lại câu trả lời', 'အဖြေများကို ပြန်စစ်ရန်', 'Suriin ang mga sagot', 'ពិនិត្យចម្លើយ', 'উত্তর পর্যালোচনা করুন'],
+  return_to_edit: ['返回修改', 'Back to edit', 'Kembali untuk mengubah', 'กลับไปแก้ไข', 'Quay lại chỉnh sửa', 'ပြင်ဆင်ရန် ပြန်သွားပါ', 'Bumalik para mag-edit', 'ត្រឡប់ទៅកែសម្រួល', 'সম্পাদনায় ফিরুন'],
+  handoff_screening: ['確認並交給篩檢員', 'Confirm and hand over to screener', 'Konfirmasi dan serahkan kepada petugas skrining', 'ยืนยันและส่งต่อให้เจ้าหน้าที่ตรวจ', 'Xác nhận và chuyển cho nhân viên xét nghiệm', 'အတည်ပြုပြီး စစ်ဆေးသူထံ လွှဲပါ', 'Kumpirmahin at ibigay sa screener', 'បញ្ជាក់ ហើយប្រគល់ទៅអ្នកធ្វើតេស្ត', 'নিশ্চিত করে স্ক্রিনারের কাছে দিন'],
+  screener_instructions: ['此區域由篩檢員填答', 'For screener use', 'Bagian ini diisi petugas skrining', 'ส่วนนี้สำหรับเจ้าหน้าที่ตรวจกรอก', 'Phần này do nhân viên xét nghiệm điền', 'ဤအပိုင်းကို စစ်ဆေးသူက ဖြည့်ရန်', 'Para sa screener', 'ផ្នែកនេះសម្រាប់អ្នកធ្វើតេស្តបំពេញ', 'এই অংশ স্ক্রিনার পূরণ করবেন'],
+  screening_answer_title: ['受檢者填答摘要', 'Participant answer summary', 'Ringkasan jawaban peserta', 'สรุปคำตอบของผู้รับการตรวจ', 'Tóm tắt câu trả lời', 'စစ်ဆေးခံသူ၏ အဖြေအကျဉ်း', 'Buod ng sagot ng kalahok', 'សង្ខេបចម្លើយអ្នកចូលរួម', 'অংশগ্রহণকারীর উত্তরের সারাংশ'],
+  screening_answer_instructions: ['請先核對答案；如需更正，可返回修改填答內容。', 'Please review the answers. Return to edit if anything needs correction.', 'Periksa jawaban terlebih dahulu. Kembali untuk mengubah jika perlu.', 'โปรดตรวจสอบคำตอบก่อน หากต้องการแก้ไขให้ย้อนกลับไปแก้ไข', 'Vui lòng kiểm tra câu trả lời; quay lại để chỉnh sửa nếu cần.', 'အဖြေများကို စစ်ဆေးပါ။ ပြင်ဆင်ရန်လိုပါက ပြန်သွားပါ။', 'Suriin muna ang mga sagot. Bumalik para mag-edit kung may kailangang itama.', 'សូមពិនិត្យចម្លើយ។ ត្រឡប់ទៅកែ ប្រសិនបើត្រូវការកែតម្រូវ។', 'উত্তরগুলো যাচাই করুন; সংশোধন দরকার হলে সম্পাদনায় ফিরুন।'],
+  screening_interpretation_label: ['篩檢判讀（至少選一項）', 'Screening result (select at least one)', 'Hasil skrining (pilih minimal satu)', 'ผลการตรวจ (เลือกอย่างน้อยหนึ่งข้อ)', 'Kết quả xét nghiệm (chọn ít nhất một)', 'စစ်ဆေးမှုရလဒ် (အနည်းဆုံးတစ်ခုရွေးပါ)', 'Resulta ng screening (pumili ng kahit isa)', 'លទ្ធផលតេស្ត (ជ្រើសយ៉ាងតិចមួយ)', 'স্ক্রিনিং ফলাফল (অন্তত একটি বেছে নিন)'],
+  question_validation: ['請至少選擇一項篩檢判讀。', 'Select at least one screening result.', 'Pilih minimal satu hasil skrining.', 'โปรดเลือกผลการตรวจอย่างน้อยหนึ่งข้อ', 'Vui lòng chọn ít nhất một kết quả xét nghiệm.', 'စစ်ဆေးမှုရလဒ် အနည်းဆုံးတစ်ခု ရွေးပါ။', 'Pumili ng kahit isang resulta ng screening.', 'សូមជ្រើសរើសលទ្ធផលតេស្តយ៉ាងតិចមួយ។', 'অন্তত একটি স্ক্রিনিং ফলাফল বেছে নিন။'],
 };
 
+const i18n = Object.fromEntries(localeOrder.map((locale, localeIndex) => [
+  locale,
+  Object.fromEntries(Object.entries(translationRows).map(([key, values]) => [key, values[localeIndex]]))
+]));
+
 function setLanguage(language) {
-  const selectedLanguage = language === 'en' ? 'en' : 'zh-TW';
+  const selectedLanguage = Object.hasOwn(i18n, language) ? language : 'zh-TW';
   const translations = i18n[selectedLanguage];
   document.querySelectorAll('[data-i18n]').forEach(element => {
-    const key = element.dataset.i18n;
-    if (!translations[key]) {
-      element.lang = 'zh-TW';
-      return;
-    }
+    const translation = translations[element.dataset.i18n];
+    if (!translation) return;
 
-    element.lang = selectedLanguage;
-    element.querySelectorAll(':not([data-i18n])').forEach(descendant => {
-      descendant.lang = 'zh-TW';
+    element.classList.add('notranslate');
+    const icons = Array.from(element.children)
+      .filter(child => child.classList.contains('material-icons'))
+      .map(icon => icon.cloneNode(true));
+    element.replaceChildren(document.createTextNode(translation));
+    icons.forEach(icon => {
+      icon.lang = selectedLanguage;
+      element.append(' ', icon);
     });
-
-    const textNode = Array.from(element.childNodes).find(
-      node => node.nodeType === Node.TEXT_NODE && node.textContent.trim()
-    );
-
-    if (textNode) {
-      textNode.textContent = ` ${translations[key]} `;
-    } else if (element.children.length === 0) {
-      element.textContent = translations[key];
-    }
+    element.lang = selectedLanguage;
   });
-  document.documentElement.lang = 'zh-TW';
+
+  document.querySelectorAll('[data-i18n-aria-label]').forEach(element => {
+    const translation = translations[element.dataset.i18nAriaLabel];
+    if (translation) element.setAttribute('aria-label', translation);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+    const translation = translations[element.dataset.i18nPlaceholder];
+    if (translation) element.placeholder = translation;
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(element => {
+    const translation = translations[element.dataset.i18nTitle];
+    if (translation) element.title = translation;
+  });
+  const staffIndicator = document.querySelector('.staff-session-tool');
+  const staffStatus = document.getElementById('staff-session-status');
+  const staffStatusKeys = {
+    checking: 'staff_status_checking',
+    'signed-in': 'staff_status_signed_in',
+    'signed-out': 'staff_status_signed_out',
+    unbound: 'staff_status_unbound',
+    'not-staff': 'staff_status_not_authorized',
+    error: 'staff_status_error',
+    unknown: 'staff_status_error'
+  };
+  const staffStatusKey = staffIndicator && staffStatusKeys[staffIndicator.dataset.state];
+  if (staffStatus && staffStatusKey && translations[staffStatusKey]) {
+    staffStatus.textContent = translations[staffStatusKey];
+  }
+  document.documentElement.lang = selectedLanguage;
   document.documentElement.dataset.contentLanguage = selectedLanguage;
 }

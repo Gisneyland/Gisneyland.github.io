@@ -1,10 +1,21 @@
-<div>
+<div class="site-navigation">
+  <div id="navigation-more-menu" class="navigation-more-menu" hidden>
+    <div class="navigation-more-brand">
+      <strong>GisneyLand 風城部屋</strong>
+      <p>在地同志社群服務、文化活動與健康資源入口。</p>
+    </div>
+    <a href="{{ '/about/' | relative_url }}"><i class="material-icons notranslate" translate="no" aria-hidden="true">info</i>關於中心</a>
+    <a class="navigation-more-mobile-link" href="{{ '/news/' | relative_url }}"><i class="material-icons notranslate" translate="no" aria-hidden="true">article</i>最新消息</a>
+    <a href="{{ '/contact/' | relative_url }}"><i class="material-icons notranslate" translate="no" aria-hidden="true">mail</i>聯絡我們</a>
+    <a href="{{ '/privacy/' | relative_url }}"><i class="material-icons notranslate" translate="no" aria-hidden="true">shield</i>隱私與資料使用</a>
+    <a href="https://www.gisneyland.org/about/info" target="_blank" rel="noopener noreferrer"><i class="material-icons notranslate" translate="no" aria-hidden="true">open_in_new</i>官方資訊</a>
+    <button type="button" data-scroll-to-top><i class="material-icons notranslate" translate="no" aria-hidden="true">arrow_upward</i>回到頂端</button>
+  </div>
   <nav class="bottom-nav" aria-label="主要導覽">
     <a href="{{ '/' | relative_url }}"{% if page.url == '/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">home</i><span data-i18n="homepage">首頁</span></a>
-    <a href="{{ '/about/' | relative_url }}"{% if page.url == '/about/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">info</i><span data-i18n="about">關於中心</span></a>
     <a href="{{ '/services/' | relative_url }}"{% if page.url == '/services/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">build</i><span data-i18n="services">服務</span></a>
     <a href="{{ '/activity/' | relative_url }}"{% if page.url == '/activity/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">event</i><span data-i18n="activity">活動</span></a>
-    <a href="{{ '/news/' | relative_url }}"{% if page.url == '/news/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">article</i><span data-i18n="news">最新消息</span></a>
-    <a href="{{ '/contact/' | relative_url }}"{% if page.url == '/contact/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">mail</i><span data-i18n="contact">聯絡</span></a>
+    <a class="desktop-news-link" href="{{ '/news/' | relative_url }}"{% if page.url == '/news/' %} aria-current="page"{% endif %}><i class="material-icons notranslate" translate="no" aria-hidden="true">article</i><span data-i18n="news">最新消息</span></a>
+    <button id="navigation-more-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="navigation-more-menu"><i class="material-icons notranslate" translate="no" aria-hidden="true">more_horiz</i><span>更多</span></button>
   </nav>
 </div>

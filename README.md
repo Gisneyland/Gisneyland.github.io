@@ -30,7 +30,7 @@ bundle exec jekyll build
 
 問卷支援兩種資料入口：部署 Edge Function 後的安全入口，以及尚未部署時的暫時直接寫入模式。正式環境應使用 Edge Function；`service_role` key 只能存在 Supabase 的 server-side secrets，絕對不可放入網站。
 
-1. 在 Supabase Dashboard 的 SQL Editor 執行 [supabase/schema.sql](supabase/schema.sql)。這個檔案會建立資料表、限制 JSON 大小，並只允許 `anon` 新增資料；匿名使用者不能查詢、修改或刪除資料。
+1. 在 Supabase Dashboard 的 SQL Editor 執行最新版 [supabase/schema.sql](supabase/schema.sql)。除了問卷資料表，也會建立新聞/活動共用的 `site_content` 表與 RLS：訪客只能讀取已上架內容，只有 `admin_profiles` 中的工作人員能新增、編輯、刪除與切換上架狀態。匿名使用者只能新增問卷，不能查詢、修改或刪除問卷資料。
 
 2. 到 Supabase Dashboard 的 `Project Settings > API`，複製 `Project URL` 與 `Publishable key`（舊介面可能顯示為 `anon public` key），填入 [assets/js/supabase-config.js](assets/js/supabase-config.js)。這個 key 可以公開，但不要放 `service_role` key。
 3. 正式環境部署 Edge Function：
@@ -62,19 +62,25 @@ GitHub Actions 會在每次 push 與 Pull Request 執行相同的 Jekyll build�
 
 ## 管理後台
 
-後台網址為 `/admin/`，使用 Supabase Auth 登入。後台只提供已列入 `admin_profiles` 白名單的帳號讀取問卷資料，匿名訪客與一般登入帳號都不能讀取。
+後台網址為 `/admin/`，使用 Supabase Auth 登入。問卷資料和新聞/活動管理都限 `admin_profiles` 白名單帳號使用；匿名訪客與一般登入帳號無法管理內容或讀取問卷資料。
 
 設定第一位管理員：
 
-1. 在 Supabase Dashboard 的 `Authentication > Users` 建立 Email/Password 使用者，並完成 Email 驗證（依專案設定而定）。
-2. 複製該使用者的 UUID，在 SQL Editor 執行：
+1. 先在 SQL Editor 執行最新版 [supabase/schema.sql](supabase/schema.sql)，建立/更新問卷、管理員權限與 `site_content` 內容表。
+2. 在 Supabase Dashboard 的 `Authentication > Users` 建立 Email/Password 使用者，並完成 Email 驗證（依專案設定而定）。
+3. 複製該使用者的 UUID，在 SQL Editor 執行：
 
 ```sql
-insert into public.admin_profiles (user_id)
-values ('YOUR_AUTH_USER_UUID');
+insert into public.admin_profiles (user_id, screener_number)
+values ('YOUR_AUTH_USER_UUID', 'YOUR_ASSIGNED_SCREENER_NUMBER');
 ```
 
-3. 將 [supabase/schema.sql](supabase/schema.sql) 完整執行一次，確認 `admin_profiles` 與問卷的 RLS policy 已建立。
-4. 開啟 `https://gisneyland.github.io/admin/` 登入。後台支援搜尋、語言篩選、重新整理與單筆詳細檢視。
+4. 開啟 `https://gisneyland.github.io/admin/` 登入。後台支援篩檢員編號綁定、問卷搜尋/篩選，以及新聞與活動的新增、編輯、刪除和上架管理。
 
-後台目前刻意不提供公開註冊、匿名讀取、資料修改或刪除功能。健康資料屬敏感資訊，請只把必要的工作人員加入白名單，並定期檢查 Supabase Auth 使用者與 `admin_profiles`。
+問卷資料不提供匿名讀取、修改或刪除；已核准的工作人員仍只能更新自己帳號的篩檢員編號。新聞與活動公開端只讀取已上架項目。健康資料屬敏感資訊，請只把必要的工作人員加入白名單，並定期檢查 Supabase Auth 使用者與 `admin_profiles`。
+
+## 活動行事曆與 ICS
+
+活動頁固定開放時段依[風城部屋團隊資訊](https://hackmd.io/@HsinchuPride/Welcome)設定為每週二至週六 14:00–22:00；DGPA 辦公日曆標記的國定假日不排開放時段。假日日曆 JSON 取自 [TaiwanCalendar](https://github.com/ruyut/TaiwanCalendar)，其資料源為[政府資料開放平台的政府行政機關辦公日曆表](https://data.gov.tw/dataset/14718)，年度資料發布後由上游更新。
+
+活動頁的「匯出 .ics」會下載從當日至目前可取得年度範圍的開放時段、國定假日、補班日，以及已上架活動；時間採用 `Asia/Taipei`。若要新增或編輯活動，需先完成上方 Supabase `site_content` migration，並由授權工作人員在 `/admin/` 上架。

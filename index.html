@@ -111,12 +111,12 @@ description: GisneyLand 風城部屋是新竹在地 LGBTQ+ 社群服務與活動
       <h2>最新消息</h2>
       <a href="{{ '/news/' | relative_url }}">看全部紀錄</a>
     </div>
-    <div class="news-grid">
+    <div class="news-grid" data-managed-news data-card-class="news-card">
       {% for item in site.data.news limit:4 %}
       <article class="news-card">
         <span class="news-tag">{{ item.tag }}</span>
         <p class="news-category">{{ item.category }}</p>
-        <h3>{{ item.title }}</h3>
+          <h3>{{ item.title }}</h3>
         <p>{{ item.summary }}</p>
         <a href="{{ item.url | relative_url }}">了解更多<span aria-hidden="true"> →</span></a>
       </article>
@@ -125,35 +125,30 @@ description: GisneyLand 風城部屋是新竹在地 LGBTQ+ 社群服務與活動
   </div>
 </section>
 
-<section class="card">
+<section class="card" aria-labelledby="about-contact-title">
   <div class="card-content">
     <div class="section-heading">
-      <h2>官方資訊與聯絡</h2>
-      <a href="{{ '/contact/' | relative_url }}">進入聯絡頁面</a>
+      <div>
+        <p class="eyebrow">GisneyLand 風城部屋</p>
+        <h2 id="about-contact-title">關於與聯絡</h2>
+      </div>
+      <a href="{{ '/contact/' | relative_url }}">聯絡我們</a>
     </div>
+    <p>GisneyLand 風城部屋的工作，不只是活動本身，而是讓同志與多元性別社群在生活中有更多被理解、被照護與被接納的機會。中心從社群聚會、文化節慶、健康篩檢到公共教育，持續形塑在地的友善與包容循環。</p>
     <div class="info-grid two-col">
-      <div class="detail-card">
+      <div>
         <h3>官方連結</h3>
         <p><a href="https://www.gisneyland.org/about/info" target="_blank" rel="noopener noreferrer">台灣北區同志社群服務中心｜關於中心</a></p>
         <p><a href="https://www.facebook.com/GisneyLandHSC/" target="_blank" rel="noopener noreferrer">GisneyLand 風城部屋</a></p>
         <p><a href="https://www.facebook.com/gisneylandfestival" target="_blank" rel="noopener noreferrer">GisneyLand Festival / 彩虹文化祭</a></p>
       </div>
-      <div class="detail-card">
-        <h3>關鍵聯絡資訊</h3>
+      <div>
+        <h3>聯絡資訊</h3>
         <p>同志健康免費諮詢專線：0800-010-569</p>
         <p>疫情通報及諮詢服務專線：1922</p>
         <p>如需活動資訊、服務安排或資源轉介，請先參閱官方網站與粉專公告。</p>
+        <p><a href="{{ '/privacy/' | relative_url }}">隱私與資料使用</a></p>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="card">
-  <div class="card-content">
-    <div class="section-heading">
-      <h2>關於中心</h2>
-      <a href="{{ '/about/' | relative_url }}">了解更多</a>
-    </div>
-    <p>GisneyLand 風城部屋的工作，不只是活動本身，而是讓同志與多元性別社群在生活中有更多被理解、被照護與被接納的機會。中心從社群聚會、文化節慶、健康篩檢到公共教育，持續形塑在地的友善與包容循環。</p>
   </div>
 </section>

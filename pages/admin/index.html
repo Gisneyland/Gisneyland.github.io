@@ -8,13 +8,20 @@ permalink: /admin/
   <div class="admin-header">
     <div>
       <p class="eyebrow">GisneyLand 內部使用</p>
-      <h1 id="admin-title">問卷管理後台</h1>
-      <p class="admin-subtitle">僅供授權工作人員查看健康問卷資料。</p>
+      <h1 id="admin-title">內容與問卷管理</h1>
+      <p class="admin-subtitle">管理健康問卷、新聞上架與活動行事曆；僅供授權工作人員使用。</p>
     </div>
-    <button id="sign-out-button" class="admin-button secondary" type="button" hidden>
-      <span class="material-icons notranslate" translate="no" aria-hidden="true">logout</span>
-      登出
-    </button>
+    <div class="admin-header-actions">
+      <a id="open-questionnaire-button" class="admin-button secondary" href="{{ '/hiva/' | relative_url }}" target="_blank" rel="noopener" hidden>
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">assignment</span>
+        回到問卷
+        <span class="sr-only">（在新分頁開啟）</span>
+      </a>
+      <button id="sign-out-button" class="admin-button secondary" type="button" hidden>
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">logout</span>
+        登出
+      </button>
+    </div>
   </div>
 
   <section id="admin-login" class="admin-panel" aria-labelledby="login-title">
@@ -50,6 +57,87 @@ permalink: /admin/
         </button>
       </div>
     </div>
+    <section class="admin-panel screener-binding-panel" aria-labelledby="screener-binding-title">
+      <div>
+        <h2 id="screener-binding-title">我的篩檢員編號</h2>
+        <p class="admin-muted">設定後，登入此帳號回到問卷時會自動帶入。每個編號只能綁定一個帳號。</p>
+      </div>
+      <form id="screener-number-form" class="screener-number-form">
+        <label for="screener-number-input">篩檢員編號</label>
+        <div class="screener-number-controls">
+          <input id="screener-number-input" name="screener_number" type="text" maxlength="80" autocomplete="off" required disabled>
+          <button id="save-screener-number" class="admin-button" type="submit" disabled>儲存編號</button>
+        </div>
+      </form>
+      <p id="screener-number-status" class="admin-status" role="status" hidden></p>
+    </section>
+    <section id="site-content-management" class="admin-panel" aria-labelledby="site-content-title" hidden>
+      <div class="site-content-heading">
+        <div>
+          <h2 id="site-content-title">新聞與活動</h2>
+          <p class="admin-muted">草稿僅工作人員可見；上架後會顯示於網站，活動會加入行事曆。</p>
+        </div>
+        <button id="new-site-content-button" class="admin-button" type="button">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">add</span>
+          新增內容
+        </button>
+      </div>
+      <div class="site-content-toolbar">
+        <label for="site-content-filter">內容類型</label>
+        <select id="site-content-filter">
+          <option value="all">全部</option>
+          <option value="news">新聞</option>
+          <option value="event">活動</option>
+        </select>
+        <button id="refresh-site-content-button" class="admin-button secondary" type="button">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
+          重新整理
+        </button>
+      </div>
+      <form id="site-content-form" class="site-content-form" hidden>
+        <input id="site-content-id" type="hidden">
+        <div class="site-content-form-grid">
+          <label for="site-content-type">內容類型</label>
+          <select id="site-content-type" required>
+            <option value="news">新聞</option>
+            <option value="event">活動</option>
+          </select>
+          <label for="site-content-category">分類</label>
+          <input id="site-content-category" type="text" maxlength="80" placeholder="例如：社群、文化、健康">
+          <label for="site-content-title-input">標題</label>
+          <input id="site-content-title-input" type="text" maxlength="180" required>
+          <label for="site-content-summary">摘要</label>
+          <textarea id="site-content-summary" rows="3" maxlength="600" required></textarea>
+          <label for="site-content-body">詳細內容</label>
+          <textarea id="site-content-body" rows="5" maxlength="12000"></textarea>
+          <div id="site-content-event-fields" class="site-content-event-fields" hidden>
+            <label for="site-content-event-start">活動開始日期</label>
+            <input id="site-content-event-start" type="date">
+            <label for="site-content-event-end">活動結束日期（含當日，可留空）</label>
+            <input id="site-content-event-end" type="date">
+            <label for="site-content-location">地點</label>
+            <input id="site-content-location" type="text" maxlength="180">
+          </div>
+          <label for="site-content-url">相關連結</label>
+          <input id="site-content-url" type="text" maxlength="500" placeholder="https://... 或 /頁面路徑">
+          <label class="site-content-publish-toggle" for="site-content-published">
+            <input id="site-content-published" type="checkbox">
+            立即上架
+          </label>
+        </div>
+        <div class="site-content-form-actions">
+          <button class="admin-button" type="submit">
+            <span class="material-icons notranslate" translate="no" aria-hidden="true">save</span>
+            儲存內容
+          </button>
+          <button id="cancel-site-content-button" class="admin-button secondary" type="button">取消</button>
+        </div>
+        <p id="site-content-form-status" class="admin-status" role="status" hidden></p>
+      </form>
+      <p id="site-content-status" class="admin-status" role="status" hidden></p>
+      <div id="site-content-list" class="site-content-list"></div>
+      <p id="site-content-empty" class="admin-empty" hidden>目前沒有符合條件的內容。</p>
+    </section>
     <div class="admin-stats" aria-label="問卷統計">
       <div class="stat-card"><span>目前載入</span><strong id="total-count">0</strong><small>筆問卷</small></div>
       <div class="stat-card"><span>繁體中文</span><strong id="zh-count">0</strong><small>筆</small></div>
@@ -99,5 +187,5 @@ permalink: /admin/
       <span class="material-icons notranslate" translate="no" aria-hidden="true">close</span>
     </button>
   </div>
-  <dl id="response-details" class="response-details"></dl>
+  <div id="response-details" class="response-sections"></div>
 </dialog>

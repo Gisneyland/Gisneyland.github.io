@@ -8,10 +8,10 @@ permalink: /hiva/
 <nav class="questionnaire-section-nav" aria-labelledby="questionnaire-section-nav-label">
   <span id="questionnaire-section-nav-label" class="sr-only" data-i18n="questionnaire_sections">問卷區段導覽</span>
   <ol>
-    <li><a href="#questionnaire-notice"><span data-i18n="notice_title">篩檢須知</span></a></li>
-    <li><a href="#questionnaire-risk"><span data-i18n="risk_title">風險評估</span></a></li>
-    <li><a href="#questionnaire-profile"><span data-i18n="profile_title">基本資料</span></a></li>
-    <li><a href="#questionnaire-screening"><span data-i18n="screening">篩檢</span></a></li>
+    <li><button type="button" data-questionnaire-section="0" aria-current="step"><span class="progress-marker">1</span><span data-i18n="notice_title">篩檢須知</span></button></li>
+    <li><button type="button" data-questionnaire-section="1" disabled><span class="progress-marker">2</span><span data-i18n="risk_title">風險評估</span></button></li>
+    <li><button type="button" data-questionnaire-section="2" disabled><span class="progress-marker">3</span><span data-i18n="profile_title">基本資料</span></button></li>
+    <li><button type="button" data-questionnaire-section="3" disabled><span class="progress-marker">4</span><span data-i18n="screening">篩檢</span></button></li>
   </ol>
 </nav>
 <form id="questionnaire-form">

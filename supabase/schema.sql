@@ -47,18 +47,51 @@ for insert
 to anon
 with check (
   jsonb_typeof(response_data) = 'object'
+  and jsonb_typeof(response_data -> 'screener') = 'string'
+  and length(btrim(response_data ->> 'screener')) > 0
   and schema_version = 1
 );
 
 create table if not exists public.admin_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  screener_number text
 );
+
+alter table public.admin_profiles
+  add column if not exists screener_number text;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.admin_profiles'::regclass
+      and conname = 'admin_profiles_screener_number_nonempty'
+  ) then
+    alter table public.admin_profiles
+      add constraint admin_profiles_screener_number_nonempty
+      check (screener_number is null or length(btrim(screener_number)) > 0);
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.admin_profiles'::regclass
+      and conname = 'admin_profiles_screener_number_required'
+  ) then
+    alter table public.admin_profiles
+      add constraint admin_profiles_screener_number_required
+      check (screener_number is not null and length(btrim(screener_number)) > 0) not valid;
+  end if;
+end $$;
+
+create unique index if not exists admin_profiles_screener_number_unique
+  on public.admin_profiles (lower(btrim(screener_number)))
+  where screener_number is not null;
 
 alter table public.admin_profiles enable row level security;
 
 revoke all on table public.admin_profiles from anon, authenticated;
 grant select on table public.admin_profiles to authenticated;
+grant update (screener_number) on table public.admin_profiles to authenticated;
 grant select on table public.questionnaire_responses to authenticated;
 
 drop policy if exists "Admins can view their own profile"
@@ -70,6 +103,16 @@ for select
 to authenticated
 using (user_id = (select auth.uid()));
 
+drop policy if exists "Admins can update their own screener number"
+on public.admin_profiles;
+
+create policy "Admins can update their own screener number"
+on public.admin_profiles
+for update
+to authenticated
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
+
 drop policy if exists "Admins can view questionnaire responses"
 on public.questionnaire_responses;
 
@@ -79,6 +122,148 @@ for select
 to authenticated
 using (
   exists (
+    select 1
+    from public.admin_profiles
+    where admin_profiles.user_id = (select auth.uid())
+  )
+);
+
+create table if not exists public.site_content (
+  id uuid primary key default gen_random_uuid(),
+  content_type text not null check (content_type in ('news', 'event')),
+  title text not null check (length(btrim(title)) > 0),
+  category text not null default '',
+  summary text not null default '',
+  body text not null default '',
+  url text,
+  location text not null default '',
+  event_start date,
+  event_end date,
+  is_published boolean not null default false,
+  published_at timestamptz,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint site_content_event_dates_check check (
+    content_type <> 'event'
+    or (event_start is not null and (event_end is null or event_end >= event_start))
+  )
+);
+
+create index if not exists site_content_public_events_idx
+  on public.site_content (event_start, event_end)
+  where content_type = 'event' and is_published;
+
+create index if not exists site_content_public_news_idx
+  on public.site_content (published_at desc, created_at desc)
+  where content_type = 'news' and is_published;
+
+alter table public.site_content enable row level security;
+
+revoke all on table public.site_content from anon, authenticated;
+grant select on table public.site_content to anon, authenticated;
+grant insert, update, delete on table public.site_content to authenticated;
+
+drop policy if exists "Anyone can view published site content"
+on public.site_content;
+
+create policy "Anyone can view published site content"
+on public.site_content
+for select
+to anon, authenticated
+using (is_published);
+
+drop policy if exists "Admins can view all site content"
+on public.site_content;
+
+create policy "Admins can view all site content"
+on public.site_content
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.admin_profiles
+    where admin_profiles.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists "Admins can insert site content"
+on public.site_content;
+
+create policy "Admins can insert site content"
+on public.site_content
+for insert
+to authenticated
+with check (
+  exists (
+    select 1
+    from public.admin_profiles
+    where admin_profiles.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists "Admins can update site content"
+on public.site_content;
+
+create policy "Admins can update site content"
+on public.site_content
+for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.admin_profiles
+    where admin_profiles.user_id = (select auth.uid())
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.admin_profiles
+    where admin_profiles.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists "Admins can delete site content"
+on public.site_content;
+
+create policy "Admins can delete site content"
+on public.site_content
+for delete
+to authenticated
+using (
+  exists (
+    select 1
+    from public.admin_profiles
+    where admin_profiles.user_id = (select auth.uid())
+  )
+);
+
+-- 陽性試劑照片：私有 bucket，只由 submit-questionnaire（service role）寫入，管理員可讀。
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'screening-test-photos',
+  'screening-test-photos',
+  false,
+  2621440,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Admins can view screening test photos"
+on storage.objects;
+
+create policy "Admins can view screening test photos"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'screening-test-photos'
+  and exists (
     select 1
     from public.admin_profiles
     where admin_profiles.user_id = (select auth.uid())

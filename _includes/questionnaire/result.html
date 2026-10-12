@@ -1,43 +1,195 @@
-<div class="card">
+<div id="screener-panel" class="card question-step">
     <div class="card-content">
       <h2 id="questionnaire-screening" class="card-title" data-i18n="screening" tabindex="-1">篩檢結果</h2>
-      <p>此區域由篩檢員填答</p>
+      <p data-i18n="screener_instructions">此區域由篩檢員填答</p>
       <p id="form-status" class="red-text" role="status" aria-live="polite" hidden></p>
 
-        <div class="row">
+      <section class="screening-answer-summary" aria-labelledby="screening-answer-title">
+        <div class="screening-answer-heading">
+          <div>
+            <h3 id="screening-answer-title" data-i18n="screening_answer_title">受檢者填答摘要</h3>
+            <p data-i18n="screening_answer_instructions">請先核對答案；如需更正，可返回修改填答內容。</p>
+          </div>
+          <button type="button" id="edit-profile-button" class="btn-flat" data-toggle-answer-edit aria-pressed="false" data-i18n="return_to_edit">返回修改</button>
+        </div>
+        <div id="screening-response-answers" class="screening-response-answers answer-summary"></div>
+      </section>
+
+        <div class="screening-fields">
             
-            <div class="col s4">
-                <div class="input-field">
-                <input type="text" name="screener" id="screener" maxlength="80" autocomplete="off">
-                <label for="screener" data-i18n="screener">篩檢員編號</label>
-              </div>
-            </div>
+          <div class="screening-field">
+            <label for="screener" data-i18n="screener">篩檢員編號</label>
+            <input type="text" name="screener" id="screener" maxlength="80" autocomplete="off" required aria-describedby="screener-status">
+            <p id="screener-status" class="screening-place-status" role="status" aria-live="polite" hidden></p>
+          </div>
         
-            <div class="col s4">
-              <div class="input-field">
-                <input type="date" name="screening_at" id="screening_at" max="9999-12-31">
-                <label for="screening_at" data-i18n="screening_date">篩檢日期</label>
+          <div class="screening-field">
+            <label for="screening_at" data-i18n="screening_date">篩檢日期</label>
+            <input type="date" name="screening_at" id="screening_at" max="9999-12-31">
+          </div>
+
+          <div class="screening-field screening-place-field">
+            <script id="screening-place-local-data" type="application/json">{{ site.data.screening_places | jsonify }}</script>
+            <label for="screening_place" data-i18n="screening_place">篩檢地點</label>
+            <div class="screening-place-input">
+              <input type="search" name="screening_place" id="screening_place" maxlength="120" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="screening-place-suggestions">
+              <button type="button" id="screening-locate-button" class="screening-locate-icon" aria-label="定位目前位置" title="定位目前位置" data-i18n-aria-label="locate_current" data-i18n-title="locate_current">
+                <i class="material-icons" aria-hidden="true">my_location</i>
+              </button>
+            </div>
+            <div id="screening-place-suggestions" class="screening-place-suggestions" role="listbox" aria-label="建議地點" data-i18n-aria-label="recommendation_places" hidden></div>
+            <p id="screening-place-status" class="screening-place-status" role="status" aria-live="polite" hidden></p>
+            <div class="screening-place-map-info">
+              <button type="button" id="screening-place-info-button" class="screening-place-info-button" aria-label="地圖與地點資料來源" data-i18n-aria-label="map_source_label" aria-expanded="false" aria-controls="screening-place-info-popover">
+                <i class="material-icons" aria-hidden="true">info_outline</i>
+              </button>
+              <div id="screening-place-info-popover" class="screening-place-info-popover" role="tooltip" hidden>
+                <span data-i18n="map_source_notice">地圖資料 © OpenStreetMap contributors。地點建議由 Photon、Nominatim 與在地地標清單比對；前兩者皆使用 OpenStreetMap 資料。輸入地點文字會送至這些服務查詢，不會隨問卷答案送出。</span>
               </div>
             </div>
-
-            <div class="col s4">
-              <div class="input-field">
-                <input type="text" name="screening_place" id="screening_place" maxlength="120" autocomplete="off">
-                <label for="screening_place" data-i18n="screening_place">篩檢地點</label>
-              </div>
+            <div id="screening-place-map" class="screening-place-map" hidden>
+              <div id="screening-place-map-canvas" class="screening-place-map-canvas" role="application" aria-label="互動式篩檢地點地圖" data-i18n-aria-label="screener_location_map"></div>
             </div>
+          </div>
 
-            <div class="col s4">
-              <div class="input-field col s12">
-                <select multiple name="screening_interpretation">
-                  <option value="hiv_positive" data-i18n="hiv_positive">HIV 陽性</option>
-                  <option value="hiv_negative" data-i18n="hiv_negative">HIV 陰性</option>
-                    <option value="syphilis_positive" data-i18n="syphilis_positive">梅毒陽性</option> 
-                    <option value="syphilis_negative" data-i18n="syphilis_negative">梅毒陰性</option>
-                </select>
-                <label>篩檢判讀</label>
+          <div class="screening-field screening-interpretation-field">
+            <span class="screening-field-label" data-i18n="screening_interpretation_label">篩檢判讀（至少選一項）</span>
+            <div class="screening-interpretation-pairs" role="group" aria-describedby="screening-interpretation-message">
+              <fieldset class="interpretation-pair" data-interpretation-pair="hiv">
+                <legend data-i18n="screening_hiv">HIV</legend>
+                <label><input type="checkbox" name="screening_interpretation[]" value="hiv_positive"><span data-i18n="hiv_positive">HIV 陽性</span></label>
+                <label><input type="checkbox" name="screening_interpretation[]" value="hiv_negative"><span data-i18n="hiv_negative">HIV 陰性</span></label>
+                <div id="hiv-window-period-field" class="screening-hiv-window-period" hidden>
+                  <select name="hiv_window_period" id="hiv_window_period" aria-label="HIV 空窗期" data-i18n-aria-label="hiv_window_period" required>
+                    <option value="3_months" selected data-i18n="three_months">三個月空窗期</option>
+                    <option value="1_month" data-i18n="one_month">一個月空窗期</option>
+                  </select>
+                </div>
+                <div class="screening-photo-field" data-photo-kind="hiv" data-photo-requires="hiv_positive" hidden>
+                  <button type="button" class="btn-flat screening-photo-button" data-photo-pick>
+                    <i class="material-icons" aria-hidden="true">photo_camera</i>
+                    <span data-i18n="screening_photo_add">拍攝或上傳試劑照片（選填）</span>
+                  </button>
+                  <input type="file" accept="image/*" data-photo-input hidden>
+                  <div class="screening-photo-preview" data-photo-preview hidden>
+                    <img alt="HIV 陽性試劑照片" data-photo-image>
+                    <button type="button" class="btn-flat" data-photo-clear data-i18n="screening_photo_remove">移除照片</button>
+                  </div>
+                  <p class="screening-photo-status" data-photo-status role="status" aria-live="polite" hidden></p>
+                </div>
+              </fieldset>
+              <fieldset class="interpretation-pair" data-interpretation-pair="syphilis">
+                <legend data-i18n="screening_syphilis">梅毒</legend>
+                <label><input type="checkbox" name="screening_interpretation[]" value="syphilis_positive"><span data-i18n="syphilis_positive">梅毒陽性</span></label>
+                <label><input type="checkbox" name="screening_interpretation[]" value="syphilis_negative"><span data-i18n="syphilis_negative">梅毒陰性</span></label>
+                <div class="screening-photo-field" data-photo-kind="syphilis" data-photo-requires="syphilis_positive" hidden>
+                  <button type="button" class="btn-flat screening-photo-button" data-photo-pick>
+                    <i class="material-icons" aria-hidden="true">photo_camera</i>
+                    <span data-i18n="screening_photo_add">拍攝或上傳試劑照片（選填）</span>
+                  </button>
+                  <input type="file" accept="image/*" data-photo-input hidden>
+                  <div class="screening-photo-preview" data-photo-preview hidden>
+                    <img alt="梅毒陽性試劑照片" data-photo-image>
+                    <button type="button" class="btn-flat" data-photo-clear data-i18n="screening_photo_remove">移除照片</button>
+                  </div>
+                  <p class="screening-photo-status" data-photo-status role="status" aria-live="polite" hidden></p>
+                </div>
+              </fieldset>
+            </div>
+            <p id="screening-interpretation-message" class="screening-interpretation-message" role="alert" aria-live="polite" hidden></p>
+            <fieldset id="hiv-positive-referral" class="hiv-positive-referral" hidden disabled>
+              <legend data-i18n="hiv_positive_referral">HIV 陽性轉介（選填）</legend>
+              <div class="hiv-positive-referral-fields">
+                <div class="screening-field hiv-positive-referral-field-wide hiv-contact-methods" role="group" aria-labelledby="hiv-contact-methods-label">
+                  <span id="hiv-contact-methods-label" class="screening-field-label" data-i18n="referral_contact_methods">聯絡方式</span>
+                  <div id="hiv-contact-list" class="hiv-contact-list"></div>
+                  <button type="button" id="hiv-contact-add" class="btn-flat hiv-contact-add">
+                    <i class="material-icons" aria-hidden="true">add</i>
+                    <span data-i18n="contact_add">新增聯絡方式</span>
+                  </button>
+                </div>
+                <div class="screening-field hiv-positive-referral-field-wide">
+                  <label for="hiv_positive_appointment" data-i18n="referral_appointment">預約門診</label>
+                  <input type="datetime-local" name="hiv_positive_appointment" id="hiv_positive_appointment" max="9999-12-31T23:59">
+                </div>
+                <div class="screening-field hiv-positive-referral-field-wide screening-place-field">
+                  <label for="hiv_positive_address" data-i18n="referral_address">就診地址</label>
+                  <div class="screening-place-input">
+                    <input type="search" name="hiv_positive_address" id="hiv_positive_address" maxlength="240" autocomplete="street-address" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="hiv-positive-address-suggestions">
+                    <button type="button" id="hiv-positive-address-locate-button" class="screening-locate-icon" aria-label="定位目前位置" title="定位目前位置" data-i18n-aria-label="locate_current" data-i18n-title="locate_current">
+                      <i class="material-icons" aria-hidden="true">my_location</i>
+                    </button>
+                  </div>
+                  <div id="hiv-positive-address-suggestions" class="screening-place-suggestions" role="listbox" aria-label="地址建議" data-i18n-aria-label="map_suggestions" hidden></div>
+                  <p id="hiv-positive-address-status" class="screening-place-status" role="status" aria-live="polite" hidden></p>
+                  <div class="screening-place-map-info">
+                    <button type="button" id="hiv-positive-address-info-button" class="screening-place-info-button" aria-label="地圖與地址資料來源" data-i18n-aria-label="map_source_label" aria-expanded="false" aria-controls="hiv-positive-address-info-popover">
+                      <i class="material-icons" aria-hidden="true">info_outline</i>
+                    </button>
+                    <div id="hiv-positive-address-info-popover" class="screening-place-info-popover" role="tooltip" hidden>
+                      <span data-i18n="map_source_notice">地圖資料 © OpenStreetMap contributors。地址建議由 Photon 與 Nominatim 查詢；輸入地址文字會送至這些服務搜尋，不會隨問卷答案送出。</span>
+                    </div>
+                  </div>
+                  <div id="hiv-positive-address-map" class="screening-place-map" hidden>
+                    <div id="hiv-positive-address-map-canvas" class="screening-place-map-canvas" role="application" aria-label="就診地址地圖" data-i18n-aria-label="referral_location_map"></div>
+                  </div>
+                </div>
+                <div class="screening-field hiv-positive-referral-field-wide">
+                  <label for="hiv_positive_notes" data-i18n="referral_notes">備註</label>
+                  <textarea name="hiv_positive_notes" id="hiv_positive_notes" rows="3" maxlength="1000"></textarea>
+                </div>
               </div>
-            </div> 
+            </fieldset>
+            <template id="hiv-contact-template">
+              <div class="hiv-contact-row" data-contact-row>
+                <div class="hiv-contact-controls">
+                  <select class="hiv-contact-type" data-contact-type aria-label="聯絡方式類型" data-i18n-aria-label="contact_type">
+                    <option value="phone" data-i18n="contact_phone">電話</option>
+                    <option value="email">Mail</option>
+                    <option value="line">LINE</option>
+                    <option value="facebook">FB</option>
+                    <option value="instagram">IG</option>
+                    <option value="threads">Threads</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="telegram">Telegram</option>
+                    <option value="address" data-i18n="contact_address">通訊地址</option>
+                  </select>
+                  <select class="hiv-contact-phone-kind" data-contact-phone-kind aria-label="電話類型" data-i18n-aria-label="contact_phone_kind">
+                    <option value="mobile" data-i18n="contact_mobile">手機</option>
+                    <option value="landline" data-i18n="contact_landline">市話</option>
+                  </select>
+                  <button type="button" class="hiv-contact-remove" data-contact-remove aria-label="移除這個聯絡方式" title="移除這個聯絡方式" data-i18n-aria-label="contact_remove" data-i18n-title="contact_remove">
+                    <i class="material-icons" aria-hidden="true">close</i>
+                  </button>
+                </div>
+                <div class="hiv-contact-value" data-contact-plain>
+                  <input type="text" data-contact-value maxlength="120" autocomplete="off">
+                </div>
+                <div class="hiv-contact-address" data-contact-address hidden>
+                  <div class="screening-place-input">
+                    <input type="search" data-contact-address-input maxlength="240" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false">
+                    <button type="button" class="screening-locate-icon" data-contact-locate aria-label="定位目前位置" title="定位目前位置" data-i18n-aria-label="locate_current" data-i18n-title="locate_current">
+                      <i class="material-icons" aria-hidden="true">my_location</i>
+                    </button>
+                  </div>
+                  <div class="screening-place-suggestions" role="listbox" aria-label="地址建議" data-i18n-aria-label="map_suggestions" data-contact-suggestions hidden></div>
+                  <p class="screening-place-status" role="status" aria-live="polite" data-contact-status hidden></p>
+                  <div class="screening-place-map-info">
+                    <button type="button" class="screening-place-info-button" data-contact-info-button aria-label="地圖與地址資料來源" data-i18n-aria-label="map_source_label" aria-expanded="false">
+                      <i class="material-icons" aria-hidden="true">info_outline</i>
+                    </button>
+                    <div class="screening-place-info-popover" role="tooltip" data-contact-info-popover hidden>
+                      <span data-i18n="map_source_notice">地圖資料 © OpenStreetMap contributors。地址建議由 Photon 與 Nominatim 查詢；輸入地址文字會送至這些服務搜尋，不會隨問卷答案送出。</span>
+                    </div>
+                  </div>
+                  <div class="screening-place-map" data-contact-map hidden>
+                    <div class="screening-place-map-canvas" data-contact-map-canvas role="application" aria-label="通訊地址地圖" data-i18n-aria-label="contact_address_map"></div>
+                  </div>
+                </div>
+                <p class="hiv-contact-hint" data-contact-hint></p>
+              </div>
+            </template>
+          </div>
             
         </div>
 

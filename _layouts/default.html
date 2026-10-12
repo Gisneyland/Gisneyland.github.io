@@ -15,9 +15,12 @@
   <!-- Materialize CSS & Icons -->
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  {% if page.url == '/hiva/' %}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+  {% endif %}
 
   <!-- Custom Style -->
-  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}?v=referral-contacts-20261012-1">
   
 </head>
 <body{% if page.url == '/hiva/' %} class="questionnaire-page"{% endif %}>
@@ -33,9 +36,6 @@
 
   <!-- 底部導覽列 -->
     {% include navbar.html %}
-  <!-- 浮動操作按鈕 (FAB) -->
-    {% include fab.html %}
-  {% include footer.html %}
 
   <!-- CDN JS -->
   <!-- Materialize JS -->
@@ -48,9 +48,18 @@
   <script src="{{ '/assets/js/supabase-config.js' | relative_url }}?v=supabase-setup-1"></script>
 
   <!-- JavaScript i18n.js -->
-  <script src="{{ '/assets/js/i18n.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/i18n.js' | relative_url }}?v=translations-20261012-1"></script>
+  {% if page.url == '/hiva/' %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" crossorigin="anonymous"></script>
+  {% endif %}
+  {% if page.url == '/activity/' %}
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  {% endif %}
+  {% if page.url == '/' or page.url == '/activity/' or page.url == '/news/' %}
+  <script src="{{ '/assets/js/content.js' | relative_url }}?v=calendar-info-popover-20261012-3"></script>
+  {% endif %}
   <!-- Main JS assets -->
-  <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/main.js' | relative_url }}?v=referral-contacts-20261012-1"></script>
   
 </body>
 </html>

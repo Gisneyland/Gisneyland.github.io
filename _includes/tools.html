@@ -1,14 +1,55 @@
   <div class="tools" aria-label="網站工具">
     <div class="language-tool">
-      <span class="tool-label">語言</span>
-      <div id="google_translate_element" class="notranslate"></div>
+      <button id="language-button" class="utility-button language-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="language-menu">
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">translate</span>
+        <span id="language-button-label">台灣華文</span>
+        <span class="material-icons notranslate chevron" translate="no" aria-hidden="true">expand_more</span>
+      </button>
+      <div id="language-menu" class="language-menu" hidden>
+        <button type="button" class="language-option" data-language="zh-TW" lang="zh-TW">台灣華文</button>
+        <button type="button" class="language-option" data-language="en" lang="en">English</button>
+        <button type="button" class="language-option" data-language="id" lang="id">Bahasa Indonesia</button>
+        <button type="button" class="language-option" data-language="th" lang="th">ไทย</button>
+        <button type="button" class="language-option" data-language="vi" lang="vi">Tiếng Việt</button>
+        <button type="button" class="language-option" data-language="my" lang="my">မြန်မာ</button>
+        <button type="button" class="language-option" data-language="tl" lang="tl">Filipino</button>
+        <button type="button" class="language-option" data-language="km" lang="km">ភាសាខ្មែរ</button>
+        <button type="button" class="language-option" data-language="bn" lang="bn">বাংলা</button>
+      </div>
+      <select id="language-select" class="utility-select language-select" aria-label="選擇語言" data-i18n-aria-label="choose_language" hidden>
+        <option value="zh-TW" lang="zh-TW">台灣華文</option>
+        <option value="en" lang="en">English</option>
+        <option value="id" lang="id">Bahasa Indonesia</option>
+        <option value="th" lang="th">ไทย</option>
+        <option value="vi" lang="vi">Tiếng Việt</option>
+        <option value="my" lang="my">မြန်မာ</option>
+        <option value="tl" lang="tl">Filipino</option>
+        <option value="km" lang="km">ភាសាខ្មែរ</option>
+        <option value="bn" lang="bn">বাংলা</option>
+      </select>
+      <div id="google_translate_element" class="google-translate-proxy notranslate" aria-hidden="true"></div>
     </div>
     <div class="theme-tool">
-      <label for="mode-toggle" class="mode-label">主題</label>
-      <select id="mode-toggle" class="mode-toggle" aria-label="選擇顯示模式">
-        <option value="auto">自動</option>
-        <option value="light">明亮</option>
-        <option value="dark">暗黑</option>
-      </select>
+      <button id="theme-toggle-button" class="theme-toggle-button" type="button" data-site-mode="auto" aria-label="自動主題" title="自動主題">
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">brightness_auto</span>
+      </button>
+    </div>
+    <div class="staff-session-tool" data-state="checking">
+      <button id="staff-session-button" class="staff-session-button" type="button" aria-label="工作人員登入狀態" aria-expanded="false" aria-controls="staff-session-menu">
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">account_circle</span>
+      </button>
+      <div id="staff-session-menu" class="staff-session-menu" hidden>
+        <div id="staff-session-status" class="staff-session-status" role="status" aria-live="polite">確認工作人員登入狀態</div>
+        <form id="staff-login-form" class="staff-login-form" hidden>
+          <label class="sr-only" for="staff-login-email">工作人員電子郵件</label>
+          <input id="staff-login-email" name="email" type="email" autocomplete="username" placeholder="工作人員電子郵件" required>
+          <label class="sr-only" for="staff-login-password">密碼</label>
+          <input id="staff-login-password" name="password" type="password" autocomplete="current-password" placeholder="密碼" required>
+          <button id="staff-login-submit" class="staff-login-submit" type="submit">登入</button>
+        </form>
+        <p id="staff-login-feedback" class="staff-login-feedback" role="status" aria-live="polite" hidden></p>
+        <a id="staff-admin-link" href="{{ '/admin/' | relative_url }}" class="staff-session-link" hidden>管理後台</a>
+        <button type="button" id="staff-signout-button" class="staff-session-signout" hidden>登出</button>
+      </div>
     </div>
   </div>
