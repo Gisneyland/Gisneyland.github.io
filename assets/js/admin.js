@@ -185,6 +185,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveAccountProfileButton = document.getElementById('save-account-profile');
   const accountProfileStatus = document.getElementById('account-profile-status');
   const accountEmailLabel = document.getElementById('admin-account-email');
+  const screeningPlanForm = document.getElementById('screening-plan-form');
+  const screeningPlanPlace = document.getElementById('screening-plan-place');
+  const screeningPlanPlacesList = document.getElementById('screening-plan-place-options');
+  const screeningPlanStart = document.getElementById('screening-plan-start');
+  const screeningPlanEnd = document.getElementById('screening-plan-end');
+  const screeningPlanWeekdays = [...document.querySelectorAll('[name="screening-weekday"]')];
+  const screeningPlanStatus = document.getElementById('screening-plan-status');
+  const screeningPlanNext = document.getElementById('screening-plan-next');
+  const screeningPlanWeather = document.getElementById('screening-plan-weather');
+  const screeningPlanDisasters = document.getElementById('screening-plan-disasters');
+  const screeningPlanAdvice = document.getElementById('screening-plan-advice');
+  const refreshScreeningOutlookButton = document.getElementById('refresh-screening-outlook');
+  const saveScreeningPlanButton = document.getElementById('save-screening-plan');
   const screenerNumberForm = document.getElementById('screener-number-form');
   const screenerNumberInput = document.getElementById('screener-number-input');
   const screenerNumberStatus = document.getElementById('screener-number-status');
@@ -197,7 +210,29 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentPage = 1;
   let screenerNumberUserId = null;
   let activeUser = null;
+  let savedScreeningPreferences = null;
+  let screeningOutlookKey = '';
+  let screeningOutlookRequest = 0;
+  let screeningOutlookLoadedAt = 0;
+  let screeningOutlookPending = false;
+  let screeningPlanEditable = false;
   const pageSize = 25;
+
+  let screeningPlanPlaces = [];
+  try {
+    screeningPlanPlaces = JSON.parse(document.getElementById('admin-screening-place-data')?.textContent || '[]')
+      .filter(place => Array.isArray(place.coordinates) && place.coordinates.length === 2
+        && place.coordinates.every(coordinate => Number.isFinite(Number(coordinate))))
+      .map(place => ({
+        name: String(place.name || place.label || '').trim(),
+        label: String(place.label || place.name || '').trim(),
+        coordinates: place.coordinates.map(Number)
+      }))
+      .filter(place => place.label);
+  } catch {
+    screeningPlanPlaces = [];
+  }
+  screeningPlanPlacesList.replaceChildren(...screeningPlanPlaces.map(place => new Option(place.label, place.label)));
 
   renderScreeningVolumeLegend();
 
@@ -490,6 +525,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   closeDialogButton.addEventListener('click', () => dialog.close());
   accountProfileForm.addEventListener('submit', saveAccountProfile);
+  screeningPlanForm.addEventListener('submit', saveScreeningPlan);
+  refreshScreeningOutlookButton.addEventListener('click', () => refreshScreeningPlanOutlook(true));
   screenerNumberForm.addEventListener('submit', saveScreenerNumber);
   dialog.addEventListener('click', event => {
     if (event.target === dialog) {
@@ -518,6 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selectedTab.id === 'admin-tab-questionnaire') {
       window.requestAnimationFrame(() => screeningMap?.invalidateSize());
     }
+    if (selectedTab.id === 'admin-tab-settings') refreshScreeningPlanOutlook();
   }
 
   async function loadSession() {
@@ -591,6 +629,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? `目前登入：${activeUser.email}${pendingEmail ? `（待確認：${pendingEmail}）` : ''}`
       : '已登入管理員';
     accountProfileStatus.hidden = true;
+    loadScreeningPlan(activeUser, profile.approval_status === 'approved' && Boolean(profile.privacy_consent_at));
 
     const hasConsent = Boolean(profile.privacy_consent_at);
     const isApproved = profile.approval_status === 'approved';
@@ -695,6 +734,380 @@ document.addEventListener('DOMContentLoaded', () => {
     showStatus(accountProfileStatus, emailChanged
       ? `${nicknameChanged ? '暱稱已更新。' : ''}信箱變更已送出，請依確認信完成驗證後生效。`
       : '暱稱已更新。');
+  }
+
+  function setScreeningPlanDisabled(disabled) {
+    screeningPlanEditable = !disabled;
+    screeningPlanPlace.disabled = disabled;
+    screeningPlanWeekdays.forEach(input => { input.disabled = disabled; });
+    screeningPlanStart.disabled = disabled;
+    screeningPlanEnd.disabled = disabled;
+    saveScreeningPlanButton.disabled = disabled;
+    refreshScreeningOutlookButton.disabled = disabled;
+  }
+
+  function loadScreeningPlan(user, canEdit) {
+    savedScreeningPreferences = user.user_metadata?.screening_preferences || null;
+    setScreeningPlanDisabled(!canEdit);
+    const preferences = savedScreeningPreferences;
+    screeningPlanPlace.value = preferences?.place?.label || '';
+    screeningPlanWeekdays.forEach(input => {
+      input.checked = Array.isArray(preferences?.weekdays) && preferences.weekdays.includes(Number(input.value));
+    });
+    screeningPlanStart.value = preferences?.startTime || '';
+    screeningPlanEnd.value = preferences?.endTime || '';
+    screeningPlanOutlookKey = '';
+    renderNextScreeningSlot(preferences);
+  }
+
+  async function saveScreeningPlan(event) {
+    event.preventDefault();
+    if (!activeUser || !screeningPlanForm.reportValidity()) return;
+    const placeQuery = screeningPlanPlace.value.trim();
+    const weekdays = screeningPlanWeekdays.filter(input => input.checked).map(input => Number(input.value));
+    const startTime = screeningPlanStart.value;
+    const endTime = screeningPlanEnd.value;
+    if (!placeQuery || weekdays.length === 0) {
+      showStatus(screeningPlanStatus, '請選擇地點與至少一個每週篩檢日。', true);
+      return;
+    }
+    if (startTime >= endTime) {
+      showStatus(screeningPlanStatus, '結束時間需晚於開始時間。', true);
+      screeningPlanEnd.focus();
+      return;
+    }
+
+    setButtonBusy(saveScreeningPlanButton, true, '儲存中');
+    try {
+      const place = await resolveScreeningPlanPlace(placeQuery);
+      if (!place) {
+        showStatus(screeningPlanStatus, '無法定位這個地點，請輸入較完整的地址或選擇清單中的地標。', true);
+        return;
+      }
+      const preferences = {
+        place,
+        weekdays: weekdays.sort((left, right) => left - right),
+        startTime,
+        endTime
+      };
+      const { data, error } = await window.questionnaireSupabase.auth.updateUser({
+        data: { screening_preferences: preferences }
+      });
+      if (error) {
+        showStatus(screeningPlanStatus, '篩檢安排儲存失敗，請稍後再試。', true);
+        return;
+      }
+      activeUser = data.user || activeUser;
+      activeUser.user_metadata = {
+        ...activeUser.user_metadata,
+        screening_preferences: preferences
+      };
+      savedScreeningPreferences = preferences;
+      screeningOutlookKey = '';
+      renderNextScreeningSlot(preferences);
+      showStatus(screeningPlanStatus, '常用地點與時段已儲存。符合時段時，問卷會預填此地點。');
+      refreshScreeningPlanOutlook(true);
+    } catch {
+      showStatus(screeningPlanStatus, '目前無法連線儲存，請稍後再試。', true);
+    } finally {
+      setButtonBusy(saveScreeningPlanButton, false, '儲存篩檢安排');
+    }
+  }
+
+  async function resolveScreeningPlanPlace(query) {
+    const savedPlace = screeningPlanPlaces.find(place => place.label === query || place.name === query);
+    if (savedPlace) return savedPlace;
+    try {
+      const params = new URLSearchParams({ q: query, limit: '1', lat: '23.7', lon: '120.9', lang: 'zh' });
+      const response = await fetch(`https://photon.komoot.io/api/?${params}`, {
+        signal: AbortSignal.timeout(12000)
+      });
+      if (!response.ok) return null;
+      const feature = (await response.json()).features?.[0];
+      const coordinates = feature?.geometry?.coordinates?.map(Number);
+      if (!Array.isArray(coordinates) || coordinates.length !== 2 || !coordinates.every(Number.isFinite)) return null;
+      const properties = feature.properties || {};
+      const label = [properties.name, properties.housenumber, properties.street, properties.district,
+        properties.city, properties.county, properties.state]
+        .map(value => String(value || '').trim())
+        .filter((value, index, values) => value && values.indexOf(value) === index)
+        .join('、') || query;
+      return { name: properties.name || query, label, coordinates };
+    } catch {
+      return null;
+    }
+  }
+
+  function getTaipeiParts(date = new Date()) {
+    return Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Taipei',
+      weekday: 'short',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23'
+    }).formatToParts(date).filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+  }
+
+  function getNextScreeningSlot(preferences) {
+    if (!preferences?.place?.coordinates || !Array.isArray(preferences.weekdays)
+      || !Array.isArray(preferences.place.coordinates) || preferences.place.coordinates.length !== 2
+      || !preferences.weekdays.length || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(preferences.startTime || '')
+      || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(preferences.endTime || '')
+      || preferences.weekdays.some(day => !Number.isInteger(day) || day < 0 || day > 6)) return null;
+    const now = getTaipeiParts();
+    const today = Date.UTC(Number(now.year), Number(now.month) - 1, Number(now.day));
+    const currentMinutes = Number(now.hour) * 60 + Number(now.minute);
+    const startMinutes = Number(preferences.startTime.slice(0, 2)) * 60 + Number(preferences.startTime.slice(3, 5));
+    const endMinutes = Number(preferences.endTime.slice(0, 2)) * 60 + Number(preferences.endTime.slice(3, 5));
+    if (startMinutes >= endMinutes || !preferences.place.coordinates.every(Number.isFinite)) return null;
+    for (let offset = 0; offset <= 7; offset += 1) {
+      const date = new Date(today + offset * 86400000);
+      if (!preferences.weekdays.includes(date.getUTCDay())) continue;
+      if (offset === 0 && currentMinutes >= endMinutes) continue;
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      return {
+        dateKey: `${year}-${month}-${day}`,
+        dateLabel: new Intl.DateTimeFormat('zh-TW', {
+          timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric'
+        }).format(new Date(Date.UTC(year, date.getUTCMonth(), date.getUTCDate(), 12))),
+        startTime: preferences.startTime,
+        endTime: preferences.endTime,
+        place: preferences.place
+      };
+    }
+    return null;
+  }
+
+  function renderNextScreeningSlot(preferences) {
+    const slot = getNextScreeningSlot(preferences);
+    screeningPlanNext.textContent = slot
+      ? `${slot.dateLabel} ${slot.startTime}–${slot.endTime} · ${slot.place.label}`
+      : '設定地點、每週日期與起訖時間後顯示。';
+  }
+
+  async function refreshScreeningPlanOutlook(force = false) {
+    const slot = getNextScreeningSlot(savedScreeningPreferences);
+    if (!slot) {
+      screeningOutlookKey = '';
+      screeningPlanWeather.textContent = '請先設定常用地點與時段。';
+      screeningPlanDisasters.textContent = '請先設定常用地點與時段。';
+      screeningPlanAdvice.hidden = true;
+      return;
+    }
+    const requestKey = `${slot.dateKey}|${slot.place.coordinates.join(',')}|${slot.startTime}|${slot.endTime}`;
+    if (!force && requestKey === screeningOutlookKey
+      && (screeningOutlookPending || Date.now() - screeningOutlookLoadedAt < 600000)) return;
+    screeningOutlookKey = requestKey;
+    const requestId = ++screeningOutlookRequest;
+    screeningOutlookPending = true;
+    refreshScreeningOutlookButton.disabled = true;
+    screeningPlanWeather.textContent = '正在查詢時段降雨預報…';
+    screeningPlanDisasters.textContent = '正在查詢附近天災資訊…';
+    screeningPlanAdvice.hidden = true;
+
+    const [weather, disasters] = await Promise.all([
+      loadScreeningWeather(slot),
+      loadNearbyDisasters(slot.place.coordinates)
+    ]);
+    if (requestId !== screeningOutlookRequest) return;
+    screeningOutlookPending = false;
+    screeningOutlookLoadedAt = Date.now();
+    refreshScreeningOutlookButton.disabled = !screeningPlanEditable;
+    screeningPlanWeather.textContent = weather.message;
+    renderScreeningDisasters(disasters);
+    const advice = [];
+    if (weather.available && weather.maxProbability >= 50) {
+      advice.push('時段降雨機率偏高，準備雨具、遮雨及室內備案，並保護檢測物資。');
+    } else if (weather.available && weather.maxProbability >= 25) {
+      advice.push('可能降雨，建議攜帶雨具並確認物資防水。');
+    } else if (!weather.available) {
+      advice.push('目前沒有可用的時段降雨預報，出發前請再確認天氣。');
+    }
+    if (disasters.nearby.length) {
+      advice.push('附近有近期災害資訊，出發前確認中央氣象署與地方政府公告；遇警報或交通中斷請依官方指示調整或延期。');
+    } else if (!disasters.usgsAvailable || disasters.failedSources.length) {
+      advice.push('部分災害資料來源無法連線，不能據此判定沒有風險；出發前請查看官方警報。');
+    } else {
+      advice.push('出發前仍請留意官方警報，並準備聯絡與改期方案。');
+    }
+    screeningPlanAdvice.textContent = advice.join(' ');
+    screeningPlanAdvice.hidden = false;
+  }
+
+  async function loadScreeningWeather(slot) {
+    try {
+      const params = new URLSearchParams({
+        latitude: String(slot.place.coordinates[1]),
+        longitude: String(slot.place.coordinates[0]),
+        hourly: 'precipitation_probability,precipitation',
+        forecast_days: '16',
+        timezone: 'Asia/Taipei'
+      });
+      const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!response.ok) throw new Error('Weather feed unavailable');
+      const payload = await response.json();
+      if (!Array.isArray(payload.hourly?.time) || !Array.isArray(payload.hourly?.precipitation_probability)
+        || !Array.isArray(payload.hourly?.precipitation)) throw new Error('Invalid weather feed');
+      const startHour = Number(slot.startTime.slice(0, 2));
+      const endHour = Number(slot.endTime.slice(0, 2)) + (Number(slot.endTime.slice(3, 5)) > 0 ? 1 : 0);
+      const indices = payload.hourly.time.map((time, index) => ({ time, index }))
+        .filter(item => item.time.startsWith(`${slot.dateKey}T`))
+        .filter(item => Number(item.time.slice(11, 13)) >= startHour && Number(item.time.slice(11, 13)) < endHour);
+      if (!indices.length) throw new Error('Forecast time unavailable');
+      const probabilities = indices.map(item => Number(payload.hourly.precipitation_probability[item.index])).filter(Number.isFinite);
+      const precipitation = indices.map(item => Number(payload.hourly.precipitation[item.index])).filter(Number.isFinite);
+      if (!probabilities.length) throw new Error('Forecast values unavailable');
+      const maxProbability = Math.max(...probabilities);
+      const totalPrecipitation = precipitation.reduce((total, amount) => total + amount, 0);
+      return {
+        available: true,
+        maxProbability,
+        message: `時段最高降雨機率 ${Math.round(maxProbability)}%，預估累積雨量約 ${totalPrecipitation.toFixed(1)} mm（Open-Meteo）。`
+      };
+    } catch {
+      return { available: false, maxProbability: null, message: '目前無法取得此時段降雨預報，請稍後重試或查看官方天氣資訊。' };
+    }
+  }
+
+  async function loadNearbyDisasters(coordinates) {
+    const result = { usgsAvailable: false, failedSources: [], nearby: [], globalAdvisories: [] };
+    const earthquakeRequest = (async () => {
+      try {
+        const response = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson', {
+          signal: AbortSignal.timeout(15000)
+        });
+        if (!response.ok) throw new Error('USGS unavailable');
+        const payload = await response.json();
+        if (payload.type !== 'FeatureCollection' || !Array.isArray(payload.features)) throw new Error('Invalid USGS feed');
+        result.usgsAvailable = true;
+        payload.features.forEach(feature => {
+          const [longitude, latitude] = feature.geometry?.coordinates || [];
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+          const distance = distanceBetweenKm(coordinates[1], coordinates[0], latitude, longitude);
+          if (distance > 300) return;
+          result.nearby.push({
+            title: `地震 M${Number(feature.properties.mag).toFixed(1)} · ${feature.properties.place || '位置未提供'}`,
+            distance,
+            time: feature.properties.time,
+            url: feature.properties.url,
+            source: 'USGS'
+          });
+        });
+      } catch {
+        result.failedSources.push('USGS 地震資料');
+      }
+    })();
+    const advisoryRequest = (async () => {
+      try {
+        const { data, error } = await window.questionnaireSupabase.functions.invoke('environment-feeds', {
+          body: {},
+          timeout: 20000
+        });
+        if (error || !Array.isArray(data?.sources)) throw new Error('Disaster feeds unavailable');
+        data.sources.forEach(source => {
+          if (!source.ok || !source.xml) {
+            result.failedSources.push(source.id || 'GDACS／海嘯資料');
+            return;
+          }
+          const entries = parseScreeningDisasterFeed(source);
+          entries.forEach(entry => {
+            if (Number.isFinite(entry.latitude) && Number.isFinite(entry.longitude)) {
+              const distance = distanceBetweenKm(coordinates[1], coordinates[0], entry.latitude, entry.longitude);
+              if (distance <= 500) result.nearby.push({ ...entry, distance });
+            } else if (source.id === 'ptwc' || source.id === 'ntwc') {
+              result.globalAdvisories.push(entry);
+            }
+          });
+        });
+      } catch {
+        result.failedSources.push('GDACS／海嘯資料');
+      }
+    })();
+    await Promise.allSettled([earthquakeRequest, advisoryRequest]);
+    result.nearby.sort((left, right) => left.distance - right.distance);
+    result.nearby = result.nearby.slice(0, 5);
+    result.globalAdvisories = result.globalAdvisories.slice(0, 3);
+    result.failedSources = [...new Set(result.failedSources)];
+    return result;
+  }
+
+  function parseScreeningDisasterFeed(source) {
+    if (/<!DOCTYPE|<!ENTITY/i.test(source.xml)) return [];
+    const xml = new DOMParser().parseFromString(source.xml, 'application/xml');
+    if (xml.querySelector('parsererror')) return [];
+    const text = (element, tag) => element.getElementsByTagNameNS('*', tag)[0]?.textContent?.trim() || '';
+    const gdacs = source.id === 'gdacs';
+    const nodes = [...xml.getElementsByTagNameNS('*', gdacs ? 'item' : 'entry')];
+    return nodes.map(node => {
+      const point = text(node, 'point').split(/\s+/).map(Number);
+      const link = gdacs
+        ? text(node, 'link')
+        : [...node.getElementsByTagNameNS('*', 'link')].find(item => ['alternate', ''].includes(item.getAttribute('rel') || ''))?.getAttribute('href');
+      const eventType = text(node, 'eventtype');
+      const title = `${gdacs ? `${eventType || 'GDACS'} · ` : `${source.id.toUpperCase()} · `}${text(node, 'title')}`;
+      const time = Date.parse(text(node, gdacs ? 'datemodified' : 'updated') || text(node, 'pubDate'));
+      return {
+        title,
+        time: Number.isFinite(time) ? time : Date.now(),
+        latitude: point.length === 2 ? point[0] : NaN,
+        longitude: point.length === 2 ? point[1] : NaN,
+        url: link,
+        source: source.id.toUpperCase()
+      };
+    }).filter(entry => entry.title.length > source.id.length + 3);
+  }
+
+  function distanceBetweenKm(latitudeA, longitudeA, latitudeB, longitudeB) {
+    const radians = degrees => degrees * Math.PI / 180;
+    const latitudeDelta = radians(latitudeB - latitudeA);
+    const longitudeDelta = radians(longitudeB - longitudeA);
+    const factor = Math.sin(latitudeDelta / 2) ** 2
+      + Math.cos(radians(latitudeA)) * Math.cos(radians(latitudeB)) * Math.sin(longitudeDelta / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(factor), Math.sqrt(1 - factor));
+  }
+
+  function renderScreeningDisasters(result) {
+    screeningPlanDisasters.replaceChildren();
+    if (result.nearby.length) {
+      const list = document.createElement('ul');
+      result.nearby.forEach(entry => {
+        const item = document.createElement('li');
+        const link = document.createElement('a');
+        link.textContent = `${entry.title} · 約 ${Math.round(entry.distance)} 公里`;
+        if (/^https:\/\//i.test(entry.url || '')) {
+          link.href = entry.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+        }
+        item.append(link);
+        list.append(item);
+      });
+      screeningPlanDisasters.append(list);
+    } else if (result.usgsAvailable) {
+      const noNearby = document.createElement('p');
+      noNearby.textContent = 'USGS 最近一週資料中，設定地點 300 公里內沒有 M2.5 以上地震。';
+      screeningPlanDisasters.append(noNearby);
+    }
+    result.globalAdvisories.forEach(entry => {
+      const advisory = document.createElement('p');
+      advisory.textContent = `${entry.title}（來源未提供座標，無法判斷是否影響此地點）`;
+      screeningPlanDisasters.append(advisory);
+    });
+    if (result.failedSources.length) {
+      const unavailable = document.createElement('p');
+      unavailable.textContent = `無法取得：${result.failedSources.join('、')}。這不代表沒有災害。`;
+      screeningPlanDisasters.append(unavailable);
+    }
+    if (!result.usgsAvailable && !result.globalAdvisories.length && !result.nearby.length && !result.failedSources.length) {
+      screeningPlanDisasters.textContent = '目前沒有可用的災害資料。';
+    }
   }
 
   async function loadScreenerNumber(session) {

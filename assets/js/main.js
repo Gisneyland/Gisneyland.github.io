@@ -353,6 +353,7 @@ function initializeQuestionnaireFields() {
   initializeNationalityPicker();
   initializeScreeningDate();
   initializeScreeningPlace();
+  applyPreferredScreeningPlace(staffSessionReady);
   const resetReferralAddressPicker = initializeScreeningPlace('hiv_positive_address', 'hiv-positive-address', 'hiv-positive-address-locate-button');
   const resetReferralContacts = initializeReferralContacts();
   initializeScreeningInterpretation(resetReferralAddressPicker, resetReferralContacts);
@@ -1026,7 +1027,12 @@ async function initializeStaffSessionIndicator() {
     }
 
     setState('signed-in', 'staff_status_signed_in', '工作人員已登入', true);
-    return { state: 'staff', session: sessionData.session, screenerNumber };
+    return {
+      state: 'staff',
+      session: sessionData.session,
+      screenerNumber,
+      screeningPreferences: sessionData.session.user.user_metadata?.screening_preferences || null
+    };
   } catch {
     setState('error', 'staff_status_error', '無法確認工作人員權限', true);
     return { state: 'error', session: sessionData.session };
@@ -1092,6 +1098,38 @@ function setScreenerNumberStatus(status, message, isError = false) {
   status.setAttribute('role', isError ? 'alert' : 'status');
   status.setAttribute('aria-live', isError ? 'assertive' : 'polite');
   status.hidden = !message;
+}
+
+function applyPreferredScreeningPlace(staffSessionReady) {
+  const input = document.getElementById('screening_place');
+  const status = document.getElementById('screening-place-status');
+  if (!input) return;
+  staffSessionReady.then(staffState => {
+    const preferences = staffState.screeningPreferences;
+    if (staffState.state !== 'staff' || !preferences?.place?.label
+      || !Array.isArray(preferences.weekdays) || !preferences.weekdays.length
+      || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(preferences.startTime || '')
+      || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(preferences.endTime || '')
+      || preferences.weekdays.some(day => !Number.isInteger(day) || day < 0 || day > 6)
+      || input.value.trim()) return;
+
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Taipei', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+    }).formatToParts(new Date()).filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+    const weekdayNumbers = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const currentMinutes = Number(parts.hour) * 60 + Number(parts.minute);
+    const startMinutes = Number(preferences.startTime.slice(0, 2)) * 60 + Number(preferences.startTime.slice(3, 5));
+    const endMinutes = Number(preferences.endTime.slice(0, 2)) * 60 + Number(preferences.endTime.slice(3, 5));
+    if (startMinutes >= endMinutes) return;
+    if (!preferences.weekdays.includes(weekdayNumbers[parts.weekday])
+      || currentMinutes < startMinutes || currentMinutes >= endMinutes) return;
+
+    input.value = preferences.place.label;
+    if (status) {
+      status.textContent = '已依目前時段帶入常用地點；你仍可修改。';
+      status.hidden = false;
+    }
+  }).catch(() => {});
 }
 
 function initializeScreeningPlace(inputId = 'screening_place', idPrefix = 'screening-place', locateButtonId = 'screening-locate-button') {

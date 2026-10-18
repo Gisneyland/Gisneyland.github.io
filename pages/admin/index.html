@@ -446,6 +446,55 @@ permalink: /admin/
           <p id="screener-number-status" class="admin-status" role="status" hidden></p>
         </section>
       </section>
+      <section id="screening-plan-card" class="admin-panel screening-plan-card" aria-labelledby="screening-plan-title">
+        <div>
+          <p class="eyebrow">篩檢規劃</p>
+          <h2 id="screening-plan-title">常用地點與時段</h2>
+          <p class="admin-muted">設定每週篩檢安排；問卷只會在符合時段時預填地點，仍可修改。</p>
+        </div>
+        <form id="screening-plan-form" class="screening-plan-form">
+          <label for="screening-plan-place">常用篩檢地點</label>
+          <input id="screening-plan-place" name="place" type="search" list="screening-plan-place-options" maxlength="180" autocomplete="street-address" placeholder="輸入地址或選擇地標" required disabled>
+          <datalist id="screening-plan-place-options"></datalist>
+          <p class="admin-muted">自訂地址會傳送至 Photon 定位；座標會傳送至 Open-Meteo 查詢預報。</p>
+          <fieldset class="screening-plan-weekdays">
+            <legend>每週篩檢日</legend>
+            <div class="screening-weekday-options">
+              <label><input type="checkbox" name="screening-weekday" value="0" disabled>日</label>
+              <label><input type="checkbox" name="screening-weekday" value="1" disabled>一</label>
+              <label><input type="checkbox" name="screening-weekday" value="2" disabled>二</label>
+              <label><input type="checkbox" name="screening-weekday" value="3" disabled>三</label>
+              <label><input type="checkbox" name="screening-weekday" value="4" disabled>四</label>
+              <label><input type="checkbox" name="screening-weekday" value="5" disabled>五</label>
+              <label><input type="checkbox" name="screening-weekday" value="6" disabled>六</label>
+            </div>
+          </fieldset>
+          <div class="screening-plan-times">
+            <label for="screening-plan-start">開始時間
+              <input id="screening-plan-start" name="start" type="time" required disabled>
+            </label>
+            <label for="screening-plan-end">結束時間
+              <input id="screening-plan-end" name="end" type="time" required disabled>
+            </label>
+          </div>
+          <button id="save-screening-plan" class="admin-button" type="submit" disabled>儲存篩檢安排</button>
+          <p id="screening-plan-status" class="admin-status" role="status" hidden></p>
+        </form>
+        <section class="screening-plan-outlook" aria-labelledby="screening-plan-outlook-title">
+          <h3 id="screening-plan-outlook-title">最近預計時段</h3>
+          <p id="screening-plan-next" class="admin-muted">設定地點與時段後顯示。</p>
+          <h3>降雨資訊</h3>
+          <p id="screening-plan-weather" class="admin-muted" role="status" aria-live="polite">尚未查詢</p>
+          <div class="screening-plan-outlook-heading">
+            <h3>附近天災資訊</h3>
+            <button id="refresh-screening-outlook" class="admin-button secondary icon-only" type="button" aria-label="重新整理天氣與災害資訊" title="重新整理天氣與災害資訊" disabled>
+              <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
+            </button>
+          </div>
+          <div id="screening-plan-disasters" class="screening-plan-disasters" role="status" aria-live="polite">尚未查詢</div>
+          <p id="screening-plan-advice" class="screening-plan-advice" hidden></p>
+        </section>
+      </section>
       <details id="staff-management" class="admin-panel admin-disclosure staff-management" aria-labelledby="staff-management-title" hidden>
         <summary class="admin-disclosure-summary">
           <div>

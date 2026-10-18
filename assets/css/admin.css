@@ -757,6 +757,122 @@
   border-top: 1px solid var(--border);
 }
 
+.screening-plan-card {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.screening-plan-card h2,
+.screening-plan-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1.1rem;
+}
+
+.screening-plan-card h3:not(:first-child) {
+  margin-top: 0.7rem;
+}
+
+.screening-plan-form {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.screening-plan-form > label,
+.screening-plan-times label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.screening-plan-weekdays {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.screening-plan-weekdays legend {
+  margin-bottom: 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.screening-weekday-options {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.screening-weekday-options label {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.screening-plan-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.screening-plan-outlook {
+  min-width: 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.screening-plan-outlook > p {
+  margin: 0;
+}
+
+.screening-plan-outlook-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.screening-plan-outlook-heading h3 {
+  margin-top: 0.7rem;
+}
+
+.screening-plan-disasters {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.screening-plan-disasters p {
+  margin: 0;
+}
+
+.screening-plan-disasters ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.screening-plan-advice:not([hidden]) {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-left: 3px solid var(--accent-strong);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
 .site-content-disclosure-body .site-content-toolbar {
   margin: 0;
 }
