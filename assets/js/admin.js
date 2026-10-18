@@ -211,8 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('show-signup').addEventListener('click', () => showAuthForm(signupForm));
   const searchParams = new URLSearchParams(window.location.search);
-  if (searchParams.get('signup') === '1') {
-    showAuthForm(signupForm);
+  const openSignupAfterLoad = searchParams.get('signup') === '1';
+  if (openSignupAfterLoad) {
     searchParams.delete('signup');
     const cleanUrl = new URL(window.location.href);
     cleanUrl.search = searchParams.toString();
@@ -432,6 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!data.session) {
       document.dispatchEvent(new CustomEvent('staff-profile-ready', { detail: null }));
       showLogin();
+      if (openSignupAfterLoad) showAuthForm(signupForm);
       return;
     }
 
