@@ -2316,10 +2316,29 @@ button.calendar-stream-event { cursor: pointer; }
 }
 
 .staff-consent-checkbox input {
-  flex: 0 0 auto;
+  flex: 0 0 1.1rem;
   width: 1.1rem;
+  min-width: 1.1rem;
+  min-height: 1.1rem;
   height: 1.1rem;
   margin: 0.2rem 0 0;
+  padding: 0;
+  accent-color: var(--button-bg);
+}
+
+#admin-login .admin-form .staff-consent-checkbox input[type="checkbox"] {
+  flex: 0 0 1.1rem;
+  width: 1.1rem;
+  min-width: 1.1rem;
+  min-height: 1.1rem;
+  height: 1.1rem;
+  margin: 0.2rem 0 0;
+  padding: 0;
+}
+
+.staff-consent-checkbox {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .staff-access-gate {
