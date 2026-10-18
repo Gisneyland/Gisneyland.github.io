@@ -189,6 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const screeningPlanRulesContainer = document.getElementById('screening-plan-rules');
   const screeningPlanRuleTemplate = document.getElementById('screening-plan-rule-template');
   const addScreeningPlanRuleButton = document.getElementById('add-screening-plan-rule');
+  const screeningPlanInfoButton = document.getElementById('screening-plan-info-button');
+  const screeningPlanInfoDialog = document.getElementById('screening-plan-info-dialog');
   const screeningPlanStatus = document.getElementById('screening-plan-status');
   const screeningPlanNext = document.getElementById('screening-plan-next');
   const screeningPlanWeather = document.getElementById('screening-plan-weather');
@@ -250,7 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const monthlyOrdinal = row.querySelector('.screening-plan-rule-ordinal');
     const monthlyWeekday = row.querySelector('.screening-plan-rule-monthly-weekday');
     const ruleName = row.querySelector('.screening-plan-rule-name');
+    const ruleSummary = row.querySelector('.screening-plan-rule-summary');
     const ruleFields = row.querySelector('.screening-plan-rule-fields');
+    const moveUpButton = row.querySelector('.screening-plan-rule-move-up');
+    const moveDownButton = row.querySelector('.screening-plan-rule-move-down');
     const collapseButton = row.querySelector('.screening-plan-rule-collapse');
     const placeInput = row.querySelector('.screening-plan-rule-place');
     const options = row.querySelector('.screening-plan-place-options');
@@ -272,6 +277,48 @@ document.addEventListener('DOMContentLoaded', () => {
       revision: 0
     };
     screeningPlanRuleStates.set(row, state);
+    const renderRuleSummary = () => {
+      const weekdays = [...weeklyPanel.querySelectorAll('input:checked')].map(input => Number(input.value));
+      const ordinal = Number(monthlyOrdinal.value);
+      const monthlyOrdinalLabel = ordinal === -1 ? '最後一個' : `第 ${ordinal} 個`;
+      const monthlyWeekdayLabel = weekdayLabels[Number(monthlyWeekday.value)];
+      const cadence = frequency.value === 'weekly'
+        ? `每週${weekdays.length ? `・週${weekdays.map(day => weekdayLabels[day]).join('、')}` : '・尚未選星期'}`
+        : `每月・${monthlyOrdinalLabel}星期${monthlyWeekdayLabel}`;
+      const startTime = row.querySelector('.screening-plan-rule-start').value;
+      const endTime = row.querySelector('.screening-plan-rule-end').value;
+      const previewPlace = state.place || {
+        label: placeInput.value.trim() || '尚未設定地點',
+        coordinates: [0, 0]
+      };
+      const previewRule = {
+        frequency: frequency.value,
+        weekdays,
+        ordinal,
+        weekday: Number(monthlyWeekday.value),
+        startTime,
+        endTime,
+        place: previewPlace
+      };
+      const nextSlot = getNextScreeningSlot({ rules: [previewRule] });
+      ruleSummary.replaceChildren();
+      const appendPart = (iconName, text) => {
+        const part = document.createElement('span');
+        part.className = 'screening-plan-rule-summary-part';
+        const icon = document.createElement('span');
+        icon.className = 'material-icons notranslate';
+        icon.setAttribute('translate', 'no');
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = iconName;
+        part.append(icon, document.createTextNode(text));
+        ruleSummary.append(part);
+      };
+      appendPart('repeat', cadence);
+      appendPart('event', nextSlot ? `下次 ${nextSlot.dateLabel}` : '日期未設定');
+      appendPart('schedule', startTime && endTime ? `${startTime}–${endTime}` : '時間未設定');
+      appendPart('place', previewPlace.label);
+      ruleSummary.hidden = !ruleFields.hidden;
+    };
     frequency.value = rule.frequency === 'monthly' ? 'monthly' : 'weekly';
     weeklyPanel.querySelectorAll('input[type="checkbox"]').forEach(input => {
       input.checked = Array.isArray(rule.weekdays) && rule.weekdays.includes(Number(input.value));
@@ -346,6 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.place.coordinates?.length === 2) moveMarker(state.place.coordinates[1], state.place.coordinates[0]);
       placeStatus.textContent = `已選位置：${place.label}`;
       placeStatus.hidden = false;
+      renderRuleSummary();
     };
     const chooseMapPoint = async (latitude, longitude) => {
       state.revision += 1;
@@ -374,6 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
           placeInput.value = label;
           placeStatus.textContent = `已選位置：${label}`;
         } else placeStatus.textContent = `已標記座標：${coordinateLabel}`;
+        renderRuleSummary();
       } catch {
         if (revision === state.revision) placeStatus.textContent = `地址查詢未完成，已保留座標：${coordinateLabel}`;
       } finally { window.clearTimeout(timeout); }
@@ -425,6 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
     frequency.addEventListener('change', () => {
       weeklyPanel.hidden = frequency.value !== 'weekly';
       monthlyPanel.hidden = frequency.value !== 'monthly';
+      renderRuleSummary();
     });
     collapseButton.addEventListener('click', () => {
       const expanded = collapseButton.getAttribute('aria-expanded') === 'true';
@@ -433,7 +483,23 @@ document.addEventListener('DOMContentLoaded', () => {
       collapseButton.title = expanded ? '展開此安排' : '收合此安排';
       collapseButton.querySelector('.material-icons').textContent = expanded ? 'expand_more' : 'expand_less';
       ruleFields.hidden = expanded;
+      ruleSummary.hidden = !expanded;
+      if (expanded) renderRuleSummary();
       if (!expanded) state.map && window.requestAnimationFrame(() => state.map.invalidateSize());
+    });
+    moveUpButton.addEventListener('click', () => {
+      const previous = row.previousElementSibling;
+      if (!previous) return;
+      screeningPlanRulesContainer.insertBefore(row, previous);
+      updateScreeningPlanRuleNumbers();
+      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+    moveDownButton.addEventListener('click', () => {
+      const next = row.nextElementSibling;
+      if (!next) return;
+      screeningPlanRulesContainer.insertBefore(next, row);
+      updateScreeningPlanRuleNumbers();
+      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     });
     frequency.dispatchEvent(new Event('change'));
     placeInput.addEventListener('focus', localOptions);
@@ -442,6 +508,11 @@ document.addEventListener('DOMContentLoaded', () => {
       state.place = null;
       state.reverseRequest?.abort();
       localOptions();
+      renderRuleSummary();
+    });
+    row.querySelectorAll('.screening-plan-rule-fields input, .screening-plan-rule-fields select').forEach(control => {
+      control.addEventListener('input', renderRuleSummary);
+      control.addEventListener('change', renderRuleSummary);
     });
     placeInput.addEventListener('keydown', event => {
       if (event.key === 'ArrowDown' && !options.hidden) {
@@ -501,7 +572,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     row.querySelector('.screening-plan-rule-monthly').hidden = frequency.value !== 'monthly';
     row.querySelector('.screening-plan-rule-weekly').hidden = frequency.value !== 'weekly';
+    ruleSummary.hidden = true;
     screeningPlanRulesContainer.append(row);
+    renderRuleSummary();
     updateScreeningPlanRuleNumbers();
     return row;
   }
@@ -510,6 +583,9 @@ document.addEventListener('DOMContentLoaded', () => {
       row.querySelector('.screening-plan-rule-number').textContent = `安排 ${index + 1}`;
       row.querySelector('.screening-plan-rule-name').placeholder = '自訂名稱（選填）';
       row.querySelector('.screening-plan-rule-name').setAttribute('aria-label', `安排 ${index + 1} 名稱`);
+      row.querySelector('.screening-plan-rule-move-up').disabled = !screeningPlanEditable || index === 0;
+      row.querySelector('.screening-plan-rule-move-down').disabled = !screeningPlanEditable
+        || index === screeningPlanRulesContainer.children.length - 1;
     });
     addScreeningPlanRuleButton.disabled = !screeningPlanEditable || screeningPlanRulesContainer.children.length >= 16;
   }
@@ -818,6 +894,13 @@ document.addEventListener('DOMContentLoaded', () => {
   closeDialogButton.addEventListener('click', () => dialog.close());
   accountProfileForm.addEventListener('submit', saveAccountProfile);
   screeningPlanForm.addEventListener('submit', saveScreeningPlan);
+  screeningPlanInfoButton.addEventListener('click', () => screeningPlanInfoDialog.showModal());
+  screeningPlanInfoDialog.querySelectorAll('[data-close-screening-plan-info]').forEach(button => {
+    button.addEventListener('click', () => screeningPlanInfoDialog.close());
+  });
+  screeningPlanInfoDialog.addEventListener('click', event => {
+    if (event.target === screeningPlanInfoDialog) screeningPlanInfoDialog.close();
+  });
   refreshScreeningOutlookButton.addEventListener('click', () => refreshScreeningPlanOutlook(true));
   screenerNumberForm.addEventListener('submit', saveScreenerNumber);
   dialog.addEventListener('click', event => {
@@ -1034,6 +1117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     screeningPlanRulesContainer.querySelectorAll('input, select, button').forEach(control => {
       control.disabled = disabled;
     });
+    updateScreeningPlanRuleNumbers();
     saveScreeningPlanButton.disabled = disabled;
     refreshScreeningOutlookButton.disabled = disabled;
   }
@@ -1060,6 +1144,58 @@ document.addEventListener('DOMContentLoaded', () => {
     setScreeningPlanDisabled(!canEdit);
     screeningPlanOutlookKey = '';
     renderNextScreeningSlot(savedScreeningPreferences);
+  }
+
+  function findScreeningPlanConflict(rules) {
+    const now = getTaipeiParts();
+    const today = Date.UTC(Number(now.year), Number(now.month) - 1, Number(now.day));
+    const currentMinutes = Number(now.hour) * 60 + Number(now.minute);
+    const matchesDate = (rule, date) => {
+      const weekday = date.getUTCDay();
+      if (rule.frequency === 'weekly') return rule.weekdays.includes(weekday);
+      if (rule.frequency !== 'monthly' || Number(rule.weekday) !== weekday) return false;
+      const day = date.getUTCDate();
+      const monthEnd = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+      return Number(rule.ordinal) === -1
+        ? day + 7 > monthEnd
+        : Math.floor((day - 1) / 7) + 1 === Number(rule.ordinal);
+    };
+    for (let offset = 0; offset <= 366; offset += 1) {
+      const date = new Date(today + offset * 86400000);
+      const active = rules.map((rule, index) => ({ rule, index }))
+        .filter(({ rule }) => matchesDate(rule, date))
+        .filter(({ rule }) => offset > 0
+          || Number(rule.endTime.slice(0, 2)) * 60 + Number(rule.endTime.slice(3, 5)) > currentMinutes);
+      for (let leftIndex = 0; leftIndex < active.length; leftIndex += 1) {
+        const left = active[leftIndex];
+        const leftStart = Number(left.rule.startTime.slice(0, 2)) * 60 + Number(left.rule.startTime.slice(3, 5));
+        const leftEnd = Number(left.rule.endTime.slice(0, 2)) * 60 + Number(left.rule.endTime.slice(3, 5));
+        for (let rightIndex = leftIndex + 1; rightIndex < active.length; rightIndex += 1) {
+          const right = active[rightIndex];
+          const rightStart = Number(right.rule.startTime.slice(0, 2)) * 60 + Number(right.rule.startTime.slice(3, 5));
+          const rightEnd = Number(right.rule.endTime.slice(0, 2)) * 60 + Number(right.rule.endTime.slice(3, 5));
+          const overlaps = Math.max(leftStart, rightStart) < Math.min(leftEnd, rightEnd);
+          if (!overlaps) continue;
+          const leftCoordinates = left.rule.place.coordinates;
+          const rightCoordinates = right.rule.place.coordinates;
+          const samePlace = left.rule.place.label === right.rule.place.label
+            && leftCoordinates.length === rightCoordinates.length
+            && leftCoordinates.every((coordinate, index) => Math.abs(coordinate - rightCoordinates[index]) < 0.00001);
+          if (samePlace) continue;
+          const year = date.getUTCFullYear();
+          return {
+            dateLabel: new Intl.DateTimeFormat('zh-TW', {
+              timeZone: 'UTC', month: 'long', day: 'numeric'
+            }).format(new Date(Date.UTC(year, date.getUTCMonth(), date.getUTCDate(), 12))),
+            startTime: `${String(Math.floor(Math.max(leftStart, rightStart) / 60)).padStart(2, '0')}:${String(Math.max(leftStart, rightStart) % 60).padStart(2, '0')}`,
+            endTime: `${String(Math.floor(Math.min(leftEnd, rightEnd) / 60)).padStart(2, '0')}:${String(Math.min(leftEnd, rightEnd) % 60).padStart(2, '0')}`,
+            left,
+            right
+          };
+        }
+      }
+    }
+    return null;
   }
 
   async function saveScreeningPlan(event) {
@@ -1111,6 +1247,23 @@ document.addEventListener('DOMContentLoaded', () => {
             endTime
           }
           : { frequency, weekdays, name: row.querySelector('.screening-plan-rule-name').value.trim(), place, startTime, endTime });
+      }
+      const conflict = findScreeningPlanConflict(rules);
+      if (conflict) {
+        const leftName = conflict.left.rule.name || `安排 ${conflict.left.index + 1}`;
+        const rightName = conflict.right.rule.name || `安排 ${conflict.right.index + 1}`;
+        showStatus(screeningPlanStatus,
+          `${conflict.dateLabel} ${conflict.startTime}–${conflict.endTime}：${leftName} 與 ${rightName} 時段重疊，但地點不同。請調整時間或地點。`, true);
+        const conflictedRow = rows[conflict.right.index];
+        conflictedRow.querySelector('.screening-plan-rule-fields').hidden = false;
+        conflictedRow.querySelector('.screening-plan-rule-summary').hidden = true;
+        const collapseButton = conflictedRow.querySelector('.screening-plan-rule-collapse');
+        collapseButton.setAttribute('aria-expanded', 'true');
+        collapseButton.setAttribute('aria-label', '收合此安排');
+        collapseButton.title = '收合此安排';
+        collapseButton.querySelector('.material-icons').textContent = 'expand_less';
+        conflictedRow.querySelector('.screening-plan-rule-start').focus();
+        return;
       }
       const preferences = {
         version: 2,
@@ -1226,17 +1379,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderNextScreeningSlot(preferences) {
     const slot = getNextScreeningSlot(preferences);
-    screeningPlanNext.textContent = slot
-      ? `${slot.dateLabel} ${slot.startTime}–${slot.endTime} · ${slot.name ? `${slot.name} · ` : ''}${slot.place.label}`
-      : '設定至少一筆地點與週期安排後顯示。';
+    screeningPlanNext.replaceChildren();
+    if (!slot) {
+      appendScreeningPlanFact(screeningPlanNext, 'event_busy', '尚未設定有效排程');
+      return;
+    }
+    appendScreeningPlanFact(screeningPlanNext, 'event', slot.dateLabel);
+    appendScreeningPlanFact(screeningPlanNext, 'schedule', `${slot.startTime}–${slot.endTime}`);
+    if (slot.name) appendScreeningPlanFact(screeningPlanNext, 'label', slot.name);
+    appendScreeningPlanFact(screeningPlanNext, 'place', slot.place.label);
+  }
+
+  function appendScreeningPlanFact(container, iconName, text, tone = '') {
+    const fact = document.createElement('span');
+    fact.className = 'screening-plan-fact';
+    if (tone) fact.dataset.tone = tone;
+    const icon = document.createElement('span');
+    icon.className = 'material-icons notranslate';
+    icon.setAttribute('translate', 'no');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = iconName;
+    fact.append(icon, document.createTextNode(text));
+    container.append(fact);
+  }
+
+  function renderScreeningWeather(weather) {
+    screeningPlanWeather.replaceChildren();
+    if (!weather.available) {
+      appendScreeningPlanFact(screeningPlanWeather, 'cloud_off', weather.message, 'warning');
+      return;
+    }
+    const tone = weather.maxProbability >= 50 ? 'warning' : '';
+    appendScreeningPlanFact(screeningPlanWeather, 'umbrella', `${Math.round(weather.maxProbability)}% 降雨`, tone);
+    appendScreeningPlanFact(screeningPlanWeather, 'water_drop', `${weather.totalPrecipitation.toFixed(1)} mm`);
+  }
+
+  function renderScreeningPlanAdvice(weather, disasters) {
+    const items = [];
+    if (!weather.available) {
+      items.push(['cloud_off', '天氣資料暫缺', 'warning']);
+    } else if (weather.maxProbability >= 50) {
+      items.push(['umbrella', '高降雨：備雨具與室內備案', 'warning']);
+    } else if (weather.maxProbability >= 25) {
+      items.push(['umbrella', '可能降雨：準備雨具', 'warning']);
+    } else {
+      items.push(['wb_sunny', '降雨機率低', '']);
+    }
+    if (disasters.nearby.length) {
+      items.push(['warning', '附近有災害：查看官方公告', 'danger']);
+    } else if (!disasters.usgsAvailable || disasters.failedSources.length) {
+      items.push(['error_outline', '災害資料不完整，風險未知', 'warning']);
+    } else {
+      items.push(['verified_user', '出發前仍請留意官方警報', '']);
+    }
+    screeningPlanAdvice.replaceChildren();
+    items.forEach(([iconName, text, tone]) => appendScreeningPlanFact(screeningPlanAdvice, iconName, text, tone));
+    screeningPlanAdvice.hidden = false;
   }
 
   async function refreshScreeningPlanOutlook(force = false) {
     const slot = getNextScreeningSlot(savedScreeningPreferences);
     if (!slot) {
       screeningOutlookKey = '';
-      screeningPlanWeather.textContent = '請先設定常用地點與時段。';
-      screeningPlanDisasters.textContent = '請先設定常用地點與時段。';
+      renderScreeningWeather({ available: false, message: '尚未設定有效排程' });
+      screeningPlanDisasters.textContent = '設定排程後顯示';
       screeningPlanAdvice.hidden = true;
       return;
     }
@@ -1247,8 +1453,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const requestId = ++screeningOutlookRequest;
     screeningOutlookPending = true;
     refreshScreeningOutlookButton.disabled = true;
-    screeningPlanWeather.textContent = '正在查詢時段降雨預報…';
-    screeningPlanDisasters.textContent = '正在查詢附近天災資訊…';
+    renderScreeningWeather({ available: false, message: '查詢中…' });
+    screeningPlanDisasters.textContent = '查詢中…';
     screeningPlanAdvice.hidden = true;
 
     const [weather, disasters] = await Promise.all([
@@ -1259,25 +1465,9 @@ document.addEventListener('DOMContentLoaded', () => {
     screeningOutlookPending = false;
     screeningOutlookLoadedAt = Date.now();
     refreshScreeningOutlookButton.disabled = !screeningPlanEditable;
-    screeningPlanWeather.textContent = weather.message;
+    renderScreeningWeather(weather);
     renderScreeningDisasters(disasters);
-    const advice = [];
-    if (weather.available && weather.maxProbability >= 50) {
-      advice.push('時段降雨機率偏高，準備雨具、遮雨及室內備案，並保護檢測物資。');
-    } else if (weather.available && weather.maxProbability >= 25) {
-      advice.push('可能降雨，建議攜帶雨具並確認物資防水。');
-    } else if (!weather.available) {
-      advice.push('目前沒有可用的時段降雨預報，出發前請再確認天氣。');
-    }
-    if (disasters.nearby.length) {
-      advice.push('附近有近期災害資訊，出發前確認中央氣象署與地方政府公告；遇警報或交通中斷請依官方指示調整或延期。');
-    } else if (!disasters.usgsAvailable || disasters.failedSources.length) {
-      advice.push('部分災害資料來源無法連線，不能據此判定沒有風險；出發前請查看官方警報。');
-    } else {
-      advice.push('出發前仍請留意官方警報，並準備聯絡與改期方案。');
-    }
-    screeningPlanAdvice.textContent = advice.join(' ');
-    screeningPlanAdvice.hidden = false;
+    renderScreeningPlanAdvice(weather, disasters);
   }
 
   async function loadScreeningWeather(slot) {
@@ -1320,6 +1510,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return {
         available: true,
         maxProbability,
+        totalPrecipitation,
         message: `時段最高降雨機率 ${Math.round(maxProbability)}%，預估累積雨量約 ${totalPrecipitation.toFixed(1)} mm（Open-Meteo）。`
       };
     } catch {
@@ -1443,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', () => {
       screeningPlanDisasters.append(list);
     } else if (result.usgsAvailable) {
       const noNearby = document.createElement('p');
-      noNearby.textContent = 'USGS 最近一週資料中，設定地點 300 公里內沒有 M2.5 以上地震。';
+      noNearby.textContent = '近 7 日 300 公里內未查到 M2.5 以上地震（USGS）。';
       screeningPlanDisasters.append(noNearby);
     }
     result.globalAdvisories.forEach(entry => {
@@ -1453,7 +1644,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (result.failedSources.length) {
       const unavailable = document.createElement('p');
-      unavailable.textContent = `無法取得：${result.failedSources.join('、')}。這不代表沒有災害。`;
+      unavailable.textContent = `資料來源不可用：${result.failedSources.join('、')}（風險未知）`;
       screeningPlanDisasters.append(unavailable);
     }
     if (!result.usgsAvailable && !result.globalAdvisories.length && !result.nearby.length && !result.failedSources.length) {

@@ -447,11 +447,16 @@ permalink: /admin/
         </section>
       </section>
       <section id="screening-plan-card" class="admin-panel screening-plan-card" aria-labelledby="screening-plan-title">
-        <div>
-          <p class="eyebrow">篩檢規劃</p>
-          <h2 id="screening-plan-title">常用地點與時段</h2>
-          <p class="admin-muted">可設定每週或每月多筆安排；問卷只會在符合日期與時段時預填地點，仍可修改。</p>
+        <div class="screening-plan-card-heading">
+          <div>
+            <p class="eyebrow">篩檢規劃</p>
+            <h2 id="screening-plan-title">常用地點與時段</h2>
+          </div>
+          <button id="screening-plan-info-button" class="admin-button secondary icon-only" type="button" aria-label="排程與資料說明" title="排程與資料說明">
+            <span class="material-icons notranslate" translate="no" aria-hidden="true">info</span>
+          </button>
         </div>
+        <p class="admin-muted screening-plan-hint">每筆安排各自設定週期、時段與地點。</p>
         <form id="screening-plan-form" class="screening-plan-form">
           <div id="screening-plan-rules" class="screening-plan-rules"></div>
           <button id="add-screening-plan-rule" class="admin-button secondary" type="button" disabled>
@@ -462,6 +467,12 @@ permalink: /admin/
             <fieldset class="screening-plan-rule">
               <div class="screening-plan-rule-heading">
                 <h3><span class="screening-plan-rule-number"></span><input class="screening-plan-rule-name" type="text" maxlength="40" placeholder="自訂名稱（選填）" aria-label="安排名稱"></h3>
+                <button class="admin-button secondary icon-only screening-plan-rule-move-up" type="button" aria-label="將此安排上移" title="上移">
+                  <span class="material-icons notranslate" translate="no" aria-hidden="true">arrow_upward</span>
+                </button>
+                <button class="admin-button secondary icon-only screening-plan-rule-move-down" type="button" aria-label="將此安排下移" title="下移">
+                  <span class="material-icons notranslate" translate="no" aria-hidden="true">arrow_downward</span>
+                </button>
                 <button class="admin-button secondary icon-only screening-plan-rule-collapse" type="button" aria-expanded="true" aria-label="收合此安排" title="收合此安排">
                   <span class="material-icons notranslate" translate="no" aria-hidden="true">expand_less</span>
                 </button>
@@ -469,6 +480,7 @@ permalink: /admin/
                   <span class="material-icons notranslate" translate="no" aria-hidden="true">delete</span>
                 </button>
               </div>
+              <p class="screening-plan-rule-summary" hidden></p>
               <div class="screening-plan-rule-fields">
                 <label class="screening-plan-rule-frequency-label">週期
                   <select class="screening-plan-rule-frequency" required>
@@ -530,15 +542,14 @@ permalink: /admin/
               </div>
             </fieldset>
           </template>
-          <p class="admin-muted">自訂地址會傳送至 Photon 定位；座標會傳送至 Open-Meteo 查詢預報。</p>
           <button id="save-screening-plan" class="admin-button" type="submit" disabled>儲存篩檢安排</button>
           <p id="screening-plan-status" class="admin-status" role="status" hidden></p>
         </form>
         <section class="screening-plan-outlook" aria-labelledby="screening-plan-outlook-title">
           <h3 id="screening-plan-outlook-title">最近預計時段</h3>
-          <p id="screening-plan-next" class="admin-muted">設定地點與時段後顯示。</p>
+          <div id="screening-plan-next" class="screening-plan-next admin-muted">設定地點與時段後顯示。</div>
           <h3>降雨資訊</h3>
-          <p id="screening-plan-weather" class="admin-muted" role="status" aria-live="polite">尚未查詢</p>
+          <div id="screening-plan-weather" class="screening-plan-weather admin-muted" role="status" aria-live="polite">尚未查詢</div>
           <div class="screening-plan-outlook-heading">
             <h3>附近天災資訊</h3>
             <button id="refresh-screening-outlook" class="admin-button secondary icon-only" type="button" aria-label="重新整理天氣與災害資訊" title="重新整理天氣與災害資訊" disabled>
@@ -546,9 +557,24 @@ permalink: /admin/
             </button>
           </div>
           <div id="screening-plan-disasters" class="screening-plan-disasters" role="status" aria-live="polite">尚未查詢</div>
-          <p id="screening-plan-advice" class="screening-plan-advice" hidden></p>
+          <div id="screening-plan-advice" class="screening-plan-advice" aria-live="polite" hidden></div>
         </section>
       </section>
+      <dialog id="screening-plan-info-dialog" class="calendar-small-dialog screening-plan-info-dialog" aria-labelledby="screening-plan-info-title">
+        <div class="dialog-header">
+          <h2 id="screening-plan-info-title">排程與資料說明</h2>
+          <button class="admin-button secondary icon-only" type="button" data-close-screening-plan-info aria-label="關閉說明" title="關閉說明">
+            <span class="material-icons notranslate" translate="no" aria-hidden="true">close</span>
+          </button>
+        </div>
+        <ul>
+          <li>每筆安排都有自己的週期、時間與地點；不同場地請分開新增。</li>
+          <li>問卷只會在日期與時段符合、且地點沒有歧義時預填；仍可自行修改。</li>
+          <li>自訂地址會送至 Photon 定位；座標會送至 Open-Meteo 查詢天氣。</li>
+          <li>災害資訊來自 USGS 地震資料與 GDACS／海嘯公告；來源無法連線時會標示「風險未知」，請查看官方公告。</li>
+        </ul>
+        <button class="admin-button secondary" type="button" data-close-screening-plan-info>知道了</button>
+      </dialog>
       <details id="staff-management" class="admin-panel admin-disclosure staff-management" aria-labelledby="staff-management-title" hidden>
         <summary class="admin-disclosure-summary">
           <div>
