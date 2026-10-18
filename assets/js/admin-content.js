@@ -130,40 +130,17 @@ document.addEventListener('DOMContentLoaded', () => {
   contentForm.addEventListener('submit', saveRecord);
   contentList.addEventListener('click', handleRecordAction);
 
-  supabase.auth.onAuthStateChange((_event, session) => {
-    window.setTimeout(() => setSession(session), 0);
-  });
-  supabase.auth.getSession().then(({ data }) => setSession(data.session));
-
-  async function setSession(session) {
-    if (!session) {
-      closeContentEditor(true);
-      activeUserId = null;
-      manager.hidden = true;
-      updateContentTabVisibility();
-      return;
-    }
-    if (activeUserId === session.user.id && !manager.hidden) return;
-
-    activeUserId = session.user.id;
-    const { data: profile, error } = await supabase
-      .from('admin_profiles')
-      .select('user_id')
-      .eq('user_id', activeUserId)
-      .maybeSingle();
-
-    if (activeUserId !== session.user.id) return;
-    if (error || !profile) {
-      manager.hidden = true;
-      updateContentTabVisibility();
-      return;
-    }
-
-    manager.hidden = false;
+  document.addEventListener('staff-profile-ready', event => {
+    const profile = event.detail;
+    activeUserId = profile?.user_id || null;
+    const canManage = window.StaffAccess.canAccess(profile, 'site_content.manage');
+    if (!canManage) closeContentEditor(true);
+    manager.hidden = !canManage;
     updateContentTabVisibility();
-    await loadRecords();
-    await openingHours.load();
-  }
+    if (!canManage) return;
+    loadRecords();
+    openingHours.load();
+  });
 
   function updateContentTabVisibility() {
     if (!contentTab) return;

@@ -104,6 +104,8 @@ const RESPONSE_CONDITIONAL_GROUPS = [
   }
 ];
 
+const STAFF_PRIVACY_NOTICE_VERSION = 'staff-privacy-2026-10-v1';
+
 document.addEventListener('DOMContentLoaded', () => {
   const loginPanel = document.getElementById('admin-login');
   const dashboard = document.getElementById('admin-dashboard');
@@ -115,6 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const backFromPasswordUpdateButton = document.getElementById('back-from-password-update');
   const loginStatus = document.getElementById('login-status');
   const dashboardStatus = document.getElementById('dashboard-status');
+  const staffAccessGate = document.getElementById('staff-access-gate');
+  const staffGateTitle = document.getElementById('staff-gate-title');
+  const staffGateMessage = document.getElementById('staff-gate-message');
+  const acceptStaffPrivacyButton = document.getElementById('accept-staff-privacy');
   const signOutButton = document.getElementById('sign-out-button');
   const openQuestionnaireButton = document.getElementById('open-questionnaire-button');
   const refreshButton = document.getElementById('refresh-button');
@@ -168,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const screenerNumberInput = document.getElementById('screener-number-input');
   const screenerNumberStatus = document.getElementById('screener-number-status');
   const saveScreenerNumberButton = document.getElementById('save-screener-number');
+  let activeStaffProfile = null;
   let responses = [];
   const selectedNationalities = new Set();
   let currentPage = 1;
@@ -229,7 +236,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data, error } = await window.questionnaireSupabase.auth.signUp({
       email: formData.get('email'),
       password,
-      options: { emailRedirectTo: getAdminRedirectUrl() }
+      options: {
+        emailRedirectTo: getAdminRedirectUrl(),
+        data: {
+          nickname: formData.get('nickname'),
+          full_name: formData.get('full_name'),
+          phone: formData.get('phone'),
+          privacy_consent: true,
+          privacy_notice_version: STAFF_PRIVACY_NOTICE_VERSION
+        }
+      }
     });
     setButtonBusy(submitButton, false, '送出帳號申請');
     if (error) {
@@ -239,10 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     signupForm.reset();
     if (data.session) {
-      await showAuthorizedSession(data.session);
-      if (dashboard.hidden) {
-        showStatus(loginStatus, '申請已送出。管理員核准前，帳號無法查看問卷資料。', false);
-      }
+      await loadSession();
     } else {
       showAuthForm(loginForm);
       showStatus(loginStatus, '申請已送出。請依電子郵件完成驗證，並等待管理員核准。');
@@ -299,6 +312,20 @@ document.addEventListener('DOMContentLoaded', () => {
     await window.questionnaireSupabase.auth.signOut();
     showLogin();
   });
+
+  acceptStaffPrivacyButton.addEventListener('click', async () => {
+    acceptStaffPrivacyButton.disabled = true;
+    const { error } = await window.questionnaireSupabase.rpc('accept_staff_privacy_notice', {
+      notice_version: STAFF_PRIVACY_NOTICE_VERSION
+    });
+    acceptStaffPrivacyButton.disabled = false;
+    if (error) {
+      staffGateMessage.textContent = '同意紀錄無法儲存，請稍後重試或聯絡管理員。';
+      return;
+    }
+    await loadSession();
+  });
+  document.addEventListener('staff-profile-refresh', loadSession);
 
   refreshButton.addEventListener('click', loadResponses);
   exportButton.addEventListener('click', exportResponses);
@@ -394,34 +421,31 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const { data } = await window.questionnaireSupabase.auth.getSession();
-    if (data.session) {
-      showDashboard(data.session);
-      await loadScreenerNumber(data.session);
-      await loadResponses();
-    } else {
+    if (!data.session) {
+      document.dispatchEvent(new CustomEvent('staff-profile-ready', { detail: null }));
       showLogin();
+      return;
     }
-  }
 
-  async function showAuthorizedSession(session) {
-    const { data, error } = await window.questionnaireSupabase
+    const { data: profile, error } = await window.questionnaireSupabase
       .from('admin_profiles')
-      .select('user_id')
-      .eq('user_id', session.user.id)
+      .select('user_id, nickname, approval_status, account_role, permissions, privacy_consent_at, privacy_notice_version')
+      .eq('user_id', data.session.user.id)
       .maybeSingle();
 
-    if (!error && data) {
-      showDashboard(session);
-      await loadScreenerNumber(session);
-      return true;
+    if (error || !profile) {
+      document.dispatchEvent(new CustomEvent('staff-profile-ready', { detail: null }));
+      await window.questionnaireSupabase.auth.signOut();
+      showLogin();
+      showStatus(loginStatus, '無法確認工作人員申請資料，請聯絡管理員。', true);
+      return;
     }
 
-    await window.questionnaireSupabase.auth.signOut();
-    showLogin();
-    showStatus(loginStatus, error
-      ? '無法確認管理權限，請稍後再試或聯絡系統管理員。'
-      : '帳號尚未獲管理員核准，核准前無法查看問卷資料。', true);
-    return false;
+    showDashboard(data.session, profile);
+    document.dispatchEvent(new CustomEvent('staff-profile-ready', { detail: profile }));
+    if (profile.approval_status !== 'approved' || !profile.privacy_consent_at) return;
+    await loadScreenerNumber(data.session);
+    if (window.StaffAccess.canAccess(profile, 'questionnaire.read')) await loadResponses();
   }
 
   function showAuthForm(activeForm) {
@@ -443,12 +467,54 @@ document.addEventListener('DOMContentLoaded', () => {
     return hashParams.get('type') === 'recovery' || searchParams.get('type') === 'recovery';
   }
 
-  function showDashboard(session) {
+  function showDashboard(session, profile) {
+    activeStaffProfile = profile;
     loginPanel.hidden = true;
     dashboard.hidden = false;
     signOutButton.hidden = false;
     openQuestionnaireButton.hidden = false;
-    document.getElementById('admin-user').textContent = session.user.email || '已登入管理員';
+    document.getElementById('admin-user').textContent = profile.nickname || session.user.email || '已登入工作人員';
+
+    const hasConsent = Boolean(profile.privacy_consent_at);
+    const isApproved = profile.approval_status === 'approved';
+    const canRead = isApproved && hasConsent && window.StaffAccess.canAccess(profile, 'questionnaire.read');
+    const canManageContent = isApproved && hasConsent && window.StaffAccess.canAccess(profile, 'site_content.manage');
+    const canManageStaff = isApproved && hasConsent && window.StaffAccess.canAccess(profile, 'staff.manage');
+    const access = new Map([
+      ['admin-tab-questionnaire', canRead],
+      ['admin-tab-content', canManageContent],
+      ['admin-tab-settings', isApproved && hasConsent],
+      ['admin-tab-staff', canManageStaff]
+    ]);
+    adminTabs.forEach(tab => { tab.hidden = !access.get(tab.id); });
+
+    acceptStaffPrivacyButton.hidden = hasConsent;
+    staffAccessGate.hidden = isApproved && hasConsent;
+    if (!hasConsent) {
+      staffGateTitle.textContent = '請先閱讀員工帳號個資告知';
+      staffGateMessage.textContent = '同意後才能繼續使用工作人員帳號。';
+    } else if (!isApproved) {
+      const statusMessage = {
+        pending: '帳號申請尚待管理員審核。核准前無法使用後台功能。',
+        rejected: '帳號申請未獲核准。如需了解原因，請聯絡系統管理員。',
+        suspended: '此帳號目前已停用。如需協助，請聯絡系統管理員。'
+      };
+      staffGateTitle.textContent = '工作人員帳號狀態';
+      staffGateMessage.textContent = statusMessage[profile.approval_status] || '此帳號目前無法使用後台。';
+    }
+
+    if (!isApproved || !hasConsent) {
+      adminTabs.forEach(tab => {
+        const panel = document.getElementById(tab.getAttribute('aria-controls'));
+        if (panel) panel.hidden = true;
+      });
+      return;
+    }
+
+    const selected = adminTabs.find(tab => !tab.hidden && tab.id === 'admin-tab-questionnaire')
+      || adminTabs.find(tab => !tab.hidden);
+    if (selected) selectAdminTab(selected);
+    if (!canRead) showStatus(dashboardStatus, canManageStaff ? '你可以從「工作人員」管理帳號與權限。' : '帳號已核准，請聯絡管理員設定後台權限。');
   }
 
   async function loadScreenerNumber(session) {
@@ -507,6 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showLogin() {
+    activeStaffProfile = null;
     loginPanel.hidden = false;
     dashboard.hidden = true;
     signOutButton.hidden = true;
@@ -1133,6 +1200,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function appendConsultationWorkflow(response) {
+    if (!window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation')) return;
+
     const data = response.response_data || {};
     const section = document.createElement('section');
     section.className = 'consultation-workflow';

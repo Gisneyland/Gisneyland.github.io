@@ -43,12 +43,24 @@ permalink: /admin/
     </div>
     <form id="signup-form" class="admin-form" hidden>
       <h3>申請管理員帳號</h3>
+      <label for="signup-nickname">暱稱</label>
+      <input id="signup-nickname" name="nickname" type="text" maxlength="40" autocomplete="nickname" required>
+      <label for="signup-full-name">姓名（選填）</label>
+      <input id="signup-full-name" name="full_name" type="text" maxlength="80" autocomplete="name">
+      <label for="signup-phone">電話（選填）</label>
+      <input id="signup-phone" name="phone" type="tel" maxlength="30" autocomplete="tel">
       <label for="signup-email">電子郵件</label>
       <input id="signup-email" name="email" type="email" autocomplete="email" required>
       <label for="signup-password">設定密碼</label>
       <input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="8" required>
       <label for="signup-password-confirm">確認密碼</label>
       <input id="signup-password-confirm" name="password-confirm" type="password" autocomplete="new-password" minlength="8" required>
+      <div class="staff-privacy-notice">
+        <h4>員工帳號個資告知</h4>
+        <p>為建立帳號、核對身分、審核權限及維護系統安全，將處理你的電子郵件、暱稱、姓名、電話、申請狀態與權限紀錄。資料僅供授權管理員辦理員工帳號管理，並依中心隱私政策保存與處理。</p>
+        <a href="{{ '/privacy/' | relative_url }}" target="_blank" rel="noopener noreferrer">閱讀隱私與資料使用政策</a>
+      </div>
+      <label class="staff-consent-checkbox"><input id="signup-privacy-consent" name="privacy-consent" type="checkbox" required>我已閱讀並同意上述員工帳號個資告知。</label>
       <button class="admin-button" type="submit">送出帳號申請</button>
       <button class="admin-button secondary" type="button" data-back-to-login>返回登入</button>
     </form>
@@ -72,6 +84,11 @@ permalink: /admin/
   </section>
 
   <section id="admin-dashboard" hidden>
+    <section id="staff-access-gate" class="admin-panel staff-access-gate" role="status" hidden>
+      <h2 id="staff-gate-title"></h2>
+      <p id="staff-gate-message"></p>
+      <button id="accept-staff-privacy" class="admin-button" type="button" hidden>同意並繼續</button>
+    </section>
     <div class="admin-tabs" role="tablist" aria-label="後台功能">
       <button id="admin-tab-questionnaire" class="admin-tab" type="button" role="tab" aria-selected="true" aria-controls="admin-panel-questionnaire" tabindex="0">
         <span class="material-icons notranslate" translate="no" aria-hidden="true">assignment</span>
@@ -84,6 +101,10 @@ permalink: /admin/
       <button id="admin-tab-settings" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-settings" tabindex="-1">
         <span class="material-icons notranslate" translate="no" aria-hidden="true">settings</span>
         設定
+      </button>
+      <button id="admin-tab-staff" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-staff" tabindex="-1" hidden>
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">manage_accounts</span>
+        工作人員
       </button>
     </div>
     <section id="admin-panel-questionnaire" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-questionnaire" tabindex="0">
@@ -413,6 +434,26 @@ permalink: /admin/
           <p id="screener-number-status" class="admin-status" role="status" hidden></p>
         </div>
       </details>
+    </section>
+    <section id="admin-panel-staff" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-staff" tabindex="0" hidden>
+      <section id="staff-management" class="admin-panel staff-management" aria-labelledby="staff-management-title" hidden>
+        <div class="staff-management-heading">
+          <div>
+            <p class="eyebrow">帳號與存取</p>
+            <h2 id="staff-management-title">篩檢員帳號與權限管理</h2>
+            <p class="admin-muted">審核申請、設定角色與工作權限。核准前須完成員工個資告知同意。</p>
+          </div>
+          <button id="refresh-staff-list" class="admin-button secondary icon-only" type="button" title="重新整理工作人員" aria-label="重新整理工作人員"><span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span></button>
+        </div>
+        <p id="staff-management-status" class="admin-status" role="status" hidden></p>
+        <div class="staff-table-wrap" role="region" aria-label="工作人員帳號列表，可左右捲動" tabindex="0">
+          <table class="staff-table">
+            <thead><tr><th scope="col">帳號</th><th scope="col">申請狀態</th><th scope="col">角色</th><th scope="col">權限</th><th scope="col">篩檢員編號</th><th scope="col">操作</th></tr></thead>
+            <tbody id="staff-list"></tbody>
+          </table>
+        </div>
+        <p id="staff-list-empty" class="admin-empty" hidden>目前沒有工作人員帳號。</p>
+      </section>
     </section>
   </section>
 </section>
