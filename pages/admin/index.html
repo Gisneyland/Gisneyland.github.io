@@ -95,6 +95,11 @@ permalink: /admin/
   </section>
 
   <section id="admin-dashboard" hidden>
+<<<<<<< HEAD
+    <div class="admin-toolbar">
+      <div>
+        <h2>問卷資料</h2>
+=======
     <section id="staff-access-gate" class="admin-panel staff-access-gate" role="status" hidden>
       <h2 id="staff-gate-title"></h2>
       <p id="staff-gate-message"></p>
@@ -119,6 +124,7 @@ permalink: /admin/
         <div class="stat-card"><span>HIV 陽性 / 篩檢</span><strong id="hiv-screening-ratio">0 / 0</strong></div>
         <div class="stat-card"><span>梅毒陽性 / 篩檢</span><strong id="syphilis-screening-ratio">0 / 0</strong></div>
         <div class="stat-card"><span>諮詢回填 / 問卷</span><strong id="consultation-fill-ratio">0 / 0</strong></div>
+>>>>>>> 6eca179551a14eae8322e916933f22c0cd53f8cd
       </div>
       <div class="screening-analytics-grid">
         <section class="analytics-panel screening-map-panel" aria-labelledby="screening-map-title">
@@ -174,6 +180,14 @@ permalink: /admin/
           <script id="admin-screening-place-data" type="application/json">{{ site.data.screening_places | jsonify }}</script>
         </section>
       </div>
+<<<<<<< HEAD
+    </div>
+    <section class="admin-panel account-settings" aria-labelledby="admin-account-title">
+      <div>
+        <p class="eyebrow">帳號設定</p>
+        <h2 id="admin-account-title">目前登入帳號</h2>
+        <p id="admin-account-email" class="admin-muted"></p>
+=======
     <section class="questionnaire-workspace" aria-labelledby="questionnaire-title">
       <div class="questionnaire-heading">
         <div>
@@ -189,7 +203,34 @@ permalink: /admin/
               <span class="material-icons notranslate" translate="no" aria-hidden="true">download</span>
             </button>
         </div>
+>>>>>>> 6eca179551a14eae8322e916933f22c0cd53f8cd
       </div>
+<<<<<<< HEAD
+      <form id="account-profile-form" class="account-profile-form">
+        <label for="account-nickname">暱稱
+          <input id="account-nickname" name="nickname" type="text" maxlength="40" autocomplete="nickname" disabled>
+        </label>
+        <label for="account-email">電子郵件
+          <input id="account-email" name="email" type="email" maxlength="254" autocomplete="email" required disabled>
+        </label>
+        <button id="save-account-profile" class="admin-button" type="submit" disabled>儲存帳號資料</button>
+        <p id="account-profile-status" class="admin-status" role="status" hidden></p>
+      </form>
+      <section class="account-screener" aria-labelledby="screener-binding-title">
+        <div>
+          <h3 id="screener-binding-title">篩檢員編號</h3>
+          <p class="admin-muted">設定後，登入此帳號回到問卷時會自動帶入。每個編號只能綁定一個帳號。</p>
+        </div>
+        <form id="screener-number-form" class="screener-number-form">
+          <label for="screener-number-input">篩檢員編號</label>
+          <div class="screener-number-controls">
+            <input id="screener-number-input" name="screener_number" type="text" maxlength="80" autocomplete="off" required disabled>
+            <button id="save-screener-number" class="admin-button" type="submit" disabled>儲存編號</button>
+          </div>
+        </form>
+        <p id="screener-number-status" class="admin-status" role="status" hidden></p>
+      </section>
+=======
       <div class="admin-filters">
         <div class="filter-field filter-search">
           <label for="search-responses">搜尋篩檢員、地點或諮詢代碼</label>
@@ -232,6 +273,7 @@ permalink: /admin/
         <span id="page-status">第 1 頁</span>
         <button id="next-page" class="admin-button secondary" type="button">下一頁</button>
       </div>
+>>>>>>> 6eca179551a14eae8322e916933f22c0cd53f8cd
     </section>
     </section>
     <section id="admin-panel-content" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-content" tabindex="0" hidden>

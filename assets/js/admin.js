@@ -179,6 +179,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const dialog = document.getElementById('response-dialog');
   const closeDialogButton = document.getElementById('close-dialog-button');
   const responseDetails = document.getElementById('response-details');
+  const accountProfileForm = document.getElementById('account-profile-form');
+  const accountNicknameInput = document.getElementById('account-nickname');
+  const accountEmailInput = document.getElementById('account-email');
+  const saveAccountProfileButton = document.getElementById('save-account-profile');
+  const accountProfileStatus = document.getElementById('account-profile-status');
+  const accountEmailLabel = document.getElementById('admin-account-email');
   const screenerNumberForm = document.getElementById('screener-number-form');
   const screenerNumberInput = document.getElementById('screener-number-input');
   const screenerNumberStatus = document.getElementById('screener-number-status');
@@ -190,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectedNationalities = new Set();
   let currentPage = 1;
   let screenerNumberUserId = null;
+  let activeUser = null;
   const pageSize = 25;
 
   renderScreeningVolumeLegend();
@@ -482,6 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderScreeningAnalytics(getFilteredResponses());
   });
   closeDialogButton.addEventListener('click', () => dialog.close());
+  accountProfileForm.addEventListener('submit', saveAccountProfile);
   screenerNumberForm.addEventListener('submit', saveScreenerNumber);
   dialog.addEventListener('click', event => {
     if (event.target === dialog) {
@@ -572,6 +580,19 @@ document.addEventListener('DOMContentLoaded', () => {
     dashboard.hidden = false;
     signOutButton.hidden = false;
     openQuestionnaireButton.hidden = false;
+<<<<<<< HEAD
+    activeUser = session.user;
+    const pendingEmail = activeUser.new_email || '';
+    accountNicknameInput.value = activeUser.user_metadata?.nickname || '';
+    accountEmailInput.value = pendingEmail || activeUser.email || '';
+    accountNicknameInput.disabled = false;
+    accountEmailInput.disabled = false;
+    saveAccountProfileButton.disabled = false;
+    accountEmailLabel.textContent = activeUser.email
+      ? `目前登入：${activeUser.email}${pendingEmail ? `（待確認：${pendingEmail}）` : ''}`
+      : '已登入管理員';
+    accountProfileStatus.hidden = true;
+=======
     document.getElementById('admin-user').textContent = profile.nickname || session.user.email || '已登入工作人員';
 
     const hasConsent = Boolean(profile.privacy_consent_at);
@@ -613,6 +634,56 @@ document.addEventListener('DOMContentLoaded', () => {
       || adminTabs.find(tab => !tab.hidden);
     if (selected) selectAdminTab(selected);
     if (!canRead) showStatus(dashboardStatus, canManageStaff ? '你可以從「設定」管理工作人員帳號與權限。' : '帳號已核准，請聯絡管理員設定後台權限。');
+>>>>>>> 6eca179551a14eae8322e916933f22c0cd53f8cd
+  }
+
+  async function saveAccountProfile(event) {
+    event.preventDefault();
+    if (!activeUser) return;
+
+    const nickname = accountNicknameInput.value.trim();
+    const email = accountEmailInput.value.trim();
+    accountNicknameInput.value = nickname;
+    accountEmailInput.value = email;
+    if (!accountEmailInput.reportValidity()) return;
+
+    const currentNickname = activeUser.user_metadata?.nickname || '';
+    const currentEmail = activeUser.new_email || activeUser.email || '';
+    const nicknameChanged = nickname !== currentNickname;
+    const emailChanged = email !== currentEmail;
+    const updates = {};
+    if (nicknameChanged) updates.data = { nickname };
+    if (emailChanged) updates.email = email;
+    if (!Object.keys(updates).length) {
+      showStatus(accountProfileStatus, '帳號資料沒有變更。');
+      return;
+    }
+
+    setButtonBusy(saveAccountProfileButton, true, '儲存中');
+    const { data, error } = await window.questionnaireSupabase.auth.updateUser(updates, {
+      emailRedirectTo: getAdminRedirectUrl()
+    });
+    setButtonBusy(saveAccountProfileButton, false, '儲存帳號資料');
+    if (error) {
+      showStatus(accountProfileStatus, '帳號資料更新失敗，請確認信箱格式或稍後再試。', true);
+      return;
+    }
+
+    activeUser = data.user || activeUser;
+    if (updates.data) {
+      activeUser.user_metadata = { ...activeUser.user_metadata, nickname };
+    }
+    if (emailChanged && !activeUser.new_email) {
+      activeUser.new_email = email;
+    }
+    accountNicknameInput.value = activeUser.user_metadata?.nickname || nickname;
+    accountEmailInput.value = activeUser.new_email || activeUser.email || email;
+    accountEmailLabel.textContent = activeUser.email
+      ? `目前登入：${activeUser.email}${activeUser.new_email ? `（待確認：${activeUser.new_email}）` : ''}`
+      : '已登入管理員';
+    showStatus(accountProfileStatus, emailChanged
+      ? `${nicknameChanged ? '暱稱已更新。' : ''}信箱變更已送出，請依確認信完成驗證後生效。`
+      : '暱稱已更新。');
   }
 
   async function loadScreenerNumber(session) {
@@ -677,6 +748,14 @@ document.addEventListener('DOMContentLoaded', () => {
     signOutButton.hidden = true;
     openQuestionnaireButton.hidden = true;
     screenerNumberUserId = null;
+    activeUser = null;
+    accountNicknameInput.value = '';
+    accountEmailInput.value = '';
+    accountNicknameInput.disabled = true;
+    accountEmailInput.disabled = true;
+    saveAccountProfileButton.disabled = true;
+    accountEmailLabel.textContent = '';
+    accountProfileStatus.hidden = true;
     screenerNumberInput.value = '';
     screenerNumberInput.disabled = true;
     saveScreenerNumberButton.disabled = true;
