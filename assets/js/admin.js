@@ -214,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let screeningOutlookLoadedAt = 0;
   let screeningOutlookPending = false;
   let screeningPlanEditable = false;
+  let screeningPlanRuleSequence = 0;
   const pageSize = 25;
 
   let screeningPlanPlaces = [];
@@ -248,6 +249,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const monthlyPanel = row.querySelector('.screening-plan-rule-monthly');
     const monthlyOrdinal = row.querySelector('.screening-plan-rule-ordinal');
     const monthlyWeekday = row.querySelector('.screening-plan-rule-monthly-weekday');
+    const ruleName = row.querySelector('.screening-plan-rule-name');
+    const ruleFields = row.querySelector('.screening-plan-rule-fields');
+    const collapseButton = row.querySelector('.screening-plan-rule-collapse');
     const placeInput = row.querySelector('.screening-plan-rule-place');
     const options = row.querySelector('.screening-plan-place-options');
     const searchButton = row.querySelector('.screening-plan-rule-search');
@@ -256,6 +260,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const mapContainer = row.querySelector('.screening-plan-rule-map');
     const mapCanvas = row.querySelector('.screening-plan-rule-map-canvas');
     const placeStatus = row.querySelector('.screening-plan-rule-place-status');
+    ruleName.value = rule.name || '';
+    ruleFields.id = `screening-plan-rule-fields-${++screeningPlanRuleSequence}`;
+    collapseButton.setAttribute('aria-controls', ruleFields.id);
     const state = {
       place: rule.place || null,
       map: null,
@@ -419,6 +426,15 @@ document.addEventListener('DOMContentLoaded', () => {
       weeklyPanel.hidden = frequency.value !== 'weekly';
       monthlyPanel.hidden = frequency.value !== 'monthly';
     });
+    collapseButton.addEventListener('click', () => {
+      const expanded = collapseButton.getAttribute('aria-expanded') === 'true';
+      collapseButton.setAttribute('aria-expanded', String(!expanded));
+      collapseButton.setAttribute('aria-label', expanded ? '展開此安排' : '收合此安排');
+      collapseButton.title = expanded ? '展開此安排' : '收合此安排';
+      collapseButton.querySelector('.material-icons').textContent = expanded ? 'expand_more' : 'expand_less';
+      ruleFields.hidden = expanded;
+      if (!expanded) state.map && window.requestAnimationFrame(() => state.map.invalidateSize());
+    });
     frequency.dispatchEvent(new Event('change'));
     placeInput.addEventListener('focus', localOptions);
     placeInput.addEventListener('input', () => {
@@ -491,10 +507,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function updateScreeningPlanRuleNumbers() {
     [...screeningPlanRulesContainer.children].forEach((row, index) => {
-      row.querySelector('.screening-plan-rule-number').textContent = String(index + 1);
+      row.querySelector('.screening-plan-rule-number').textContent = `安排 ${index + 1}`;
+      row.querySelector('.screening-plan-rule-name').placeholder = '自訂名稱（選填）';
+      row.querySelector('.screening-plan-rule-name').setAttribute('aria-label', `安排 ${index + 1} 名稱`);
     });
     addScreeningPlanRuleButton.disabled = !screeningPlanEditable || screeningPlanRulesContainer.children.length >= 16;
   }
+  addScreeningPlanRuleButton.addEventListener('click', () => {
+    const row = createScreeningPlanRule();
+    row.querySelector('.screening-plan-rule-name').focus();
+    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
     function closeScreeningPlanPlaceOptions(event) {
       if (event?.target?.closest('.screening-plan-place-picker')) return;
       screeningPlanRulesContainer.querySelectorAll('.screening-plan-place-options').forEach(options => {
@@ -1082,11 +1105,12 @@ document.addEventListener('DOMContentLoaded', () => {
             frequency,
             ordinal: Number(row.querySelector('.screening-plan-rule-ordinal').value),
             weekday: Number(row.querySelector('.screening-plan-rule-monthly-weekday').value),
+            name: row.querySelector('.screening-plan-rule-name').value.trim(),
             place,
             startTime,
             endTime
           }
-          : { frequency, weekdays, place, startTime, endTime });
+          : { frequency, weekdays, name: row.querySelector('.screening-plan-rule-name').value.trim(), place, startTime, endTime });
       }
       const preferences = {
         version: 2,
@@ -1193,6 +1217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).format(new Date(Date.UTC(year, date.getUTCMonth(), date.getUTCDate(), 12))),
         startTime: rule.startTime,
         endTime: rule.endTime,
+        name: rule.name || '',
         place: rule.place
       };
     }
@@ -1202,7 +1227,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderNextScreeningSlot(preferences) {
     const slot = getNextScreeningSlot(preferences);
     screeningPlanNext.textContent = slot
-      ? `${slot.dateLabel} ${slot.startTime}–${slot.endTime} · ${slot.place.label}`
+      ? `${slot.dateLabel} ${slot.startTime}–${slot.endTime} · ${slot.name ? `${slot.name} · ` : ''}${slot.place.label}`
       : '設定至少一筆地點與週期安排後顯示。';
   }
 

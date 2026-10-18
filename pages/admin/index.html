@@ -461,7 +461,10 @@ permalink: /admin/
           <template id="screening-plan-rule-template">
             <fieldset class="screening-plan-rule">
               <div class="screening-plan-rule-heading">
-                <h3>安排 <span class="screening-plan-rule-number"></span></h3>
+                <h3><span class="screening-plan-rule-number"></span><input class="screening-plan-rule-name" type="text" maxlength="40" placeholder="自訂名稱（選填）" aria-label="安排名稱"></h3>
+                <button class="admin-button secondary icon-only screening-plan-rule-collapse" type="button" aria-expanded="true" aria-label="收合此安排" title="收合此安排">
+                  <span class="material-icons notranslate" translate="no" aria-hidden="true">expand_less</span>
+                </button>
                 <button class="admin-button secondary icon-only screening-plan-rule-remove" type="button" aria-label="移除此安排" title="移除此安排">
                   <span class="material-icons notranslate" translate="no" aria-hidden="true">delete</span>
                 </button>
