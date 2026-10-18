@@ -580,10 +580,9 @@ document.addEventListener('DOMContentLoaded', () => {
     dashboard.hidden = false;
     signOutButton.hidden = false;
     openQuestionnaireButton.hidden = false;
-<<<<<<< HEAD
     activeUser = session.user;
     const pendingEmail = activeUser.new_email || '';
-    accountNicknameInput.value = activeUser.user_metadata?.nickname || '';
+    accountNicknameInput.value = profile.nickname || activeUser.user_metadata?.nickname || '';
     accountEmailInput.value = pendingEmail || activeUser.email || '';
     accountNicknameInput.disabled = false;
     accountEmailInput.disabled = false;
@@ -592,8 +591,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ? `目前登入：${activeUser.email}${pendingEmail ? `（待確認：${pendingEmail}）` : ''}`
       : '已登入管理員';
     accountProfileStatus.hidden = true;
-=======
-    document.getElementById('admin-user').textContent = profile.nickname || session.user.email || '已登入工作人員';
 
     const hasConsent = Boolean(profile.privacy_consent_at);
     const isApproved = profile.approval_status === 'approved';
@@ -634,7 +631,6 @@ document.addEventListener('DOMContentLoaded', () => {
       || adminTabs.find(tab => !tab.hidden);
     if (selected) selectAdminTab(selected);
     if (!canRead) showStatus(dashboardStatus, canManageStaff ? '你可以從「設定」管理工作人員帳號與權限。' : '帳號已核准，請聯絡管理員設定後台權限。');
->>>>>>> 6eca179551a14eae8322e916933f22c0cd53f8cd
   }
 
   async function saveAccountProfile(event) {
@@ -647,7 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
     accountEmailInput.value = email;
     if (!accountEmailInput.reportValidity()) return;
 
-    const currentNickname = activeUser.user_metadata?.nickname || '';
+    const currentNickname = activeStaffProfile.nickname || activeUser.user_metadata?.nickname || '';
     const currentEmail = activeUser.new_email || activeUser.email || '';
     const nicknameChanged = nickname !== currentNickname;
     const emailChanged = email !== currentEmail;
@@ -663,8 +659,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data, error } = await window.questionnaireSupabase.auth.updateUser(updates, {
       emailRedirectTo: getAdminRedirectUrl()
     });
-    setButtonBusy(saveAccountProfileButton, false, '儲存帳號資料');
     if (error) {
+      setButtonBusy(saveAccountProfileButton, false, '儲存帳號資料');
       showStatus(accountProfileStatus, '帳號資料更新失敗，請確認信箱格式或稍後再試。', true);
       return;
     }
@@ -676,6 +672,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (emailChanged && !activeUser.new_email) {
       activeUser.new_email = email;
     }
+    if (nicknameChanged) {
+      const { data: profileData, error: profileError } = await window.questionnaireSupabase
+        .from('admin_profiles')
+        .update({ nickname })
+        .eq('user_id', activeUser.id)
+        .select('nickname')
+        .maybeSingle();
+      if (profileError || !profileData) {
+        setButtonBusy(saveAccountProfileButton, false, '儲存帳號資料');
+        showStatus(accountProfileStatus, '登入資料已更新，但暱稱同步失敗，請重新整理後再試。', true);
+        return;
+      }
+      activeStaffProfile = { ...activeStaffProfile, nickname: profileData.nickname };
+    }
+    setButtonBusy(saveAccountProfileButton, false, '儲存帳號資料');
     accountNicknameInput.value = activeUser.user_metadata?.nickname || nickname;
     accountEmailInput.value = activeUser.new_email || activeUser.email || email;
     accountEmailLabel.textContent = activeUser.email

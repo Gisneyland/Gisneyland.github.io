@@ -715,7 +715,6 @@
   justify-content: flex-end;
 }
 
-<<<<<<< HEAD
 .account-settings {
   display: grid;
   gap: 1rem;
@@ -758,12 +757,10 @@
   border-top: 1px solid var(--border);
 }
 
-=======
 .site-content-disclosure-body .site-content-toolbar {
   margin: 0;
 }
 
->>>>>>> 6eca179551a14eae8322e916933f22c0cd53f8cd
 .screener-number-form {
   display: grid;
   min-width: 0;
