@@ -208,7 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loginOtpInput.required = otpReady;
     loginOtpResendButton.hidden = !otpReady;
     loginModeButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.adminLoginMode === loginMode)));
-    const textNode = [...loginSubmitButton.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+    const textNodes = [...loginSubmitButton.childNodes].filter(node => node.nodeType === Node.TEXT_NODE);
+    const textNode = textNodes[textNodes.length - 1];
     if (textNode) textNode.textContent = `\n        ${loginMode === 'password' ? '登入後台' : otpReady ? '驗證並登入' : '寄送驗證碼'}\n      `;
   }
 
@@ -1646,7 +1647,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function setButtonBusy(button, busy, label) {
     button.disabled = busy;
     button.querySelector('.material-icons')?.classList.toggle('spin', busy);
-    const text = Array.from(button.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
+    const textNodes = Array.from(button.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
+    const text = textNodes[textNodes.length - 1];
     if (text) {
       text.textContent = ` ${label}`;
     }
