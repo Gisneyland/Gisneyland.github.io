@@ -608,6 +608,54 @@
   color: var(--text);
 }
 
+.admin-login-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.2rem;
+  padding: 0.2rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+}
+
+.admin-login-methods button {
+  min-width: 0;
+  min-height: 2.35rem;
+  padding: 0.35rem 0.5rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.admin-login-methods button[aria-pressed="true"] {
+  color: var(--button-text);
+  background: var(--button-bg);
+  border-color: var(--button-bg);
+}
+
+.admin-login-methods button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.admin-login-password-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+#admin-login-otp-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+#admin-login-otp-resend {
+  justify-self: start;
+}
+
 #admin-login .admin-form input {
   width: 100%;
   min-height: 2.9rem;

@@ -36,5 +36,45 @@
     return `申請未成功（${code}）。請確認必填欄位與網路連線後重試；若仍失敗，請將此代碼提供給管理員。`;
   }
 
-  global.StaffAccess = Object.freeze({ PERMISSIONS, canAccess, signupErrorMessage });
+  function otpErrorMessage(error, verifying = false) {
+    const message = String(error?.message || '').toLowerCase();
+    const code = String(error?.code || error?.status || 'AUTH_ERROR');
+    if (code === 'over_email_send_rate_limit' || /rate limit|too many requests/.test(message)) {
+      return '驗證碼寄送次數過多，請稍後再試。';
+    }
+    if (code === 'email_not_confirmed' || /email not confirmed/.test(message)) {
+      return '此信箱尚未完成驗證，請先開啟註冊驗證信中的連結。';
+    }
+    if (verifying && /expired|invalid|token/.test(`${code} ${message}`)) {
+      return '驗證碼錯誤或已過期，請檢查信件或重新寄送驗證碼。';
+    }
+    if (code === 'user_not_found' || /user not found|no user found/.test(message)) {
+      return '找不到此工作人員帳號，請確認電子郵件或先申請帳號。';
+    }
+    return `無法${verifying ? '驗證' : '寄送'}登入驗證碼（${code}），請稍後重試或聯絡管理員。`;
+  }
+
+  function requestEmailOtp(client, email, emailRedirectTo) {
+    return client.auth.signInWithOtp({
+      email: String(email || '').trim(),
+      options: { shouldCreateUser: false, emailRedirectTo }
+    });
+  }
+
+  function verifyEmailOtp(client, email, token) {
+    return client.auth.verifyOtp({
+      email: String(email || '').trim(),
+      token: String(token || '').trim(),
+      type: 'email'
+    });
+  }
+
+  global.StaffAccess = Object.freeze({
+    PERMISSIONS,
+    canAccess,
+    signupErrorMessage,
+    otpErrorMessage,
+    requestEmailOtp,
+    verifyEmailOtp
+  });
 })(globalThis);

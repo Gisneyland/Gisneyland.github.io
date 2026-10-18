@@ -110,6 +110,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginPanel = document.getElementById('admin-login');
   const dashboard = document.getElementById('admin-dashboard');
   const loginForm = document.getElementById('login-form');
+  const loginEmailInput = document.getElementById('admin-email');
+  const loginPasswordInput = document.getElementById('admin-password');
+  const loginPasswordField = document.getElementById('admin-login-password-field');
+  const loginOtpField = document.getElementById('admin-login-otp-field');
+  const loginOtpInput = document.getElementById('admin-login-otp');
+  const loginOtpResendButton = document.getElementById('admin-login-otp-resend');
+  const loginModeButtons = [...document.querySelectorAll('[data-admin-login-mode]')];
+  const loginSubmitButton = loginForm.querySelector('button[type="submit"]');
   const signupForm = document.getElementById('signup-form');
   const passwordResetForm = document.getElementById('password-reset-form');
   const passwordUpdateForm = document.getElementById('password-update-form');
@@ -175,6 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const screenerNumberStatus = document.getElementById('screener-number-status');
   const saveScreenerNumberButton = document.getElementById('save-screener-number');
   let activeStaffProfile = null;
+  let loginMode = 'password';
+  let otpSentFor = '';
   let responses = [];
   const selectedNationalities = new Set();
   let currentPage = 1;
@@ -185,27 +195,107 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!window.questionnaireSupabase) {
     showStatus(loginStatus, '資料服務尚未設定，請聯絡系統管理員。', true);
-    loginForm.querySelector('button').disabled = true;
+    loginSubmitButton.disabled = true;
     return;
   }
 
+  function updateLoginMode() {
+    const usingOtp = loginMode === 'otp';
+    const otpReady = usingOtp && otpSentFor !== '' && otpSentFor === loginEmailInput.value.trim();
+    loginPasswordField.hidden = usingOtp;
+    loginPasswordInput.required = !usingOtp;
+    loginOtpField.hidden = !otpReady;
+    loginOtpInput.required = otpReady;
+    loginOtpResendButton.hidden = !otpReady;
+    loginModeButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.adminLoginMode === loginMode)));
+    const textNode = [...loginSubmitButton.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+    if (textNode) textNode.textContent = `\n        ${loginMode === 'password' ? '登入後台' : otpReady ? '驗證並登入' : '寄送驗證碼'}\n      `;
+  }
+
+  loginModeButtons.forEach(button => button.addEventListener('click', () => {
+    loginMode = button.dataset.adminLoginMode;
+    loginStatus.hidden = true;
+    updateLoginMode();
+  }));
+  loginEmailInput.addEventListener('input', () => {
+    if (otpSentFor && otpSentFor !== loginEmailInput.value.trim()) {
+      otpSentFor = '';
+      loginOtpInput.value = '';
+      updateLoginMode();
+    }
+  });
+
+  async function sendLoginOtp() {
+    const email = loginEmailInput.value.trim();
+    if (!loginEmailInput.reportValidity()) return false;
+    const { error } = await window.StaffAccess.requestEmailOtp(
+      window.questionnaireSupabase,
+      email,
+      getAdminRedirectUrl()
+    );
+    if (error) {
+      showStatus(loginStatus, window.StaffAccess.otpErrorMessage(error), true);
+      return false;
+    }
+    otpSentFor = email;
+    loginOtpInput.value = '';
+    updateLoginMode();
+    showStatus(loginStatus, `驗證碼已寄至 ${email}，請查看收件匣與垃圾郵件。`);
+    return true;
+  }
+
+  loginOtpResendButton.addEventListener('click', async () => {
+    loginOtpResendButton.disabled = true;
+    try {
+      await sendLoginOtp();
+    } catch {
+      showStatus(loginStatus, '目前無法寄送驗證碼，請稍後重試。', true);
+    } finally {
+      loginOtpResendButton.disabled = false;
+    }
+  });
+  updateLoginMode();
+
   loginForm.addEventListener('submit', async event => {
     event.preventDefault();
+    if (!loginForm.reportValidity()) return;
     const formData = new FormData(loginForm);
-    setButtonBusy(loginForm.querySelector('button'), true, '登入中');
-    showStatus(loginStatus, '登入中，請稍候。');
+    const email = String(formData.get('email') || '').trim();
+    setButtonBusy(loginSubmitButton, true, loginMode === 'otp' ? '驗證中' : '登入中');
+    showStatus(loginStatus, loginMode === 'otp' ? '正在處理信箱驗證。' : '登入中，請稍候。');
 
-    const { error } = await window.questionnaireSupabase.auth.signInWithPassword({
-      email: formData.get('email'),
-      password: formData.get('password')
-    });
-
-    setButtonBusy(loginForm.querySelector('button'), false, '登入後台');
-    if (error) {
-      showStatus(loginStatus, '登入失敗，請確認帳號與密碼。', true);
+    let error;
+    if (loginMode === 'otp' && (!otpSentFor || otpSentFor !== email)) {
+      try {
+        await sendLoginOtp();
+      } catch {
+        showStatus(loginStatus, '目前無法寄送驗證碼，請稍後重試。', true);
+      } finally {
+        setButtonBusy(loginSubmitButton, false, loginMode === 'otp' ? '寄送驗證碼' : '登入後台');
+        updateLoginMode();
+      }
       return;
     }
 
+    if (loginMode === 'otp') {
+      ({ error } = await window.StaffAccess.verifyEmailOtp(window.questionnaireSupabase, email, loginOtpInput.value));
+    } else {
+      ({ error } = await window.questionnaireSupabase.auth.signInWithPassword({
+        email,
+        password: formData.get('password')
+      }));
+    }
+
+    setButtonBusy(loginSubmitButton, false, loginMode === 'otp' ? '驗證並登入' : '登入後台');
+    if (error) {
+      showStatus(loginStatus, loginMode === 'otp'
+        ? window.StaffAccess.otpErrorMessage(error, true)
+        : '登入失敗，請確認帳號與密碼。', true);
+      return;
+    }
+
+    loginPasswordInput.value = '';
+    loginOtpInput.value = '';
     await loadSession();
   });
 

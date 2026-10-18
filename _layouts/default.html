@@ -55,12 +55,13 @@
   {% if page.url == '/activity/' %}
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   {% endif %}
+  <script src="{{ '/assets/js/staff-access.js' | relative_url }}?v=staff-otp-20261019-1"></script>
   {% if page.url == '/' or page.url == '/activity/' or page.url == '/news/' %}
   <script src="{{ '/assets/js/calendar-model.js' | relative_url }}?v=scheduling-20261018-2"></script>
   <script src="{{ '/assets/js/content.js' | relative_url }}?v=scheduling-20261018-2"></script>
   {% endif %}
   <!-- Main JS assets -->
-  <script src="{{ '/assets/js/main.js' | relative_url }}?v=referral-contacts-20261012-1"></script>
+  <script src="{{ '/assets/js/main.js' | relative_url }}?v=staff-otp-20261019-1"></script>
   
 </body>
 </html>

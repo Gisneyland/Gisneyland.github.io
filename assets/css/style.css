@@ -2494,6 +2494,48 @@ textarea:focus {
   padding: 0.35rem 0.55rem 0.55rem;
 }
 
+.staff-login-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.2rem;
+  padding: 0.2rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+}
+
+.staff-login-methods button {
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0.3rem 0.35rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.staff-login-methods button[aria-pressed="true"] {
+  color: var(--button-text);
+  background: var(--button-bg);
+  border-color: var(--button-bg);
+}
+
+.staff-login-methods button:focus-visible,
+.staff-login-resend:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.staff-login-password-field,
+#staff-login-otp-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .staff-login-form input {
   box-sizing: border-box !important;
   width: 100% !important;
@@ -2568,6 +2610,19 @@ textarea:focus {
 .staff-login-submit:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+.staff-login-resend {
+  justify-self: start;
+  padding: 0.2rem 0;
+  color: var(--button-bg);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
 .staff-login-feedback {

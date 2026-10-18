@@ -9,7 +9,7 @@ vm.runInContext(
   fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'staff-access.js'), 'utf8'),
   context
 );
-const { PERMISSIONS, canAccess, signupErrorMessage } = context.StaffAccess;
+const { PERMISSIONS, canAccess, signupErrorMessage, otpErrorMessage, requestEmailOtp, verifyEmailOtp } = context.StaffAccess;
 
 const approvedProfile = {
   approval_status: 'approved',
@@ -40,4 +40,25 @@ test('signup errors explain duplicate accounts, throttling, and database trigger
   assert.match(signupErrorMessage({ code: 'over_email_send_rate_limit' }), /稍後再試/);
   assert.match(signupErrorMessage({ message: 'Database error saving new user', code: 'unexpected_failure' }), /錯誤代碼 unexpected_failure/);
   assert.match(signupErrorMessage({ message: 'A valid staff nickname is required' }), /有效暱稱/);
+});
+
+test('OTP errors explain email confirmation, throttling, and invalid codes', () => {
+  assert.match(otpErrorMessage({ code: 'email_not_confirmed' }), /尚未完成驗證/);
+  assert.match(otpErrorMessage({ code: 'over_email_send_rate_limit' }), /稍後再試/);
+  assert.match(otpErrorMessage({ message: 'Token has expired' }, true), /錯誤或已過期/);
+});
+
+test('email OTP sends only to existing users and verifies with email OTP type', async () => {
+  const calls = [];
+  const client = { auth: {
+    signInWithOtp: async options => { calls.push(['send', options]); return { error: null }; },
+    verifyOtp: async options => { calls.push(['verify', options]); return { error: null }; }
+  } };
+  await requestEmailOtp(client, ' staff@example.org ', 'https://example.org/admin/');
+  await verifyEmailOtp(client, ' staff@example.org ', ' 123456 ');
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0])), ['send', {
+    email: 'staff@example.org',
+    options: { shouldCreateUser: false, emailRedirectTo: 'https://example.org/admin/' }
+  }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[1])), ['verify', { email: 'staff@example.org', token: '123456', type: 'email' }]);
 });

@@ -826,9 +826,63 @@ async function initializeStaffSessionIndicator() {
   const loginForm = document.getElementById('staff-login-form');
   const loginEmail = document.getElementById('staff-login-email');
   const loginPassword = document.getElementById('staff-login-password');
+  const loginPasswordField = document.getElementById('staff-login-password-field');
+  const loginOtpField = document.getElementById('staff-login-otp-field');
+  const loginOtpInput = document.getElementById('staff-login-otp');
+  const loginOtpResendButton = document.getElementById('staff-login-otp-resend');
+  const loginModeButtons = [...document.querySelectorAll('[data-staff-login-mode]')];
   const loginButton = document.getElementById('staff-login-submit');
   const loginFeedback = document.getElementById('staff-login-feedback');
   if (!indicator || !indicatorButton || !label || !menu) return { state: 'unknown' };
+  let loginMode = 'password';
+  let otpSentFor = '';
+
+  const translate = (key, fallback) => i18n[selectedPageLanguage]?.[key] || fallback;
+  const updateLoginMode = () => {
+    const usingOtp = loginMode === 'otp';
+    const otpReady = usingOtp && otpSentFor !== '' && otpSentFor === loginEmail.value.trim();
+    loginPasswordField.hidden = usingOtp;
+    loginPassword.required = !usingOtp;
+    loginOtpField.hidden = !otpReady;
+    loginOtpInput.required = otpReady;
+    loginOtpResendButton.hidden = !otpReady;
+    loginModeButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.staffLoginMode === loginMode)));
+    const labelNode = [...loginButton.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+    if (labelNode) labelNode.textContent = ` ${!usingOtp ? translate('staff_login', '登入') : otpReady ? translate('staff_verify_otp', '驗證並登入') : translate('staff_send_otp', '寄送驗證碼')}`;
+  };
+
+  loginModeButtons.forEach(button => button.addEventListener('click', () => {
+    loginMode = button.dataset.staffLoginMode;
+    loginFeedback.hidden = true;
+    updateLoginMode();
+  }));
+  loginEmail.addEventListener('input', () => {
+    if (otpSentFor && otpSentFor !== loginEmail.value.trim()) {
+      otpSentFor = '';
+      loginOtpInput.value = '';
+      updateLoginMode();
+    }
+  });
+
+  const sendStaffOtp = async () => {
+    if (!loginEmail.reportValidity()) return false;
+    const email = loginEmail.value.trim();
+    const { error } = await window.StaffAccess.requestEmailOtp(
+      window.questionnaireSupabase,
+      email,
+      `${window.location.origin}${window.location.pathname}`
+    );
+    if (error) {
+      loginFeedback.textContent = window.StaffAccess.otpErrorMessage(error);
+      loginFeedback.hidden = false;
+      return false;
+    }
+    otpSentFor = email;
+    loginFeedback.textContent = translate('staff_otp_sent', '驗證碼已寄出，請查看信箱。');
+    loginFeedback.hidden = false;
+    updateLoginMode();
+    return true;
+  };
 
   const setState = (state, key, fallback, hasSession = false) => {
     indicator.dataset.state = state;
@@ -879,27 +933,51 @@ async function initializeStaffSessionIndicator() {
 
       loginFeedback.hidden = true;
       loginButton.disabled = true;
-      loginButton.textContent = '登入中';
       try {
-        const { error } = await window.questionnaireSupabase.auth.signInWithPassword({
-          email: loginEmail.value.trim(),
-          password: loginPassword.value
-        });
+        const email = loginEmail.value.trim();
+        let error;
+        if (loginMode === 'otp' && (!otpSentFor || otpSentFor !== email)) {
+          await sendStaffOtp();
+          return;
+        }
+        if (loginMode === 'otp') {
+          ({ error } = await window.StaffAccess.verifyEmailOtp(window.questionnaireSupabase, email, loginOtpInput.value));
+        } else {
+          ({ error } = await window.questionnaireSupabase.auth.signInWithPassword({
+            email,
+            password: loginPassword.value
+          }));
+        }
         if (error) {
-          loginFeedback.textContent = '登入失敗，請確認帳號與密碼。';
+          loginFeedback.textContent = loginMode === 'otp'
+            ? window.StaffAccess.otpErrorMessage(error, true)
+            : '登入失敗，請確認帳號與密碼。';
           loginFeedback.hidden = false;
           return;
         }
         loginPassword.value = '';
+        loginOtpInput.value = '';
         window.location.reload();
       } catch {
         loginFeedback.textContent = '目前無法連線登入服務，請稍後再試。';
         loginFeedback.hidden = false;
       } finally {
         loginButton.disabled = false;
-        loginButton.textContent = '登入';
+        updateLoginMode();
       }
     });
+    loginOtpResendButton.addEventListener('click', async () => {
+      loginOtpResendButton.disabled = true;
+      try {
+        await sendStaffOtp();
+      } catch {
+        loginFeedback.textContent = '目前無法寄送驗證碼，請稍後重試。';
+        loginFeedback.hidden = false;
+      } finally {
+        loginOtpResendButton.disabled = false;
+      }
+    });
+    updateLoginMode();
   }
 
   if (!window.questionnaireSupabase) {
