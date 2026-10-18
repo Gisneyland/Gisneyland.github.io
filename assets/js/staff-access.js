@@ -69,12 +69,22 @@
     });
   }
 
+  function sendStaffInvitation(client, email, nickname) {
+    return client.functions.invoke('invite-staff', {
+      body: {
+        email: String(email || '').trim().toLowerCase(),
+        nickname: String(nickname || '').trim()
+      }
+    });
+  }
+
   global.StaffAccess = Object.freeze({
     PERMISSIONS,
     canAccess,
     signupErrorMessage,
     otpErrorMessage,
     requestEmailOtp,
-    verifyEmailOtp
+    verifyEmailOtp,
+    sendStaffInvitation
   });
 })(globalThis);

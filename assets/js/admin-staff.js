@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const status = document.getElementById('staff-management-status');
   const emptyState = document.getElementById('staff-list-empty');
   const refreshButton = document.getElementById('refresh-staff-list');
+  const inviteForm = document.getElementById('staff-invite-form');
+  const inviteSubmitButton = document.getElementById('staff-invite-submit');
   const client = window.questionnaireSupabase;
   const access = window.StaffAccess;
   if (!manager || !list || !client || !access) return;
@@ -11,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeProfile = null;
   let loadVersion = 0;
   refreshButton.addEventListener('click', loadStaff);
+  inviteForm.addEventListener('submit', sendInvitation);
   document.addEventListener('staff-profile-ready', event => {
     activeProfile = event.detail;
     const canManage = access.canAccess(activeProfile, 'staff.manage');
@@ -38,6 +41,48 @@ document.addEventListener('DOMContentLoaded', () => {
     profiles.forEach(profile => list.append(createStaffRow(profile)));
     emptyState.hidden = profiles.length !== 0;
     showStatus(`共 ${profiles.length} 個工作人員帳號。`);
+  }
+
+  async function sendInvitation(event) {
+    event.preventDefault();
+    if (!access.canAccess(activeProfile, 'staff.manage') || !inviteForm.reportValidity()) return;
+
+    const formData = new FormData(inviteForm);
+    inviteSubmitButton.disabled = true;
+    showStatus('正在寄送工作人員邀請。');
+    try {
+      const { error } = await access.sendStaffInvitation(
+        client,
+        formData.get('email'),
+        formData.get('nickname')
+      );
+      if (error) {
+        let code = error.code;
+        try {
+          code = (await error.context.json()).code || code;
+        } catch {
+          // Keep the SDK error code when no JSON response is available.
+        }
+        const messages = {
+          email_already_registered: '此信箱已有帳號，請重新整理工作人員清單並管理既有帳號。',
+          invitation_pending: '此信箱已有尚未完成的邀請。',
+          email_rate_limited: '近期寄信次數過多，請稍後再試。',
+          invalid_email: '請輸入有效的電子郵件地址。',
+          invalid_nickname: '暱稱須為 1 至 40 個字。',
+          staff_management_required: '目前帳號沒有邀請工作人員的權限。'
+        };
+        showStatus(messages[code] || '邀請未能寄出，請稍後重試或聯絡系統管理員。', true);
+        return;
+      }
+
+      inviteForm.reset();
+      await loadStaff();
+      showStatus('邀請已寄出。受邀者接受個資告知後，仍須由管理員核准。');
+    } catch {
+      showStatus('目前無法寄送邀請，請稍後重試。', true);
+    } finally {
+      inviteSubmitButton.disabled = false;
+    }
   }
 
   function createStaffRow(profile) {

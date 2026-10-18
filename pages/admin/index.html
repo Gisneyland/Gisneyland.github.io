@@ -457,6 +457,19 @@ permalink: /admin/
           </div>
           <button id="refresh-staff-list" class="admin-button secondary icon-only" type="button" title="重新整理工作人員" aria-label="重新整理工作人員"><span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span></button>
         </div>
+        <form id="staff-invite-form" class="staff-invite-form">
+          <label for="staff-invite-email">工作人員電子郵件
+            <input id="staff-invite-email" name="email" type="email" maxlength="254" autocomplete="email" required>
+          </label>
+          <label for="staff-invite-nickname">工作人員暱稱
+            <input id="staff-invite-nickname" name="nickname" type="text" maxlength="40" autocomplete="off" required>
+          </label>
+          <button id="staff-invite-submit" class="admin-button" type="submit">
+            <span class="material-icons notranslate" translate="no" aria-hidden="true">mail</span>
+            寄送邀請
+          </button>
+          <p class="admin-muted">受邀者須先接受員工個資告知；帳號仍需管理員核准後才能使用。</p>
+        </form>
         <p id="staff-management-status" class="admin-status" role="status" hidden></p>
         <div class="staff-table-wrap" role="region" aria-label="工作人員帳號列表，可左右捲動" tabindex="0">
           <table class="staff-table">

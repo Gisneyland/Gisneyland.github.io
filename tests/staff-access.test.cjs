@@ -9,7 +9,7 @@ vm.runInContext(
   fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'staff-access.js'), 'utf8'),
   context
 );
-const { PERMISSIONS, canAccess, signupErrorMessage, otpErrorMessage, requestEmailOtp, verifyEmailOtp } = context.StaffAccess;
+const { PERMISSIONS, canAccess, signupErrorMessage, otpErrorMessage, requestEmailOtp, verifyEmailOtp, sendStaffInvitation } = context.StaffAccess;
 
 const approvedProfile = {
   approval_status: 'approved',
@@ -61,4 +61,15 @@ test('email OTP sends only to existing users and verifies with email OTP type', 
     options: { shouldCreateUser: false, emailRedirectTo: 'https://example.org/admin/' }
   }]);
   assert.deepEqual(JSON.parse(JSON.stringify(calls[1])), ['verify', { email: 'staff@example.org', token: '123456', type: 'email' }]);
+});
+
+test('staff invitations call the protected function with normalized email and nickname', async () => {
+  const calls = [];
+  const client = { functions: {
+    invoke: async (...args) => { calls.push(args); return { data: { code: 'invitation_sent' }, error: null }; }
+  } };
+  await sendStaffInvitation(client, ' Staff@Example.org ', ' Staff One ');
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [[ 'invite-staff', {
+    body: { email: 'staff@example.org', nickname: 'Staff One' }
+  } ]]);
 });

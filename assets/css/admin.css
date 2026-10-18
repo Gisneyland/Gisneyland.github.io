@@ -2419,6 +2419,47 @@ button.calendar-stream-event { cursor: pointer; }
   margin-top: 0;
 }
 
+.staff-invite-form {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.2fr) minmax(10rem, 1fr) auto;
+  align-items: end;
+  gap: 0.7rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.staff-invite-form label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.staff-invite-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.7rem;
+  margin: 0;
+}
+
+.staff-invite-form > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .staff-invite-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staff-invite-form > p {
+    grid-column: auto;
+  }
+}
+
 .staff-table-wrap {
   max-width: 100%;
   overflow-x: auto;
