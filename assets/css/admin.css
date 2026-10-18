@@ -2351,6 +2351,10 @@ button.calendar-stream-event { cursor: pointer; }
 }
 
 .staff-management {
+  grid-column: 1 / -1;
+}
+
+.staff-management-body {
   display: grid;
   gap: 1rem;
 }

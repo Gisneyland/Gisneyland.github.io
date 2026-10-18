@@ -102,10 +102,6 @@ permalink: /admin/
         <span class="material-icons notranslate" translate="no" aria-hidden="true">settings</span>
         設定
       </button>
-      <button id="admin-tab-staff" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-staff" tabindex="-1" hidden>
-        <span class="material-icons notranslate" translate="no" aria-hidden="true">manage_accounts</span>
-        工作人員
-      </button>
     </div>
     <section id="admin-panel-questionnaire" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-questionnaire" tabindex="0">
       <div class="admin-stats" aria-label="篩檢紀錄統計">
@@ -434,14 +430,19 @@ permalink: /admin/
           <p id="screener-number-status" class="admin-status" role="status" hidden></p>
         </div>
       </details>
-    </section>
-    <section id="admin-panel-staff" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-staff" tabindex="0" hidden>
-      <section id="staff-management" class="admin-panel staff-management" aria-labelledby="staff-management-title" hidden>
+      <details id="staff-management" class="admin-panel admin-disclosure staff-management" aria-labelledby="staff-management-title" hidden>
+        <summary class="admin-disclosure-summary">
+          <div>
+            <h2 id="staff-management-title">篩檢員帳號與權限管理</h2>
+            <p class="admin-muted">審核申請、設定角色與工作權限。</p>
+          </div>
+          <span class="material-icons notranslate disclosure-chevron" translate="no" aria-hidden="true">expand_more</span>
+        </summary>
+        <div class="admin-disclosure-body staff-management-body">
         <div class="staff-management-heading">
           <div>
             <p class="eyebrow">帳號與存取</p>
-            <h2 id="staff-management-title">篩檢員帳號與權限管理</h2>
-            <p class="admin-muted">審核申請、設定角色與工作權限。核准前須完成員工個資告知同意。</p>
+            <p class="admin-muted">核准前須完成員工個資告知同意。</p>
           </div>
           <button id="refresh-staff-list" class="admin-button secondary icon-only" type="button" title="重新整理工作人員" aria-label="重新整理工作人員"><span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span></button>
         </div>
@@ -453,8 +454,8 @@ permalink: /admin/
           </table>
         </div>
         <p id="staff-list-empty" class="admin-empty" hidden>目前沒有工作人員帳號。</p>
-      </section>
-    </section>
+        </div>
+      </details>
   </section>
 </section>
 

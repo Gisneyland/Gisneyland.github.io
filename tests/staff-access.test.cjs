@@ -9,7 +9,7 @@ vm.runInContext(
   fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'staff-access.js'), 'utf8'),
   context
 );
-const { PERMISSIONS, canAccess } = context.StaffAccess;
+const { PERMISSIONS, canAccess, signupErrorMessage } = context.StaffAccess;
 
 const approvedProfile = {
   approval_status: 'approved',
@@ -33,4 +33,11 @@ test('administrators receive all known permissions after approval and consent', 
 test('unknown roles and malformed permission lists are denied', () => {
   assert.equal(canAccess({ ...approvedProfile, account_role: 'unknown' }, 'questionnaire.read'), false);
   assert.equal(canAccess({ ...approvedProfile, permissions: 'questionnaire.read' }, 'questionnaire.read'), false);
+});
+
+test('signup errors explain duplicate accounts, throttling, and database trigger failures', () => {
+  assert.match(signupErrorMessage({ code: 'user_already_exists' }), /已在系統中註冊/);
+  assert.match(signupErrorMessage({ code: 'over_email_send_rate_limit' }), /稍後再試/);
+  assert.match(signupErrorMessage({ message: 'Database error saving new user', code: 'unexpected_failure' }), /錯誤代碼 unexpected_failure/);
+  assert.match(signupErrorMessage({ message: 'A valid staff nickname is required' }), /有效暱稱/);
 });

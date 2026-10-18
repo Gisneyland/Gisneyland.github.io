@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     setButtonBusy(submitButton, false, '送出帳號申請');
     if (error) {
-      showStatus(loginStatus, '申請失敗，請確認電子郵件與密碼設定。', true);
+      showStatus(loginStatus, window.StaffAccess.signupErrorMessage(error), true);
       return;
     }
 
@@ -483,8 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const access = new Map([
       ['admin-tab-questionnaire', canRead],
       ['admin-tab-content', canManageContent],
-      ['admin-tab-settings', isApproved && hasConsent],
-      ['admin-tab-staff', canManageStaff]
+      ['admin-tab-settings', isApproved && hasConsent]
     ]);
     adminTabs.forEach(tab => { tab.hidden = !access.get(tab.id); });
 
@@ -514,7 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selected = adminTabs.find(tab => !tab.hidden && tab.id === 'admin-tab-questionnaire')
       || adminTabs.find(tab => !tab.hidden);
     if (selected) selectAdminTab(selected);
-    if (!canRead) showStatus(dashboardStatus, canManageStaff ? '你可以從「工作人員」管理帳號與權限。' : '帳號已核准，請聯絡管理員設定後台權限。');
+    if (!canRead) showStatus(dashboardStatus, canManageStaff ? '你可以從「設定」管理工作人員帳號與權限。' : '帳號已核准，請聯絡管理員設定後台權限。');
   }
 
   async function loadScreenerNumber(session) {
