@@ -13,7 +13,7 @@ async function fetchPublishedContent(contentType) {
 
   let query = window.questionnaireSupabase
     .from('site_content')
-    .select('id, content_type, title, category, summary, body, url, location, event_start, event_end, published_at, created_at')
+    .select('*')
     .eq('content_type', contentType)
     .eq('is_published', true);
 
@@ -154,21 +154,19 @@ async function initializeActivityCalendar() {
       );
       const results = await Promise.allSettled([
         fetchPublishedContent('event'),
+        fetchOpeningSettings(),
         ...years.map(fetchGovernmentCalendarYear)
       ]);
       const publishedResult = results[0];
       const publishedEvents = publishedResult.status === 'fulfilled' ? publishedResult.value : [];
-      const officialDays = results.slice(1)
+      const settings = results[1].status === 'fulfilled' ? results[1].value : { schedule: [], exceptions: [] };
+      const officialDays = results.slice(2)
         .filter(result => result.status === 'fulfilled')
         .flatMap(result => result.value);
-      const events = publishedEvents.map(record => ({
-        id: record.id,
-        title: record.title,
-        start: record.event_start,
-        end: record.event_end ? addIsoDays(record.event_end, 1) : undefined,
-        allDay: true,
-        extendedProps: { kind: 'activity', record }
-      }));
+      const events = publishedEvents.map(record => {
+        const event = window.SiteCalendarModel.recordEvent(record);
+        return event ? { ...event, extendedProps: { kind: 'activity', record } } : null;
+      }).filter(Boolean);
 
       const calendarDayMap = new Map(officialDays.map(day => [formatGovernmentDate(day.date), day]));
       const visibleDay = new Date(
@@ -188,7 +186,7 @@ async function initializeActivityCalendar() {
         if (isNamedHoliday) {
           events.push({
             id: `dgpa-holiday-${date}`,
-            title: '假',
+            title: description,
             start: date,
             allDay: true,
             classNames: ['dgpa-holiday-event'],
@@ -197,7 +195,7 @@ async function initializeActivityCalendar() {
         } else if (isMakeupWorkday) {
           events.push({
             id: `dgpa-makeup-${date}`,
-            title: '補',
+            title: `${description}（補班）`,
             start: date,
             allDay: true,
             classNames: ['dgpa-makeup-event'],
@@ -205,17 +203,20 @@ async function initializeActivityCalendar() {
           });
         }
 
-        const weekday = visibleDay.getDay();
-        if (weekday >= 2 && weekday <= 6 && !isNamedHoliday) {
+        const opening = window.SiteCalendarModel.openingForDate(date, settings.schedule, settings.exceptions, isNamedHoliday);
+        if (!opening.closed) {
           events.push({
             id: `opening-hours-${date}`,
-            title: '風城部屋開放時段 14:00–22:00',
+            title: `風城部屋開放時段 ${opening.start}–${opening.end}`,
             start: date,
             allDay: true,
             display: 'background',
             classNames: ['opening-hours-event'],
-            extendedProps: { kind: 'opening-hours' }
+            extendedProps: { kind: 'opening-hours', opening }
           });
+        } else if (opening.exception) {
+          events.push({ id: `opening-closed-${date}`, title: `休館${opening.note ? ` · ${opening.note}` : ''}`, start: date, allDay: true,
+            classNames: ['dgpa-holiday-event'], extendedProps: { kind: 'opening-closure', description: opening.note || '休館' } });
         }
 
         visibleDay.setDate(visibleDay.getDate() + 1);
@@ -226,10 +227,12 @@ async function initializeActivityCalendar() {
         status.textContent = missingTable
           ? '活動資料庫尚未設定；開放時段與政府假日仍可查看。'
           : '活動資料暫時無法載入；開放時段與政府假日仍可查看。';
-      } else if (results.slice(1).some(result => result.status === 'rejected')) {
+      } else if (results[1].status === 'rejected') {
+        status.textContent = '營業設定暫時無法載入，目前顯示預設時段；請以團隊公告為準。';
+      } else if (results.slice(2).some(result => result.status === 'rejected')) {
         status.textContent = `開放時段與 ${officialDays.length ? '部分' : '無'}政府假日已載入${publishedEvents.length ? `；另有 ${publishedEvents.length} 場已上架活動` : ''}。`;
       } else {
-        status.textContent = `週二至週六 14:00–22:00；依人事行政總處辦公日曆排除國定假日${publishedEvents.length ? `；${publishedEvents.length} 場已上架活動` : ''}。`;
+        status.textContent = `開放日期已依固定時段、國定假日與單日例外更新${publishedEvents.length ? `；${publishedEvents.length} 場已上架活動` : ''}。`;
       }
       successCallback(events);
     },
@@ -243,19 +246,20 @@ async function initializeActivityCalendar() {
       badge.setAttribute('translate', 'no');
       badge.setAttribute('aria-label', description || info.event.title);
       badge.title = description || info.event.title;
-      badge.textContent = kind === 'government-holiday' ? '假' : '補';
+      badge.classList.add('calendar-holiday-label');
+      badge.textContent = description || info.event.title;
       return { domNodes: [badge] };
     },
     eventDidMount: info => {
       const { kind, description, record } = info.event.extendedProps;
       const hoverText = kind === 'opening-hours'
-        ? '風城部屋固定開放時段：週二至週六 14:00–22:00。國定假日休館。'
+        ? info.event.title
         : kind === 'government-holiday' || kind === 'government-makeup-workday'
           ? `${description || info.event.title}：${formatIsoDate(info.event.startStr)}`
           : record
             ? [
               record.title,
-              formatEventDateRange(record.event_start, record.event_end),
+              formatManagedEventDates(record),
               record.location && `地點：${record.location}`,
               record.summary,
               record.body
@@ -277,8 +281,8 @@ async function initializeActivityCalendar() {
         renderEventDetails(details, record);
         return;
       }
-      if (kind === 'government-holiday' || kind === 'government-makeup-workday') {
-        renderCalendarNotice(details, kind === 'government-holiday' ? '國定假日' : '補班日', info.event.startStr, description);
+      if (kind === 'government-holiday' || kind === 'government-makeup-workday' || kind === 'opening-closure') {
+        renderCalendarNotice(details, kind === 'government-holiday' ? '國定假日' : kind === 'opening-closure' ? '休館' : '補班日', info.event.startStr, description);
       }
     }
   });
@@ -334,10 +338,11 @@ function formatLocalDate(date) {
 
 async function exportActivityCalendar(status) {
   const button = document.getElementById('calendar-export-button');
-  const currentYear = new Date().getFullYear();
+  const currentYear = Number(window.SiteCalendarModel.dateKey(new Date()).slice(0, 4));
   const years = [currentYear, currentYear + 1];
   button.disabled = true;
   try {
+    const settings = await fetchOpeningSettings();
     const holidayResults = await Promise.allSettled(years.map(fetchGovernmentCalendarYear));
     const availableYears = holidayResults
       .map((result, index) => result.status === 'fulfilled' ? years[index] : null)
@@ -355,16 +360,15 @@ async function exportActivityCalendar(status) {
       console.warn('匯出行事曆時無法載入活動資料。', error);
     }
 
-    const firstDate = new Date();
-    firstDate.setHours(0, 0, 0, 0);
-    const lastDate = new Date(Math.max(...availableYears) + 1, 0, 1);
-    const firstDateKey = formatLocalDate(firstDate);
-    const lastDateKey = formatLocalDate(lastDate);
+    const firstDateKey = window.SiteCalendarModel.dateKey(new Date());
+    const lastDateKey = `${Math.max(...availableYears) + 1}-01-01`;
+    const firstDate = new Date(`${firstDateKey}T00:00:00Z`);
+    const lastDate = new Date(`${lastDateKey}T00:00:00Z`);
     const calendarEvents = [];
     const day = new Date(firstDate);
 
     while (day < lastDate) {
-      const date = formatLocalDate(day);
+      const date = day.toISOString().slice(0, 10);
       const dateRow = calendarDayMap.get(date);
       const description = String(dateRow?.description || '').trim();
       const isPublicHoliday = dateRow?.isHoliday && description.length > 0;
@@ -386,29 +390,35 @@ async function exportActivityCalendar(status) {
         ]));
       }
 
-      const weekday = day.getDay();
-      if (weekday >= 2 && weekday <= 6 && !isPublicHoliday) {
+      const opening = window.SiteCalendarModel.openingForDate(date, settings.schedule, settings.exceptions, isPublicHoliday);
+      if (!opening.closed) {
         calendarEvents.push(createIcsEvent(`opening-${date}`, '風城部屋開放時段', [
-          `DTSTART:${toIcsUtc(date, '060000')}`,
-          `DTEND:${toIcsUtc(date, '140000')}`,
+          `DTSTART:${window.SiteCalendarModel.icsTimestamp(`${date}T${opening.start}:00+08:00`)}`,
+          `DTEND:${window.SiteCalendarModel.icsTimestamp(`${date}T${opening.end}:00+08:00`)}`,
           'CATEGORIES:開放時段',
-          'DESCRIPTION:每週二至週六 14:00–22:00（Asia/Taipei）；國定假日休館。來源：風城部屋團隊資訊。',
+          `DESCRIPTION:${escapeIcsText(`風城部屋開放 ${opening.start}–${opening.end}（Asia/Taipei）${opening.note ? `；${opening.note}` : ''}`)}`,
           'URL:https://hackmd.io/@HsinchuPride/Welcome'
         ]));
       }
-      day.setDate(day.getDate() + 1);
+      day.setUTCDate(day.getUTCDate() + 1);
     }
 
     activityRecords.forEach(record => {
-      if (!record.event_start) return;
-      if (record.event_start < firstDateKey || record.event_start >= lastDateKey) return;
+      const event = window.SiteCalendarModel.recordEvent(record);
+      if (!event || event.end <= firstDateKey || event.start >= lastDateKey) return;
       const start = record.event_start;
       const end = record.event_end ? addIsoDays(record.event_end, 1) : addIsoDays(start, 1);
       calendarEvents.push(createIcsEvent(`activity-${record.id}`, record.title, [
-        `DTSTART;VALUE=DATE:${toIcsDate(start)}`,
-        `DTEND;VALUE=DATE:${toIcsDate(end)}`,
+        ...(event.allDay ? [
+          `DTSTART;VALUE=DATE:${toIcsDate(start)}`,
+          `DTEND;VALUE=DATE:${toIcsDate(end)}`
+        ] : [
+          `DTSTART:${window.SiteCalendarModel.icsTimestamp(record.event_start_at)}`,
+          `DTEND:${window.SiteCalendarModel.icsTimestamp(record.event_end_at)}`
+        ]),
         `DESCRIPTION:${escapeIcsText([record.summary, record.body].filter(Boolean).join('\n'))}`,
         ...(record.location ? [`LOCATION:${escapeIcsText(record.location)}`] : []),
+        ...(Number.isFinite(record.location_latitude) && Number.isFinite(record.location_longitude) ? [`GEO:${record.location_latitude};${record.location_longitude}`] : []),
         ...(record.url ? [`URL:${escapeIcsText(resolveContentUrl(record.url))}`] : []),
         'CATEGORIES:風城部屋活動'
       ]));
@@ -513,7 +523,7 @@ function resolveContentUrl(value) {
 function renderEventDetails(container, record) {
   container.hidden = false;
   document.getElementById('activity-event-title').textContent = record.title;
-  document.getElementById('activity-event-date').textContent = formatEventDateRange(record.event_start, record.event_end);
+  document.getElementById('activity-event-date').textContent = formatManagedEventDates(record);
 
   const location = document.getElementById('activity-event-location');
   location.textContent = record.location ? `地點：${record.location}` : '';
@@ -538,6 +548,25 @@ function renderEventDetails(container, record) {
       link.hidden = false;
     }
   }
+}
+
+function formatManagedEventDates(record) {
+  if (record.is_all_day === false && record.event_start_at && record.event_end_at) {
+    const formatter = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    return `${formatter.format(new Date(record.event_start_at))} 至 ${formatter.format(new Date(record.event_end_at))}`;
+  }
+  return `${formatEventDateRange(record.event_start, record.event_end)}（整天）`;
+}
+
+async function fetchOpeningSettings() {
+  const results = await Promise.all([
+    window.questionnaireSupabase.from('site_opening_schedule').select('*'),
+    window.questionnaireSupabase.from('site_opening_exceptions').select('*')
+  ]);
+  for (const result of results) {
+    if (result.error && !['PGRST205', '42P01'].includes(result.error.code)) throw result.error;
+  }
+  return { schedule: results[0].data || [], exceptions: results[1].data || [] };
 }
 
 function formatEventDateRange(start, end) {

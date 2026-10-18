@@ -91,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (questionnaireForm) {
     const screenerNumberReady = initializeScreenerNumber(questionnaireForm, staffSessionReady);
     initializeQuestionnaire(questionnaireForm);
+    initializeAnonymousConsult(questionnaireForm);
     questionnaireForm.addEventListener('submit', async function(event) {
       event.preventDefault();
       const status = document.getElementById('form-status');
@@ -167,6 +168,57 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+/* 匿名諮詢網（hiva.cdc.gov.tw）風險評估第一頁的題目對照 */
+function buildAnonymousConsultAnswers(data) {
+  const yn = value => (value === 'yes' ? '是 Yes' : value === 'no' ? '否 No' : '');
+  const noSex = data.frequency_sex === 'no';
+  const skipped = '沒有發生 Did not happen（該題會被停用，不需選擇）';
+  const dependent = value => (noSex ? skipped : yn(value));
+  const partner = data.frequency_closed_relationship === 'none'
+    ? '否 No（本站答「沒有固定性伴侶」）'
+    : yn(data.frequency_closed_relationship);
+  const drug = data.frequency_drug;
+  return [
+    ['最近一年是否有與他人發生過性行為（肛交、口交或陰道交）？', yn(data.frequency_sex)],
+    ['最近一年每次性行為時都有全程使用保險套？', dependent(data.frequency_condom)],
+    ['最近一年發生性行為時，是否都是跟固定性伴侶？', noSex ? skipped : partner],
+    ['性行為的前後或過程中是否有用酒？', dependent(data.frequency_alcohol)],
+    ['性行為的前後或過程中是否有用藥？', dependent(drug)]
+  ];
+}
+
+function initializeAnonymousConsult(form) {
+  const list = document.getElementById('anonymous-consult-answers');
+  const copyButton = document.getElementById('anonymous-consult-copy');
+  const copyStatus = document.getElementById('anonymous-consult-copy-status');
+  if (!list) return;
+  const render = () => {
+    const rows = buildAnonymousConsultAnswers(collectFormData(form));
+    list.replaceChildren(...rows.map(([question, answer]) => {
+      const item = document.createElement('li');
+      item.textContent = `${question} → ${answer || '（受檢者尚未填答）'}`;
+      return item;
+    }));
+    return rows;
+  };
+  render();
+  form.addEventListener('change', render);
+  form.addEventListener('click', event => {
+    if (event.target.closest('#handoff-screening-button')) render();
+  });
+  copyButton?.addEventListener('click', async () => {
+    const text = render().map(([question, answer], index) => `${index + 1}. ${question} ${answer}`).join('\n');
+    let message = '已複製。';
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      message = '無法自動複製，請手動選取上方文字。';
+    }
+    copyStatus.textContent = message;
+    copyStatus.hidden = false;
+  });
+}
 
 function initializeAmbientRainbow() {
   const root = document.documentElement;
@@ -876,7 +928,7 @@ async function initializeStaffSessionIndicator() {
   try {
     const { data: profile, error } = await window.questionnaireSupabase
       .from('admin_profiles')
-      .select('screener_number')
+      .select('screener_number, approval_status, privacy_consent_at')
       .eq('user_id', sessionData.session.user.id)
       .maybeSingle();
 
@@ -884,7 +936,7 @@ async function initializeStaffSessionIndicator() {
       setState('error', 'staff_status_error', '無法確認工作人員權限', true);
       return { state: 'error', session: sessionData.session };
     }
-    if (!profile) {
+    if (!profile || profile.approval_status !== 'approved' || !profile.privacy_consent_at) {
       setState('not-staff', 'staff_status_not_authorized', '目前帳號不是授權工作人員', true);
       return { state: 'not-staff', session: sessionData.session };
     }

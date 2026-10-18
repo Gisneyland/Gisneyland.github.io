@@ -1,6 +1,6 @@
 ---
 layout: admin
-title: 問卷管理後台
+title: 後台管理
 permalink: /admin/
 ---
 
@@ -8,8 +8,8 @@ permalink: /admin/
   <div class="admin-header">
     <div>
       <p class="eyebrow">GisneyLand 內部使用</p>
-      <h1 id="admin-title">內容與問卷管理</h1>
-      <p class="admin-subtitle">管理健康問卷、新聞上架與活動行事曆；僅供授權工作人員使用。</p>
+      <h1 id="admin-title">後台管理</h1>
+      <p class="admin-subtitle">管理篩檢分析、回覆紀錄與網站內容；僅供授權工作人員使用。</p>
     </div>
     <div class="admin-header-actions">
       <a id="open-questionnaire-button" class="admin-button secondary" href="{{ '/hiva/' | relative_url }}" target="_blank" rel="noopener" hidden>
@@ -72,149 +72,348 @@ permalink: /admin/
   </section>
 
   <section id="admin-dashboard" hidden>
-    <div class="admin-toolbar">
-      <div>
-        <h2>問卷資料</h2>
-        <p id="admin-user" class="admin-muted"></p>
-      </div>
-      <div class="admin-actions">
-        <button id="refresh-button" class="admin-button secondary" type="button">
-          <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
-          重新整理
-        </button>
-        <button id="export-button" class="admin-button secondary" type="button">
-          <span class="material-icons notranslate" translate="no" aria-hidden="true">download</span>
-          匯出目前結果
-        </button>
-      </div>
+    <div class="admin-tabs" role="tablist" aria-label="後台功能">
+      <button id="admin-tab-questionnaire" class="admin-tab" type="button" role="tab" aria-selected="true" aria-controls="admin-panel-questionnaire" tabindex="0">
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">assignment</span>
+        篩檢分析
+      </button>
+      <button id="admin-tab-content" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-content" tabindex="-1" hidden>
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">campaign</span>
+        新聞與活動
+      </button>
+      <button id="admin-tab-settings" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-settings" tabindex="-1">
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">settings</span>
+        設定
+      </button>
     </div>
-    <section class="admin-panel screener-binding-panel" aria-labelledby="screener-binding-title">
-      <div>
-        <h2 id="screener-binding-title">我的篩檢員編號</h2>
-        <p class="admin-muted">設定後，登入此帳號回到問卷時會自動帶入。每個編號只能綁定一個帳號。</p>
+    <section id="admin-panel-questionnaire" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-questionnaire" tabindex="0">
+      <div class="admin-stats" aria-label="篩檢紀錄統計">
+        <div class="stat-card"><span>HIV 陽性 / 篩檢</span><strong id="hiv-screening-ratio">0 / 0</strong></div>
+        <div class="stat-card"><span>梅毒陽性 / 篩檢</span><strong id="syphilis-screening-ratio">0 / 0</strong></div>
+        <div class="stat-card"><span>諮詢回填 / 問卷</span><strong id="consultation-fill-ratio">0 / 0</strong></div>
       </div>
-      <form id="screener-number-form" class="screener-number-form">
-        <label for="screener-number-input">篩檢員編號</label>
-        <div class="screener-number-controls">
-          <input id="screener-number-input" name="screener_number" type="text" maxlength="80" autocomplete="off" required disabled>
-          <button id="save-screener-number" class="admin-button" type="submit" disabled>儲存編號</button>
+      <div class="screening-analytics-grid">
+        <section class="analytics-panel screening-map-panel" aria-labelledby="screening-map-title">
+          <div class="analytics-panel-heading">
+            <div>
+              <h2 id="screening-map-title">篩檢地點熱區</h2>
+              <p>依篩檢類型與送出時間範圍彙總；時間使用台北時區。</p>
+            </div>
+          </div>
+          <div class="screening-map-controls">
+            <fieldset class="map-mode-control">
+              <legend class="sr-only">地圖篩檢類型</legend>
+              <label><input type="radio" name="screening-map-mode" value="all" checked><span>總篩檢</span></label>
+              <label><input type="radio" name="screening-map-mode" value="hiv"><span>HIV</span></label>
+              <label><input type="radio" name="screening-map-mode" value="syphilis"><span>梅毒</span></label>
+            </fieldset>
+            <div class="map-range-controls">
+              <div class="filter-field">
+                <label for="screening-range-start">開始時間</label>
+                <input id="screening-range-start" type="datetime-local" step="60">
+              </div>
+              <span class="map-range-separator" aria-hidden="true">至</span>
+              <div class="filter-field">
+                <label for="screening-range-end">結束時間</label>
+                <input id="screening-range-end" type="datetime-local" step="60">
+              </div>
+              <button id="reset-screening-range" class="admin-button secondary icon-only map-range-reset" type="button" aria-label="重設時間範圍" title="重設時間範圍">
+                <span class="material-icons notranslate" translate="no" aria-hidden="true">restart_alt</span>
+              </button>
+            </div>
+          </div>
+          <p id="screening-map-summary" class="map-summary" role="status"></p>
+          <div id="screening-map" class="screening-map" role="region" aria-label="篩檢地點熱區地圖"></div>
+          <div class="screening-map-legend" aria-label="地圖比例圖例">
+            <div class="map-legend-row">
+              <span class="map-legend-key">陽性占比</span>
+              <div class="map-legend-color-scale" aria-label="低至高">
+                <span>低</span>
+                <span class="map-legend-gradient" aria-hidden="true"></span>
+                <span>高</span>
+              </div>
+            </div>
+            <div class="map-legend-row">
+              <span class="map-legend-key">篩檢占比</span>
+              <div class="map-legend-size-scale" aria-label="圓面積從 0% 線性增加至 100%">
+                <span>0%</span>
+                <div id="screening-volume-scale" class="map-size-examples" aria-hidden="true"></div>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
+          <p id="screening-map-empty" class="analytics-empty" hidden>目前範圍內沒有可對應的據點紀錄。</p>
+          <script id="admin-screening-place-data" type="application/json">{{ site.data.screening_places | jsonify }}</script>
+        </section>
+      </div>
+    <section class="questionnaire-workspace" aria-labelledby="questionnaire-title">
+      <div class="questionnaire-heading">
+        <div>
+          <p class="eyebrow">回覆管理</p>
+            <h2 id="questionnaire-title">篩檢紀錄</h2>
+            <p class="admin-muted">搜尋、篩選並檢視已提交的篩檢紀錄。</p>
+          </div>
+          <div class="admin-actions">
+            <button id="refresh-button" class="admin-button secondary icon-only" type="button" aria-label="重新整理紀錄" title="重新整理紀錄">
+              <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
+            </button>
+            <button id="export-button" class="admin-button secondary icon-only" type="button" aria-label="匯出目前結果" title="匯出目前結果">
+              <span class="material-icons notranslate" translate="no" aria-hidden="true">download</span>
+            </button>
         </div>
-      </form>
-      <p id="screener-number-status" class="admin-status" role="status" hidden></p>
+      </div>
+      <div class="admin-filters">
+        <div class="filter-field filter-search">
+          <label for="search-responses">搜尋篩檢員、地點或諮詢代碼</label>
+          <input id="search-responses" type="search" placeholder="輸入關鍵字">
+        </div>
+        <div class="filter-field nationality-filter-field">
+          <label for="nationality-filter-search">國籍篩選</label>
+          <input id="nationality-filter-search" type="search" autocomplete="off" placeholder="搜尋國家或地區">
+          <div id="nationality-filter-selected" class="selected-values admin-nationality-selected" aria-live="polite"></div>
+          <div id="nationality-filter-options" class="admin-nationality-options" role="group" aria-label="國籍選項"></div>
+        </div>
+        <div class="filter-field">
+          <label for="consultation-filter">匿名諮詢</label>
+          <select id="consultation-filter">
+            <option value="all">全部</option>
+            <option value="pending">待處理</option>
+            <option value="completed">已完成</option>
+          </select>
+        </div>
+      </div>
+      <p id="dashboard-status" class="admin-status" role="status" hidden></p>
+      <div class="admin-table-wrap" role="region" aria-label="篩檢紀錄表格，可左右捲動" tabindex="0">
+        <table class="admin-table">
+          <caption class="sr-only">篩檢紀錄；桌機雙擊、觸控點按或鍵盤操作可查看詳細資料</caption>
+          <thead>
+            <tr>
+              <th scope="col">送出時間</th>
+              <th scope="col">諮詢代碼</th>
+              <th scope="col">篩檢員</th>
+              <th scope="col">地點</th>
+              <th scope="col">國籍</th>
+            </tr>
+          </thead>
+          <tbody id="responses-body"></tbody>
+        </table>
+      </div>
+      <p id="empty-state" class="admin-empty" hidden>目前沒有符合條件的資料。</p>
+      <div class="admin-pagination" aria-label="問卷分頁">
+        <button id="previous-page" class="admin-button secondary" type="button">上一頁</button>
+        <span id="page-status">第 1 頁</span>
+        <button id="next-page" class="admin-button secondary" type="button">下一頁</button>
+      </div>
     </section>
+    </section>
+    <section id="admin-panel-content" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-content" tabindex="0" hidden>
     <section id="site-content-management" class="admin-panel" aria-labelledby="site-content-title" hidden>
       <div class="site-content-heading">
         <div>
           <h2 id="site-content-title">新聞與活動</h2>
-          <p class="admin-muted">草稿僅工作人員可見；上架後會顯示於網站，活動會加入行事曆。</p>
+          <span id="site-content-count" class="admin-muted"></span>
         </div>
-        <button id="new-site-content-button" class="admin-button" type="button">
-          <span class="material-icons notranslate" translate="no" aria-hidden="true">add</span>
-          新增內容
-        </button>
       </div>
-      <div class="site-content-toolbar">
-        <label for="site-content-filter">內容類型</label>
-        <select id="site-content-filter">
-          <option value="all">全部</option>
-          <option value="news">新聞</option>
-          <option value="event">活動</option>
-        </select>
-        <button id="refresh-site-content-button" class="admin-button secondary" type="button">
-          <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
-          重新整理
-        </button>
-      </div>
-      <form id="site-content-form" class="site-content-form" hidden>
-        <input id="site-content-id" type="hidden">
-        <div class="site-content-form-grid">
-          <label for="site-content-type">內容類型</label>
-          <select id="site-content-type" required>
+        <div class="site-content-toolbar">
+          <div class="content-segmented-control" role="group" aria-label="內容類型">
+            <button type="button" data-content-filter="all" aria-pressed="true">全部</button>
+            <button type="button" data-content-filter="news" aria-pressed="false">新聞</button>
+            <button type="button" data-content-filter="event" aria-pressed="false">活動</button>
+          </div>
+          <select id="site-content-filter" aria-label="內容類型" hidden>
+            <option value="all">全部</option>
             <option value="news">新聞</option>
             <option value="event">活動</option>
           </select>
-          <label for="site-content-category">分類</label>
-          <input id="site-content-category" type="text" maxlength="80" placeholder="例如：社群、文化、健康">
-          <label for="site-content-title-input">標題</label>
-          <input id="site-content-title-input" type="text" maxlength="180" required>
-          <label for="site-content-summary">摘要</label>
-          <textarea id="site-content-summary" rows="3" maxlength="600" required></textarea>
-          <label for="site-content-body">詳細內容</label>
-          <textarea id="site-content-body" rows="5" maxlength="12000"></textarea>
-          <div id="site-content-event-fields" class="site-content-event-fields" hidden>
-            <label for="site-content-event-start">活動開始日期</label>
-            <input id="site-content-event-start" type="date">
-            <label for="site-content-event-end">活動結束日期（含當日，可留空）</label>
-            <input id="site-content-event-end" type="date">
-            <label for="site-content-location">地點</label>
-            <input id="site-content-location" type="text" maxlength="180">
-          </div>
-          <label for="site-content-url">相關連結</label>
-          <input id="site-content-url" type="text" maxlength="500" placeholder="https://... 或 /頁面路徑">
-          <label class="site-content-publish-toggle" for="site-content-published">
-            <input id="site-content-published" type="checkbox">
-            立即上架
-          </label>
-        </div>
-        <div class="site-content-form-actions">
-          <button class="admin-button" type="submit">
-            <span class="material-icons notranslate" translate="no" aria-hidden="true">save</span>
-            儲存內容
+          <div class="content-toolbar-actions">
+          <button id="edit-opening-hours-button" class="admin-button secondary icon-only" type="button" title="編輯營業時段" aria-label="編輯營業時段"><span class="material-icons notranslate" translate="no" aria-hidden="true">store</span></button>
+          <button id="refresh-site-content-button" class="admin-button secondary icon-only" type="button" title="重新整理內容" aria-label="重新整理內容">
+            <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
           </button>
-          <button id="cancel-site-content-button" class="admin-button secondary" type="button">取消</button>
+          <button id="new-site-content-button" class="admin-button" type="button"><span class="material-icons notranslate" translate="no" aria-hidden="true">add</span>新增</button>
+          </div>
         </div>
-        <p id="site-content-form-status" class="admin-status" role="status" hidden></p>
-      </form>
-      <p id="site-content-status" class="admin-status" role="status" hidden></p>
-      <div id="site-content-list" class="site-content-list"></div>
-      <p id="site-content-empty" class="admin-empty" hidden>目前沒有符合條件的內容。</p>
+        <div class="content-workspace-navigation">
+          <div class="content-segmented-control" role="group" aria-label="工作檢視">
+            <button type="button" data-content-view="calendar" aria-controls="site-content-calendar-view" aria-pressed="true"><span class="material-icons notranslate" translate="no" aria-hidden="true">calendar_today</span>行事曆</button>
+            <button type="button" data-content-view="records" aria-controls="site-content-records-view" aria-pressed="false"><span class="material-icons notranslate" translate="no" aria-hidden="true">view_list</span>內容管理</button>
+          </div>
+        </div>
+        <p id="site-content-status" class="admin-status" role="status" hidden></p>
+        <section id="site-content-calendar-view" aria-label="行事曆工作區">
+          <div class="calendar-navigation">
+            <button id="calendar-period-title" class="calendar-period-title" type="button" title="選擇年份" aria-haspopup="dialog"><span id="calendar-period-label"></span><span class="material-icons notranslate" translate="no" aria-hidden="true">arrow_drop_down</span></button>
+            <div class="calendar-date-navigation" role="group" aria-label="日期導覽">
+              <button id="calendar-previous" class="admin-button secondary icon-only" type="button" title="上一個期間" aria-label="上一個期間"><span class="material-icons notranslate" translate="no" aria-hidden="true">chevron_left</span></button>
+              <button id="calendar-now" class="admin-button secondary" type="button" title="回到現在"></button>
+              <button id="calendar-next" class="admin-button secondary icon-only" type="button" title="下一個期間" aria-label="下一個期間"><span class="material-icons notranslate" translate="no" aria-hidden="true">chevron_right</span></button>
+            </div>
+            <div class="content-segmented-control calendar-view-modes" role="group" aria-label="日曆檢視">
+              <button type="button" data-calendar-mode="dayGridMonth" title="月檢視" aria-label="月檢視" aria-pressed="true"><span class="material-icons notranslate" translate="no" aria-hidden="true">view_module</span></button>
+              <button type="button" data-calendar-mode="listWeek" title="週檢視" aria-label="週檢視" aria-pressed="false"><span class="material-icons notranslate" translate="no" aria-hidden="true">view_week</span></button>
+              <button type="button" data-calendar-mode="timeGridDay" title="日檢視" aria-label="日檢視" aria-pressed="false"><span class="material-icons notranslate" translate="no" aria-hidden="true">today</span></button>
+              <button type="button" data-calendar-mode="listMonth" title="連續清單" aria-label="連續清單" aria-pressed="false"><span class="material-icons notranslate" translate="no" aria-hidden="true">view_list</span></button>
+            </div>
+          </div>
+          <div id="site-content-calendar" class="site-content-calendar" aria-label="新聞與活動行事曆"></div>
+          <p id="calendar-source-status" class="admin-muted" role="status" hidden></p>
+          <div id="calendar-stream" class="calendar-stream" tabindex="0" aria-label="連續日期清單" hidden>
+            <div id="calendar-stream-before" class="calendar-stream-sentinel" aria-hidden="true"></div>
+            <div id="calendar-stream-days"></div>
+            <div id="calendar-stream-after" class="calendar-stream-sentinel" aria-hidden="true"></div>
+          </div>
+          <dialog id="calendar-year-dialog" class="calendar-small-dialog" aria-labelledby="calendar-year-title">
+            <form id="calendar-year-form"><h3 id="calendar-year-title">選擇年份</h3><label for="calendar-year-input">年份</label><input id="calendar-year-input" type="number" min="1900" max="2200" required><div class="calendar-dialog-actions"><button id="calendar-year-cancel" class="admin-button secondary" type="button">取消</button><button class="admin-button" type="submit">前往</button></div></form>
+          </dialog>
+        </section>
+        <section id="site-content-records-view" aria-label="內容管理工作區" hidden>
+          <table class="site-content-table">
+            <thead><tr><th scope="col">日期</th><th scope="col">內容</th><th scope="col">發布狀態</th><th scope="col"><span class="content-sr-only">操作</span></th></tr></thead>
+            <tbody id="site-content-list"></tbody>
+          </table>
+          <p id="site-content-empty" class="admin-empty" hidden>目前沒有符合條件的內容。</p>
+        </section>
+        <details id="calendar-environment-drawer" class="calendar-environment-drawer">
+          <summary>
+            <span class="material-icons notranslate" translate="no" aria-hidden="true">public</span>
+            <span class="environment-summary-title">環境資訊</span>
+            <span id="calendar-environment-location-summary" class="admin-muted">風城部屋・新竹</span>
+            <span id="calendar-environment-weather-summary"></span>
+            <span id="calendar-environment-alert-summary" class="environment-alert-summary">災害資料待查詢</span>
+            <span class="material-icons notranslate environment-drawer-chevron" translate="no" aria-hidden="true">expand_more</span>
+          </summary>
+          <div class="calendar-environment-drawer-body">
+        <form id="calendar-location-form" class="calendar-location-controls" role="search" aria-label="預報地點">
+          <label for="calendar-location-query">預報地點</label>
+          <input id="calendar-location-query" type="search" maxlength="100" placeholder="搜尋城市或鄉鎮" required>
+          <button class="admin-button secondary icon-only" type="submit" title="搜尋地點" aria-label="搜尋地點"><span class="material-icons notranslate" translate="no" aria-hidden="true">search</span></button>
+          <button id="calendar-locate" class="admin-button secondary icon-only" type="button" title="使用目前位置" aria-label="使用目前位置"><span class="material-icons notranslate" translate="no" aria-hidden="true">my_location</span></button>
+          <button id="calendar-location-reset" class="admin-button secondary icon-only" type="button" title="回到風城部屋" aria-label="回到風城部屋"><span class="material-icons notranslate" translate="no" aria-hidden="true">home</span></button>
+          <select id="calendar-location-results" aria-label="選擇搜尋結果" hidden></select>
+        </form>
+        <p id="calendar-location-status" class="admin-muted" role="status"></p>
+        <div id="site-content-calendar-outlook" class="site-content-calendar-outlook" aria-label="未來七日天氣與農民曆"></div>
+        <details id="calendar-sky-panel" class="calendar-environment-panel">
+          <summary><span class="material-icons notranslate" translate="no" aria-hidden="true">nights_stay</span>星空與天象<span id="calendar-moon-summary" class="admin-muted"></span></summary>
+          <div class="calendar-environment-body">
+            <label for="calendar-sky-date">觀測日期（台北時間 UTC+8）</label>
+            <input id="calendar-sky-date" type="date">
+            <div id="calendar-sky-content" aria-live="polite"></div>
+            <p class="admin-muted">天文計算：<a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener noreferrer">Astronomy Engine</a>。地平線以上不代表肉眼可見；天氣、光害與地形仍會影響觀測。</p>
+          </div>
+        </details>
+        <details id="calendar-disaster-panel" class="calendar-environment-panel">
+          <summary><span class="material-icons notranslate" translate="no" aria-hidden="true">public</span>全球災害資訊<span id="calendar-disaster-summary" class="admin-muted">尚未查詢</span></summary>
+          <div class="calendar-environment-body">
+            <div class="calendar-disaster-controls">
+              <label for="calendar-disaster-scope">事件範圍</label>
+              <select id="calendar-disaster-scope"><option value="0">全球</option><option value="1000">距所選地點 1,000 公里內</option><option value="3000">距所選地點 3,000 公里內</option></select>
+              <label for="calendar-disaster-type">災害類型</label>
+              <select id="calendar-disaster-type"><option value="all">全部</option><option value="EQ">地震</option><option value="TC">熱帶氣旋／颱風</option><option value="TS">海嘯公告</option></select>
+              <button id="calendar-disaster-refresh" class="admin-button secondary icon-only" type="button" title="更新災害資訊" aria-label="更新災害資訊"><span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span></button>
+            </div>
+            <p class="admin-muted">資料可能延遲或不完整，不能取代當地政府警報與避難指示。海嘯公告依發布中心涵蓋區域顯示，不以震央距離排除。</p>
+            <div id="calendar-disaster-content" aria-live="polite"></div>
+          </div>
+        </details>
+          </div>
+        </details>
+        <dialog id="site-content-editor" class="site-content-editor" aria-labelledby="site-content-editor-title">
+          <div class="content-editor-header">
+            <h2 id="site-content-editor-title">新增內容</h2>
+            <button id="close-site-content-editor" class="admin-button secondary icon-only" type="button" title="關閉編輯" aria-label="關閉編輯"><span class="material-icons notranslate" translate="no" aria-hidden="true">close</span></button>
+          </div>
+        <form id="site-content-form" class="site-content-form" hidden>
+          <input id="site-content-id" type="hidden">
+          <div class="site-content-form-grid">
+            <label for="site-content-type">內容類型</label>
+            <select id="site-content-type" required>
+              <option value="news">新聞</option>
+              <option value="event">活動</option>
+            </select>
+            <label for="site-content-category">分類</label>
+            <input id="site-content-category" type="text" maxlength="80" placeholder="例如：社群、文化、健康">
+            <label for="site-content-title-input">標題（必填）</label>
+            <input id="site-content-title-input" type="text" maxlength="180" required>
+            <label for="site-content-summary">摘要（必填）</label>
+            <textarea id="site-content-summary" rows="3" maxlength="600" required></textarea>
+            <label for="site-content-body">詳細內容</label>
+            <textarea id="site-content-body" rows="5" maxlength="12000"></textarea>
+            <div id="site-content-event-fields" class="site-content-event-fields" hidden>
+              <label class="site-content-publish-toggle"><input id="site-content-all-day" type="checkbox" checked>整天</label>
+              <label for="site-content-event-start">活動開始日期</label>
+              <input id="site-content-event-start" type="date">
+              <label for="site-content-start-time" data-event-time>開始時間</label><input id="site-content-start-time" data-event-time type="time" value="14:00">
+              <label for="site-content-event-end">活動結束日期（含當日，可留空）</label>
+              <input id="site-content-event-end" type="date">
+              <label for="site-content-end-time" data-event-time>結束時間</label><input id="site-content-end-time" data-event-time type="time" value="16:00">
+              <label for="site-content-location">地點</label>
+              <div class="event-location-input"><input id="site-content-location" type="text" maxlength="180"><button id="event-location-search" class="admin-button secondary icon-only" type="button" title="搜尋活動地點" aria-label="搜尋活動地點"><span class="material-icons notranslate" translate="no" aria-hidden="true">search</span></button><button id="event-location-clear" class="admin-button secondary icon-only" type="button" title="清除地圖座標" aria-label="清除地圖座標"><span class="material-icons notranslate" translate="no" aria-hidden="true">location_off</span></button></div>
+              <select id="event-location-results" aria-label="選擇活動地點" hidden></select>
+              <p id="event-location-status" class="admin-muted" role="status"></p>
+              <div id="event-location-map" class="event-location-map" aria-label="活動地點地圖"></div>
+              <div class="event-location-coordinates"><label for="event-location-latitude">緯度</label><input id="event-location-latitude" type="number" step="any" min="-90" max="90"><label for="event-location-longitude">經度</label><input id="event-location-longitude" type="number" step="any" min="-180" max="180"></div>
+            </div>
+            <label for="site-content-url">相關連結</label>
+            <input id="site-content-url" type="text" maxlength="500" placeholder="https://... 或 /頁面路徑">
+            <label class="site-content-publish-toggle" for="site-content-published">
+              <input id="site-content-published" type="checkbox">
+              立即上架
+            </label>
+          </div>
+          <div class="site-content-form-actions">
+            <button class="admin-button" type="submit">
+              <span class="material-icons notranslate" translate="no" aria-hidden="true">save</span>
+              儲存內容
+            </button>
+            <button id="cancel-site-content-button" class="admin-button secondary" type="button">取消</button>
+          </div>
+          <p id="site-content-form-status" class="admin-status" role="status" hidden></p>
+        </form>
+        </dialog>
+        <dialog id="opening-hours-editor" class="calendar-small-dialog" aria-labelledby="opening-hours-title">
+          <form id="opening-hours-form"><h3 id="opening-hours-title">營業時段</h3>
+            <label for="opening-hours-mode">設定範圍</label><select id="opening-hours-mode"><option value="exception">單日例外</option><option value="weekly">固定每週</option></select>
+            <label for="opening-hours-date" data-opening-date>日期</label><input id="opening-hours-date" data-opening-date type="date">
+            <label for="opening-hours-weekday" data-opening-weekday hidden>星期</label><select id="opening-hours-weekday" data-opening-weekday hidden><option value="0">星期日</option><option value="1">星期一</option><option value="2">星期二</option><option value="3">星期三</option><option value="4">星期四</option><option value="5">星期五</option><option value="6">星期六</option></select>
+            <label class="site-content-publish-toggle"><input id="opening-hours-closed" type="checkbox">休館</label>
+            <label for="opening-hours-start">開放</label><input id="opening-hours-start" type="time" value="14:00" required>
+            <label for="opening-hours-end">結束</label><input id="opening-hours-end" type="time" value="22:00" required>
+            <label for="opening-hours-note" data-opening-date>公開備註</label><input id="opening-hours-note" data-opening-date type="text" maxlength="300">
+            <p id="opening-hours-status" class="admin-status" role="status" hidden></p>
+            <div class="calendar-dialog-actions"><button id="opening-hours-reset" class="admin-button secondary" type="button">恢復預設</button><button id="opening-hours-cancel" class="admin-button secondary" type="button">取消</button><button class="admin-button" type="submit">儲存</button></div>
+          </form>
+        </dialog>
     </section>
-    <div class="admin-stats" aria-label="問卷統計">
-      <div class="stat-card"><span>目前載入</span><strong id="total-count">0</strong><small>筆問卷</small></div>
-      <div class="stat-card"><span>繁體中文</span><strong id="zh-count">0</strong><small>筆</small></div>
-      <div class="stat-card"><span>English</span><strong id="en-count">0</strong><small>筆</small></div>
-      <div class="stat-card"><span>目前顯示</span><strong id="filtered-count">0</strong><small>筆</small></div>
-    </div>
-    <div class="admin-filters">
-      <label for="search-responses">搜尋篩檢員、地點或暱稱</label>
-      <input id="search-responses" type="search" placeholder="輸入關鍵字">
-      <label for="language-filter">語言</label>
-      <select id="language-filter">
-        <option value="all">全部</option>
-        <option value="zh-TW">繁體中文</option>
-        <option value="en">English</option>
-      </select>
-      <label for="consultation-filter">匿名諮詢</label>
-      <select id="consultation-filter">
-        <option value="all">全部</option>
-        <option value="pending">待處理</option>
-        <option value="completed">已完成</option>
-      </select>
-    </div>
-    <p id="dashboard-status" class="admin-status" role="status" hidden></p>
-    <div class="admin-table-wrap" role="region" aria-label="問卷提交紀錄表格，可左右捲動" tabindex="0">
-      <table class="admin-table">
-        <caption class="sr-only">健康問卷提交紀錄</caption>
-        <thead>
-          <tr>
-            <th scope="col">送出時間</th>
-            <th scope="col">暱稱</th>
-            <th scope="col">篩檢員</th>
-            <th scope="col">地點</th>
-            <th scope="col">語言</th>
-            <th scope="col">匿名諮詢</th>
-            <th scope="col"><span class="sr-only">操作</span></th>
-          </tr>
-        </thead>
-        <tbody id="responses-body"></tbody>
-      </table>
-    </div>
-    <p id="empty-state" class="admin-empty" hidden>目前沒有符合條件的資料。</p>
-    <div class="admin-pagination" aria-label="問卷分頁">
-      <button id="previous-page" class="admin-button secondary" type="button">上一頁</button>
-      <span id="page-status">第 1 頁</span>
-      <button id="next-page" class="admin-button secondary" type="button">下一頁</button>
-    </div>
+    </section>
+    <section id="admin-panel-settings" class="admin-tab-panel settings-panel" role="tabpanel" aria-labelledby="admin-tab-settings" tabindex="0" hidden>
+      <section class="admin-panel account-settings" aria-labelledby="admin-account-title">
+        <div>
+          <p class="eyebrow">帳號</p>
+          <h2 id="admin-account-title">目前登入帳號</h2>
+          <p id="admin-user" class="admin-muted"></p>
+        </div>
+      </section>
+      <details class="admin-panel admin-disclosure screener-binding-panel" aria-labelledby="screener-binding-title">
+        <summary class="admin-disclosure-summary">
+          <div class="screener-binding-copy">
+            <h2 id="screener-binding-title">篩檢員編號</h2>
+            <p class="admin-muted">設定此帳號回到問卷時自動帶入的編號。</p>
+          </div>
+          <span class="material-icons notranslate disclosure-chevron" translate="no" aria-hidden="true">expand_more</span>
+        </summary>
+        <div class="admin-disclosure-body">
+          <form id="screener-number-form" class="screener-number-form">
+            <label for="screener-number-input">篩檢員編號</label>
+            <div class="screener-number-controls">
+              <input id="screener-number-input" name="screener_number" type="text" maxlength="80" autocomplete="off" required disabled>
+              <button id="save-screener-number" class="admin-button" type="submit" disabled>儲存編號</button>
+            </div>
+          </form>
+          <p id="screener-number-status" class="admin-status" role="status" hidden></p>
+        </div>
+      </details>
+    </section>
   </section>
 </section>
 

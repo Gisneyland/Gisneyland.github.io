@@ -104,6 +104,13 @@ Deno.serve(async request => {
     delete responseData.screening_photos;
 
     const contacts = responseData.hiv_positive_contacts;
+    const consultCode = responseData.anonymous_consult_code;
+    if (
+      consultCode !== undefined &&
+      (typeof consultCode !== 'string' || (consultCode !== '' && !/^[A-Za-z0-9-]{4,32}$/.test(consultCode)))
+    ) {
+      return jsonResponse({ error: 'Invalid anonymous consultation code' }, 400);
+    }
     if (
       contacts !== undefined &&
       (!Array.isArray(contacts) ||

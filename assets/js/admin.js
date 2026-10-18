@@ -64,6 +64,46 @@ const RESPONSE_YES_NO_FIELDS = new Set([
   'drug_mephedrone', 'drug_heroin', 'drug_weed', 'drug_other_choice'
 ]);
 
+const RESPONSE_CONDITIONAL_GROUPS = [
+  { parent: 'gender', children: ['gender_others'], isActive: data => data.gender === 'gender_others' },
+  { parent: 'orientation', children: ['orientation_others'], isActive: data => data.orientation === 'orientation_others' },
+  { parent: 'hometown', children: ['hometown_others'], isActive: data => String(data.hometown || '').startsWith('其他') },
+  { parent: 'residence', children: ['residence_others'], isActive: data => String(data.residence || '').startsWith('其他') },
+  { parent: 'frequency_screening', children: ['last_screening_at'], isActive: data => ['0', '1'].includes(String(data.frequency_screening)) },
+  { parent: 'frequency_closed_relationship', children: ['closed_relationship_aids'], isActive: data => ['yes', 'no'].includes(data.frequency_closed_relationship) },
+  {
+    parent: 'usage_drug',
+    children: ['drug_amphetamine', 'drug_ghb', 'drug_mdma', 'drug_ketamine', 'drug_rush', 'drug_mephedrone', 'drug_heroin', 'drug_weed', 'drug_other_choice', 'frequency_drug_now'],
+    isActive: data => data.usage_drug === 'yes'
+  },
+  { parent: 'drug_amphetamine', children: ['drug_amphetamine_inhalant', 'drug_amphetamine_injection', 'drug_amphetamine_oral'], isActive: data => data.drug_amphetamine === true },
+  { parent: 'drug_other_choice', children: ['drug_others'], isActive: data => data.drug_other_choice === true },
+  {
+    parent: 'frequency_std',
+    children: ['std_aids', 'std_genital_warts', 'std_syphilis', 'std_chlamydia', 'std_gonorrhea', 'std_genital_herpes', 'std_hepatitis_a', 'std_hepatitis_c', 'std_other_choice'],
+    isActive: data => data.frequency_std === 'yes'
+  },
+  { parent: 'std_aids', children: ['std_aids_reason'], isActive: data => data.std_aids === true },
+  { parent: 'std_other_choice', children: ['std_others'], isActive: data => data.std_other_choice === true },
+  {
+    parent: 'screening_interpretation',
+    children: ['hiv_window_period'],
+    isActive: data => {
+      const results = Array.isArray(data.screening_interpretation)
+        ? data.screening_interpretation
+        : [data.screening_interpretation];
+      return results.includes('hiv_positive') || results.includes('hiv_negative');
+    }
+  },
+  {
+    parent: 'screening_interpretation',
+    children: ['hiv_positive_contacts', 'hiv_positive_contact_phone', 'hiv_positive_appointment', 'hiv_positive_address', 'hiv_positive_notes'],
+    isActive: data => (Array.isArray(data.screening_interpretation)
+      ? data.screening_interpretation
+      : [data.screening_interpretation]).includes('hiv_positive')
+  }
+];
+
 document.addEventListener('DOMContentLoaded', () => {
   const loginPanel = document.getElementById('admin-login');
   const dashboard = document.getElementById('admin-dashboard');
@@ -79,11 +119,45 @@ document.addEventListener('DOMContentLoaded', () => {
   const openQuestionnaireButton = document.getElementById('open-questionnaire-button');
   const refreshButton = document.getElementById('refresh-button');
   const exportButton = document.getElementById('export-button');
+  const adminTabs = [...document.querySelectorAll('.admin-tab')];
+  const placeDataElement = document.getElementById('admin-screening-place-data');
+  let screeningPlaces = [];
+  try {
+    screeningPlaces = JSON.parse(placeDataElement?.textContent || '[]');
+  } catch {
+    screeningPlaces = [];
+  }
+  screeningPlaces.push(
+    {
+      name: '尖筆山（竹南鎮）',
+      label: '尖筆山（竹南鎮）',
+      coordinates: [120.8981701, 24.7216328],
+      aliases: ['尖筆山', 'Jianbishan']
+    },
+    {
+      name: '埔頂（新屋區）',
+      label: '埔頂（新屋區，位置約略）',
+      coordinates: [121.12, 24.96],
+      aliases: ['埔頂', 'Puding Village']
+    }
+  );
+  let screeningMap = null;
+  let screeningHotspotLayer = null;
+  const mapModeControls = [...document.querySelectorAll('input[name="screening-map-mode"]')];
+  const screeningRangeStart = document.getElementById('screening-range-start');
+  const screeningRangeEnd = document.getElementById('screening-range-end');
+  const resetScreeningRangeButton = document.getElementById('reset-screening-range');
+  const screeningMapSummary = document.getElementById('screening-map-summary');
+  const screeningVolumeLegend = document.getElementById('screening-volume-scale');
+  let screeningDateBounds = null;
+  let screeningDateRangeInitialized = false;
   const previousPageButton = document.getElementById('previous-page');
   const nextPageButton = document.getElementById('next-page');
   const pageStatus = document.getElementById('page-status');
   const searchInput = document.getElementById('search-responses');
-  const languageFilter = document.getElementById('language-filter');
+  const nationalitySearch = document.getElementById('nationality-filter-search');
+  const nationalityOptions = document.getElementById('nationality-filter-options');
+  const selectedNationalityContainer = document.getElementById('nationality-filter-selected');
   const consultationFilter = document.getElementById('consultation-filter');
   const responseBody = document.getElementById('responses-body');
   const emptyState = document.getElementById('empty-state');
@@ -95,9 +169,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const screenerNumberStatus = document.getElementById('screener-number-status');
   const saveScreenerNumberButton = document.getElementById('save-screener-number');
   let responses = [];
+  const selectedNationalities = new Set();
   let currentPage = 1;
   let screenerNumberUserId = null;
   const pageSize = 25;
+
+  renderScreeningVolumeLegend();
 
   if (!window.questionnaireSupabase) {
     showStatus(loginStatus, '資料服務尚未設定，請聯絡系統管理員。', true);
@@ -225,11 +302,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
   refreshButton.addEventListener('click', loadResponses);
   exportButton.addEventListener('click', exportResponses);
+  adminTabs.forEach(tab => {
+    tab.addEventListener('click', () => selectAdminTab(tab));
+    tab.addEventListener('keydown', event => {
+      const availableTabs = adminTabs.filter(item => !item.hidden && !item.disabled);
+      const currentIndex = availableTabs.indexOf(tab);
+      let nextIndex;
+
+      if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % availableTabs.length;
+      else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + availableTabs.length) % availableTabs.length;
+      else if (event.key === 'Home') nextIndex = 0;
+      else if (event.key === 'End') nextIndex = availableTabs.length - 1;
+      else return;
+
+      event.preventDefault();
+      const nextTab = availableTabs[nextIndex];
+      selectAdminTab(nextTab);
+      nextTab.focus();
+    });
+  });
   previousPageButton.addEventListener('click', () => changePage(-1));
   nextPageButton.addEventListener('click', () => changePage(1));
   searchInput.addEventListener('input', () => { currentPage = 1; renderResponses(); });
-  languageFilter.addEventListener('change', () => { currentPage = 1; renderResponses(); });
+  nationalitySearch.addEventListener('input', filterNationalityOptions);
+  nationalityOptions.addEventListener('change', event => {
+    const checkbox = event.target;
+    if (!checkbox.matches('input[data-nationality-option]')) return;
+    if (checkbox.checked) selectedNationalities.add(checkbox.value);
+    else selectedNationalities.delete(checkbox.value);
+    renderSelectedNationalities();
+    currentPage = 1;
+    renderResponses();
+  });
+  selectedNationalityContainer.addEventListener('click', event => {
+    const removeButton = event.target.closest('[data-remove-nationality]');
+    if (!removeButton) return;
+    selectedNationalities.delete(removeButton.dataset.removeNationality);
+    const checkbox = [...nationalityOptions.querySelectorAll('input[data-nationality-option]')]
+      .find(option => option.value === removeButton.dataset.removeNationality);
+    if (checkbox) checkbox.checked = false;
+    renderSelectedNationalities();
+    currentPage = 1;
+    renderResponses();
+  });
   consultationFilter.addEventListener('change', () => { currentPage = 1; loadResponses(); });
+  mapModeControls.forEach(control => control.addEventListener('change', () => {
+    renderScreeningAnalytics(getFilteredResponses());
+  }));
+  [screeningRangeStart, screeningRangeEnd].forEach(input => {
+    input.addEventListener('change', () => renderScreeningAnalytics(getFilteredResponses()));
+  });
+  resetScreeningRangeButton.addEventListener('click', () => {
+    resetScreeningDateRange();
+    renderScreeningAnalytics(getFilteredResponses());
+  });
   closeDialogButton.addEventListener('click', () => dialog.close());
   screenerNumberForm.addEventListener('submit', saveScreenerNumber);
   dialog.addEventListener('click', event => {
@@ -246,6 +372,20 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   loadSession();
+
+  function selectAdminTab(selectedTab) {
+    if (selectedTab.hidden || selectedTab.disabled) return;
+
+    adminTabs.forEach(tab => {
+      const isSelected = tab === selectedTab;
+      tab.setAttribute('aria-selected', String(isSelected));
+      tab.tabIndex = isSelected ? 0 : -1;
+      document.getElementById(tab.getAttribute('aria-controls')).hidden = !isSelected;
+    });
+    if (selectedTab.id === 'admin-tab-questionnaire') {
+      window.requestAnimationFrame(() => screeningMap?.invalidateSize());
+    }
+  }
 
   async function loadSession() {
     if (isPasswordRecovery()) {
@@ -425,36 +565,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     responses = loadedResponses;
+    renderNationalityOptions();
+    initializeScreeningDateRange(responses);
     currentPage = 1;
     renderResponses();
     showStatus(dashboardStatus, `已載入 ${responses.length} 筆資料。`);
   }
 
   function renderResponses() {
-    const keyword = searchInput.value.trim().toLowerCase();
-    const language = languageFilter.value;
-    const filtered = responses.filter(response => {
-      const data = response.response_data || {};
-      const searchable = [data.nickname, data.screener, data.screening_place]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      const hasConsultCode = Boolean(getConsultationCode(response));
-      return (!keyword || searchable.includes(keyword))
-        && (language === 'all' || response.language === language)
-        && (consultationFilter.value === 'all'
-          || (consultationFilter.value === 'completed' && hasConsultCode)
-          || (consultationFilter.value === 'pending' && !hasConsultCode));
-    });
+    const filtered = getFilteredResponses();
+    renderScreeningAnalytics(filtered);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     currentPage = Math.min(currentPage, totalPages);
     const visibleResponses = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-    document.getElementById('total-count').textContent = responses.length;
-    document.getElementById('zh-count').textContent = responses.filter(item => item.language === 'zh-TW').length;
-    document.getElementById('en-count').textContent = responses.filter(item => item.language === 'en').length;
-    document.getElementById('filtered-count').textContent = filtered.length;
     pageStatus.textContent = `第 ${currentPage} / ${totalPages} 頁`;
     previousPageButton.disabled = currentPage <= 1;
     nextPageButton.disabled = currentPage >= totalPages;
@@ -463,19 +588,378 @@ document.addEventListener('DOMContentLoaded', () => {
     emptyState.hidden = filtered.length !== 0;
     visibleResponses.forEach(response => {
       const data = response.response_data || {};
+      const nationalities = getResponseNationalities(response).map(formatNationalityLabel);
+      const consultationCodes = getConsultationCode(response).split(',').map(code => code.trim()).filter(Boolean);
+      const consultationCode = consultationCodes.join('、');
       const row = document.createElement('tr');
+      row.tabIndex = 0;
+      row.setAttribute('aria-label', `${formatDate(response.created_at)}，${consultationCode ? `諮詢代碼 ${consultationCode}` : '諮詢待處理'}。雙擊或按 Enter 查看詳細資料。`);
+      row.classList.add(consultationCode ? 'is-consultation-complete' : 'is-consultation-pending');
+      const consultationCodeCell = consultationCode
+        ? `<span class="consultation-code-badge is-complete">${escapeHtml(consultationCode)}</span>`
+        : '<span class="consultation-code-badge is-pending">待處理</span>';
       row.innerHTML = `
         <td>${escapeHtml(formatDate(response.created_at))}</td>
-        <td>${escapeHtml(data.nickname || '未填寫')}</td>
+        <td>${consultationCodeCell}</td>
         <td>${escapeHtml(data.screener || '未填寫')}</td>
         <td>${escapeHtml(data.screening_place || '未填寫')}</td>
-        <td>${escapeHtml(response.language || '未標示')}</td>
-        <td>${getConsultationCode(response) ? '已完成' : '待處理'}</td>
-        <td><button class="table-action" type="button" data-response-id="${response.id}">查看</button></td>
+        <td>${escapeHtml(nationalities.join('、') || '未填寫')}</td>
       `;
-      row.querySelector('button').addEventListener('click', () => showResponse(response));
+      let lastPointerType = '';
+      const openDetails = () => {
+        if (!dialog.open) showResponse(response);
+      };
+      row.addEventListener('pointerdown', event => { lastPointerType = event.pointerType; });
+      row.addEventListener('click', () => {
+        if (lastPointerType === 'touch' || window.matchMedia('(pointer: coarse)').matches) openDetails();
+      });
+      row.addEventListener('dblclick', openDetails);
+      row.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openDetails();
+      });
       responseBody.appendChild(row);
     });
+  }
+
+  function getFilteredResponses() {
+    const keyword = searchInput.value.trim().toLowerCase();
+    return responses.filter(response => {
+      const data = response.response_data || {};
+      const nationalities = getResponseNationalities(response);
+      const nationalityNames = nationalities.map(formatNationalityLabel);
+      const searchable = [getConsultationCode(response), data.screener, data.screening_place, ...nationalities, ...nationalityNames]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      const hasConsultCode = Boolean(getConsultationCode(response));
+      const matchesNationality = selectedNationalities.size === 0
+        || nationalities.some(country => selectedNationalities.has(country));
+      return (!keyword || searchable.includes(keyword))
+        && matchesNationality
+        && (consultationFilter.value === 'all'
+          || (consultationFilter.value === 'completed' && hasConsultCode)
+          || (consultationFilter.value === 'pending' && !hasConsultCode));
+    });
+  }
+
+  function getResponseNationalities(response) {
+    const value = response.response_data?.nationality;
+    const values = Array.isArray(value) ? value : value === null || value === undefined ? [] : [value];
+    return [...new Set(values.map(country => String(country).trim())
+      .filter(Boolean)
+      .map(country => /^[a-z]{2}$/i.test(country) ? country.toUpperCase() : country))];
+  }
+
+  function formatNationalityLabel(country) {
+    return formatResponseValue('nationality', country);
+  }
+
+  function renderNationalityOptions() {
+    const countryCounts = new Map();
+    responses.forEach(response => getResponseNationalities(response).forEach(country => {
+      countryCounts.set(country, (countryCounts.get(country) || 0) + 1);
+    }));
+    selectedNationalities.forEach(country => {
+      if (!countryCounts.has(country)) countryCounts.set(country, 0);
+    });
+
+    const countries = [...countryCounts.keys()].sort((left, right) =>
+      formatNationalityLabel(left).localeCompare(formatNationalityLabel(right), 'zh-TW')
+    );
+    nationalityOptions.replaceChildren();
+    if (!countries.length) {
+      const empty = document.createElement('p');
+      empty.className = 'admin-nationality-empty';
+      empty.textContent = '目前載入的紀錄沒有國籍資料。';
+      nationalityOptions.append(empty);
+      renderSelectedNationalities();
+      return;
+    }
+
+    countries.forEach(country => {
+      const label = document.createElement('label');
+      label.className = 'admin-nationality-option';
+      label.dataset.searchText = `${formatNationalityLabel(country)} ${country}`.toLocaleLowerCase();
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = country;
+      checkbox.dataset.nationalityOption = 'true';
+      checkbox.checked = selectedNationalities.has(country);
+      const name = document.createElement('span');
+      name.className = 'admin-nationality-option-name';
+      name.textContent = formatNationalityLabel(country);
+      const count = document.createElement('small');
+      count.className = 'admin-nationality-option-count';
+      count.textContent = String(countryCounts.get(country));
+      label.append(checkbox, name, count);
+      nationalityOptions.append(label);
+    });
+    filterNationalityOptions();
+    renderSelectedNationalities();
+  }
+
+  function filterNationalityOptions() {
+    const query = nationalitySearch.value.trim().toLocaleLowerCase();
+    nationalityOptions.querySelectorAll('.admin-nationality-option').forEach(option => {
+      option.hidden = query !== '' && !option.dataset.searchText.includes(query);
+    });
+  }
+
+  function renderSelectedNationalities() {
+    selectedNationalityContainer.replaceChildren();
+    selectedNationalities.forEach(country => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'selected-value';
+      chip.dataset.removeNationality = country;
+      chip.setAttribute('aria-label', `移除國籍篩選 ${formatNationalityLabel(country)}`);
+      chip.textContent = `${formatNationalityLabel(country)} ×`;
+      selectedNationalityContainer.append(chip);
+    });
+  }
+
+  function renderScreeningAnalytics(filteredResponses) {
+    const screeningCounts = {
+      hivScreenings: 0,
+      hivPositive: 0,
+      syphilisScreenings: 0,
+      syphilisPositive: 0
+    };
+
+    filteredResponses.forEach(response => {
+      const data = response.response_data || {};
+      const interpretationValues = Array.isArray(data.screening_interpretation)
+        ? data.screening_interpretation
+        : [data.screening_interpretation];
+      const interpretations = new Set(interpretationValues.filter(value => typeof value === 'string'));
+      const hasHivResult = interpretations.has('hiv_positive') || interpretations.has('hiv_negative');
+      const hasSyphilisResult = interpretations.has('syphilis_positive') || interpretations.has('syphilis_negative');
+
+      if (hasHivResult) screeningCounts.hivScreenings += 1;
+      if (interpretations.has('hiv_positive')) screeningCounts.hivPositive += 1;
+      if (hasSyphilisResult) screeningCounts.syphilisScreenings += 1;
+      if (interpretations.has('syphilis_positive')) screeningCounts.syphilisPositive += 1;
+    });
+
+    const consultationFilledCount = filteredResponses.filter(response => Boolean(getConsultationCode(response))).length;
+    document.getElementById('hiv-screening-ratio').textContent = `${screeningCounts.hivPositive} / ${screeningCounts.hivScreenings}`;
+    document.getElementById('syphilis-screening-ratio').textContent = `${screeningCounts.syphilisPositive} / ${screeningCounts.syphilisScreenings}`;
+    document.getElementById('consultation-fill-ratio').textContent = `${consultationFilledCount} / ${filteredResponses.length}`;
+
+    const mapMode = document.querySelector('input[name="screening-map-mode"]:checked')?.value || 'all';
+    const mapResponses = filterResponsesForMap(filteredResponses, mapMode);
+    if (!mapResponses) {
+      renderScreeningMap([]);
+      return;
+    }
+
+    const locationCounts = new Map();
+    const totalPositiveCount = mapResponses.reduce(
+      (total, response) => total + getPositiveResultCountForMap(response, mapMode),
+      0
+    );
+    mapResponses.forEach(response => {
+      const location = String(response.response_data?.screening_place || '').trim();
+      const normalizedLocation = normalizePlace(location);
+      const matchedPlace = normalizedLocation && screeningPlaces.find(place => {
+        const aliases = [place.name, place.label, ...(place.aliases || [])]
+          .map(normalizePlace)
+          .filter(Boolean);
+        return aliases.some(alias => normalizedLocation.includes(alias));
+      });
+
+      if (!matchedPlace) return;
+      const positiveCount = getPositiveResultCountForMap(response, mapMode);
+      const previousLocation = locationCounts.get(matchedPlace.name);
+      locationCounts.set(matchedPlace.name, {
+        place: matchedPlace,
+        count: (previousLocation?.count || 0) + 1,
+        positiveCount: (previousLocation?.positiveCount || 0) + positiveCount
+      });
+    });
+
+    const mappedCount = [...locationCounts.values()].reduce((total, location) => total + location.count, 0);
+    const modeLabels = { all: '總篩檢', hiv: 'HIV', syphilis: '梅毒' };
+    screeningMapSummary.textContent = `${modeLabels[mapMode]}：${mapResponses.length} 筆紀錄，陽性 ${totalPositiveCount} 件，${mappedCount} 筆可定位`;
+    renderScreeningMap([...locationCounts.values()], totalPositiveCount, mapResponses.length);
+  }
+
+  function getPositiveResultCountForMap(response, mapMode) {
+    const values = Array.isArray(response.response_data?.screening_interpretation)
+      ? response.response_data.screening_interpretation
+      : [response.response_data?.screening_interpretation];
+    const results = new Set(values.filter(value => typeof value === 'string'));
+    const hivPositive = results.has('hiv_positive');
+    const syphilisPositive = results.has('syphilis_positive');
+    if (mapMode === 'hiv') return Number(hivPositive);
+    if (mapMode === 'syphilis') return Number(syphilisPositive);
+    return Number(hivPositive) + Number(syphilisPositive);
+  }
+
+  function filterResponsesForMap(filteredResponses, mapMode) {
+    const rangeStart = parseTaipeiDateTime(screeningRangeStart.value, false);
+    const rangeEnd = parseTaipeiDateTime(screeningRangeEnd.value, true);
+    screeningRangeStart.removeAttribute('aria-invalid');
+    screeningRangeEnd.removeAttribute('aria-invalid');
+
+    if (rangeStart === null || rangeEnd === null || rangeEnd < rangeStart) {
+      screeningRangeStart.setAttribute('aria-invalid', 'true');
+      screeningRangeEnd.setAttribute('aria-invalid', 'true');
+      screeningMapSummary.textContent = '請輸入有效的開始與結束時間範圍。';
+      return null;
+    }
+
+    return filteredResponses.filter(response => {
+      const submittedAt = new Date(response.created_at).getTime();
+      if (!Number.isFinite(submittedAt) || submittedAt < rangeStart || submittedAt > rangeEnd) return false;
+
+      const values = Array.isArray(response.response_data?.screening_interpretation)
+        ? response.response_data.screening_interpretation
+        : [response.response_data?.screening_interpretation];
+      const results = new Set(values.filter(value => typeof value === 'string'));
+      const hasHivResult = results.has('hiv_positive') || results.has('hiv_negative');
+      const hasSyphilisResult = results.has('syphilis_positive') || results.has('syphilis_negative');
+      if (mapMode === 'hiv') return hasHivResult;
+      if (mapMode === 'syphilis') return hasSyphilisResult;
+      return hasHivResult || hasSyphilisResult;
+    });
+  }
+
+  function initializeScreeningDateRange(items) {
+    if (screeningDateRangeInitialized) return;
+    const submittedTimes = items
+      .map(response => new Date(response.created_at).getTime())
+      .filter(Number.isFinite);
+    const now = Date.now();
+    screeningDateBounds = submittedTimes.length
+      ? { start: Math.min(...submittedTimes), end: Math.max(...submittedTimes) }
+      : { start: now - 30 * 24 * 60 * 60 * 1000, end: now };
+    resetScreeningDateRange();
+    screeningDateRangeInitialized = true;
+  }
+
+  function resetScreeningDateRange() {
+    if (!screeningDateBounds) return;
+    screeningRangeStart.value = formatTaipeiDateTime(screeningDateBounds.start);
+    screeningRangeEnd.value = formatTaipeiDateTime(screeningDateBounds.end);
+  }
+
+  function formatTaipeiDateTime(timestamp) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23'
+    }).formatToParts(new Date(timestamp)).map(part => [part.type, part.value]));
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+  }
+
+  function parseTaipeiDateTime(value, endOfMinute) {
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+    const timestamp = Date.parse(`${value}:${endOfMinute ? '59' : '00'}+08:00`);
+    return Number.isFinite(timestamp) ? timestamp : null;
+  }
+
+  function renderScreeningMap(locations, totalPositiveCount = 0, totalScreeningCount = 0) {
+    const mapElement = document.getElementById('screening-map');
+    const emptyState = document.getElementById('screening-map-empty');
+    if (!window.L) {
+      mapElement.textContent = '地圖目前無法載入。';
+      mapElement.classList.add('screening-map-unavailable');
+      emptyState.hidden = true;
+      return;
+    }
+
+    if (!screeningMap) {
+      mapElement.replaceChildren();
+      screeningMap = window.L.map(mapElement, { scrollWheelZoom: false, attributionControl: true })
+        .setView([24.75, 120.93], 10);
+      screeningHotspotLayer = window.L.featureGroup().addTo(screeningMap);
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(screeningMap);
+    }
+
+    mapElement.classList.remove('screening-map-unavailable');
+    screeningHotspotLayer.clearLayers();
+    emptyState.hidden = locations.length > 0;
+    locations.forEach(({ place, count, positiveCount }) => {
+      const [longitude, latitude] = place.coordinates.map(Number);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+      const screeningShare = totalScreeningCount ? count / totalScreeningCount : 0;
+      const positiveShare = totalPositiveCount ? positiveCount / totalPositiveCount : 0;
+      const fillColor = interpolateHeatColor(positiveShare);
+
+      const marker = window.L.circleMarker([latitude, longitude], {
+        radius: 30 * Math.sqrt(screeningShare),
+        color: '#ffffff',
+        weight: 2,
+        fillColor,
+        fillOpacity: 0.52 + positiveShare * 0.4
+      });
+      const popup = document.createElement('div');
+      const placeName = document.createElement('strong');
+      const placeCount = document.createElement('p');
+      placeName.textContent = place.label || place.name;
+      placeCount.textContent = `${positiveCount} 件陽性 / ${count} 筆篩檢；篩檢量占比 ${Math.round(screeningShare * 100)}%，陽性占比 ${Math.round(positiveShare * 100)}%`;
+      popup.append(placeName, placeCount);
+      marker.bindPopup(popup).addTo(screeningHotspotLayer);
+    });
+
+    if (locations.length === 1) {
+      const [longitude, latitude] = locations[0].place.coordinates.map(Number);
+      screeningMap.setView([latitude, longitude], 12);
+    } else if (locations.length > 1) {
+      screeningMap.fitBounds(screeningHotspotLayer.getBounds().pad(0.2), { maxZoom: 12 });
+    }
+    window.requestAnimationFrame(() => screeningMap.invalidateSize());
+  }
+
+  function renderScreeningVolumeLegend() {
+    if (!screeningVolumeLegend) return;
+    screeningVolumeLegend.replaceChildren();
+    for (let step = 0; step <= 10; step += 1) {
+      const share = step / 10;
+      const diameter = 16 * Math.sqrt(share);
+      const circle = document.createElement('span');
+      circle.className = 'map-size-example';
+      circle.style.width = `${diameter}px`;
+      circle.style.height = `${diameter}px`;
+      circle.title = `${step * 10}%`;
+      screeningVolumeLegend.append(circle);
+    }
+  }
+
+  function interpolateHeatColor(share) {
+    const stops = [
+      { position: 0, color: '#70b7a7' },
+      { position: 0.25, color: '#a2b85a' },
+      { position: 0.5, color: '#e0bd52' },
+      { position: 0.75, color: '#e78b46' },
+      { position: 1, color: '#c8505d' }
+    ];
+    const upperIndex = stops.findIndex(stop => share <= stop.position);
+    const upperStop = stops[Math.max(0, upperIndex)];
+    const lowerStop = stops[Math.max(0, upperIndex - 1)];
+    const ratio = upperStop.position === lowerStop.position
+      ? 0
+      : (share - lowerStop.position) / (upperStop.position - lowerStop.position);
+    const lowerChannels = lowerStop.color.slice(1).match(/.{2}/g).map(channel => parseInt(channel, 16));
+    const upperChannels = upperStop.color.slice(1).match(/.{2}/g).map(channel => parseInt(channel, 16));
+    const blendedChannels = lowerChannels.map((channel, index) =>
+      Math.round(channel + (upperChannels[index] - channel) * ratio)
+    );
+    return `#${blendedChannels.map(channel => channel.toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  function normalizePlace(value) {
+    return String(value || '').normalize('NFKC').toLocaleLowerCase().replace(/[\s、，,。.]/g, '');
   }
 
   function changePage(direction) {
@@ -484,15 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function exportResponses() {
-    const keyword = searchInput.value.trim().toLowerCase();
-    const language = languageFilter.value;
-    const filtered = responses.filter(response => {
-      const data = response.response_data || {};
-      const searchable = [data.nickname, data.screener, data.screening_place]
-        .filter(Boolean).join(' ').toLowerCase();
-      return (!keyword || searchable.includes(keyword))
-        && (language === 'all' || response.language === language);
-    });
+    const filtered = getFilteredResponses();
     const knownFields = new Set(RESPONSE_DETAIL_GROUPS.flatMap(group => group.fields));
     const exportFields = [
       ...RESPONSE_DETAIL_GROUPS.flatMap(group => group.fields.map(key => ({
@@ -573,30 +1049,75 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let sectionIndex = 0;
     groups.forEach(group => {
-      const visibleFields = group.fields.filter(([key, , value]) =>
-        key !== 'screening_photos' && key !== 'anonymous_consult_code' && hasResponseValue(value)
-      );
+      const conditionalRules = new Map();
+      const conditionalChildren = new Map();
+      RESPONSE_CONDITIONAL_GROUPS.forEach(rule => {
+        rule.children.forEach(key => conditionalRules.set(key, rule));
+      });
+      const visibleFields = group.fields.filter(([key, , value]) => {
+        if (key === 'screening_photos' || key === 'anonymous_consult_code' || !hasResponseValue(value)) return false;
+        const rule = conditionalRules.get(key);
+        return !rule || rule.isActive(data);
+      });
       if (!visibleFields.length) return;
 
-      const section = document.createElement('section');
+      visibleFields.forEach(field => {
+        const rule = conditionalRules.get(field[0]);
+        if (!rule) return;
+        const children = conditionalChildren.get(rule.parent) || [];
+        children.push(field);
+        conditionalChildren.set(rule.parent, children);
+      });
+
+      const section = document.createElement('details');
       section.className = 'response-section';
       section.setAttribute('aria-labelledby', `response-section-${sectionIndex}`);
-      const heading = document.createElement('h3');
+      const heading = document.createElement('summary');
       heading.id = `response-section-${sectionIndex}`;
       heading.className = 'response-section-title';
       heading.textContent = group.title;
-      const details = document.createElement('dl');
-      details.className = 'response-details';
+      const fieldsList = document.createElement('dl');
+      fieldsList.className = 'response-details';
 
-      visibleFields.forEach(([key, label, value]) => {
+      const appendConditionalChildren = (container, parentKey, depth = 0) => {
+        const children = conditionalChildren.get(parentKey);
+        if (!children?.length) return;
+
+        const relatedGroup = document.createElement('div');
+        relatedGroup.className = 'response-related-fields';
+        if (depth === 0) {
+          const relatedHeading = document.createElement('p');
+          relatedHeading.className = 'response-related-heading';
+          relatedHeading.textContent = '條件式追問';
+          relatedGroup.append(relatedHeading);
+        }
+
+        children.forEach(([childKey, childLabel, childValue]) => {
+          const relatedAnswer = document.createElement('div');
+          relatedAnswer.className = 'response-related-answer';
+          const relatedLabel = document.createElement('span');
+          const relatedValue = document.createElement('span');
+          relatedLabel.className = 'response-related-label';
+          relatedLabel.textContent = childLabel;
+          relatedValue.textContent = formatResponseValue(childKey, childValue);
+          relatedAnswer.append(relatedLabel, relatedValue);
+          appendConditionalChildren(relatedAnswer, childKey, depth + 1);
+          relatedGroup.append(relatedAnswer);
+        });
+
+        container.append(relatedGroup);
+      };
+
+      visibleFields.filter(([key]) => !conditionalRules.has(key)).forEach(([key, label, value]) => {
         const term = document.createElement('dt');
         const description = document.createElement('dd');
         term.textContent = label;
         description.textContent = key === 'created_at' ? value : formatResponseValue(key, value);
-        details.append(term, description);
+        appendConditionalChildren(description, key);
+        fieldsList.append(term, description);
       });
 
-      section.append(heading, details);
+      section.append(heading, fieldsList);
       responseDetails.append(section);
       sectionIndex += 1;
     });
@@ -618,6 +1139,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const heading = document.createElement('h3');
     heading.textContent = '匿名諮詢處理';
+    const headingRow = document.createElement('div');
+    headingRow.className = 'consultation-workflow-heading';
     const note = document.createElement('p');
     note.textContent = '以下依匿名諮詢網題目順序整理本站可對照答案。外站未詢問或本站未收集的資料會明確標示，請依受檢者意願在外站補填；完成後將諮詢代碼存回此筆紀錄。';
 
@@ -710,9 +1233,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const answerList = document.createElement('div');
     answerList.className = 'consultation-answer-groups';
     answerGroups.forEach(group => {
-      const groupSection = document.createElement('section');
+      const groupSection = document.createElement('details');
       groupSection.className = 'consultation-answer-group';
-      const groupHeading = document.createElement('h4');
+      const groupHeading = document.createElement('summary');
       groupHeading.textContent = group.title;
       const details = document.createElement('dl');
       details.className = 'consultation-answers';
@@ -727,18 +1250,23 @@ document.addEventListener('DOMContentLoaded', () => {
       answerList.append(groupSection);
     });
 
-    const actions = document.createElement('div');
-    actions.className = 'consultation-actions';
     const openLink = document.createElement('a');
     openLink.className = 'admin-button secondary';
-    openLink.href = 'https://hiva.cdc.gov.tw/HAANeedScreeningMessage1.aspx';
+    openLink.href = 'https://hiva.cdc.gov.tw/';
     openLink.target = '_blank';
     openLink.rel = 'noopener noreferrer';
-    openLink.textContent = '開啟匿名諮詢網';
+    openLink.textContent = '匿名諮詢網';
     const copyButton = document.createElement('button');
-    copyButton.className = 'admin-button secondary';
+    copyButton.className = 'admin-button secondary icon-only';
     copyButton.type = 'button';
-    copyButton.textContent = '複製對照答案';
+    copyButton.setAttribute('aria-label', '複製對照答案');
+    copyButton.title = '複製對照答案';
+    const copyIcon = document.createElement('span');
+    copyIcon.className = 'material-icons notranslate';
+    copyIcon.setAttribute('translate', 'no');
+    copyIcon.setAttribute('aria-hidden', 'true');
+    copyIcon.textContent = 'content_copy';
+    copyButton.append(copyIcon);
     const copyStatus = document.createElement('p');
     copyStatus.className = 'admin-status';
     copyStatus.setAttribute('role', 'status');
@@ -755,33 +1283,119 @@ document.addEventListener('DOMContentLoaded', () => {
         showStatus(copyStatus, '無法複製答案，請確認瀏覽器剪貼簿權限。', true);
       }
     });
-    actions.append(openLink, copyButton);
+    headingRow.append(heading, copyButton);
 
     const codeForm = document.createElement('form');
     codeForm.className = 'consultation-code-form';
     const codeLabel = document.createElement('label');
     codeLabel.textContent = '諮詢代碼';
+    codeLabel.htmlFor = 'consultation-code-input';
+    const codeField = document.createElement('div');
+    codeField.className = 'consultation-code-field';
+    const codeTags = document.createElement('div');
+    codeTags.className = 'consultation-code-tags';
+    codeTags.setAttribute('aria-label', '已加入的諮詢代碼');
+    codeTags.setAttribute('aria-live', 'polite');
+    const codeEntry = document.createElement('div');
+    codeEntry.className = 'consultation-code-entry';
     const codeInput = document.createElement('input');
     codeInput.type = 'text';
+    codeInput.id = 'consultation-code-input';
     codeInput.maxLength = 32;
-    codeInput.pattern = '[A-Za-z0-9-]{4,32}';
+    codeInput.placeholder = '輸入代碼後按 Enter／逗號';
     codeInput.autocomplete = 'off';
-    codeInput.required = true;
-    codeInput.value = getConsultationCode(response);
-    codeLabel.append(codeInput);
+    let consultationCodes = [...new Set(getConsultationCode(response).split(',').map(code => code.trim()).filter(Boolean))];
+
+    const renderConsultationCodeTags = () => {
+      codeTags.replaceChildren();
+      codeTags.hidden = consultationCodes.length === 0;
+      consultationCodes.forEach((code, index) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'selected-value consultation-code-chip';
+        chip.dataset.codeIndex = index;
+        chip.setAttribute('aria-label', `移除諮詢代碼 ${code}`);
+        chip.textContent = `${code} ×`;
+        codeTags.append(chip);
+      });
+    };
+
+    const addConsultationCodes = value => {
+      const incomingCodes = value.split(/[\r\n,，;；]+/).map(code => code.trim()).filter(Boolean);
+      const invalidCode = incomingCodes.find(code => !/^[A-Za-z0-9-]{4,32}$/.test(code));
+      const nextCodes = [...new Set([...consultationCodes, ...incomingCodes])];
+      if (invalidCode) codeInput.setCustomValidity('每組代碼需為 4–32 個英數字或連字號。');
+      else if (nextCodes.length > 20) codeInput.setCustomValidity('每筆紀錄最多可輸入 20 組諮詢代碼。');
+      else codeInput.setCustomValidity('');
+      if (codeInput.validationMessage) {
+        codeInput.reportValidity();
+        return false;
+      }
+      consultationCodes = nextCodes;
+      renderConsultationCodeTags();
+      codeInput.value = '';
+      return true;
+    };
+
+    const commitCodeInput = () => {
+      if (!codeInput.value.trim()) return false;
+      return addConsultationCodes(codeInput.value);
+    };
+
+    codeInput.addEventListener('input', () => codeInput.setCustomValidity(''));
+    codeInput.addEventListener('keydown', event => {
+      if (event.isComposing) return;
+      if (event.key === 'Enter' || event.key === ',' || event.key === '，' || event.key === ';' || event.key === '；') {
+        if (!codeInput.value.trim() && event.key === 'Enter') return;
+        event.preventDefault();
+        commitCodeInput();
+      } else if (event.key === 'Backspace' && !codeInput.value && consultationCodes.length) {
+        consultationCodes.pop();
+        renderConsultationCodeTags();
+      }
+    });
+    codeInput.addEventListener('paste', event => {
+      const pastedText = event.clipboardData?.getData('text') || '';
+      if (!/[\r\n,，;；]/.test(pastedText)) return;
+      event.preventDefault();
+      addConsultationCodes(pastedText);
+    });
+    codeTags.addEventListener('click', event => {
+      const chip = event.target.closest('[data-code-index]');
+      if (!chip) return;
+      consultationCodes.splice(Number(chip.dataset.codeIndex), 1);
+      renderConsultationCodeTags();
+      codeInput.focus();
+    });
+    renderConsultationCodeTags();
     const saveButton = document.createElement('button');
-    saveButton.className = 'admin-button';
+    saveButton.className = 'admin-button icon-only';
     saveButton.type = 'submit';
-    saveButton.textContent = '儲存代碼';
+    saveButton.setAttribute('aria-label', '儲存代碼');
+    saveButton.title = '儲存代碼';
+    const saveIcon = document.createElement('span');
+    saveIcon.className = 'material-icons notranslate';
+    saveIcon.setAttribute('translate', 'no');
+    saveIcon.setAttribute('aria-hidden', 'true');
+    saveIcon.textContent = 'save';
+    saveButton.append(saveIcon);
+    codeEntry.append(codeInput, saveButton);
+    codeField.append(codeTags, codeEntry);
     const saveStatus = document.createElement('p');
     saveStatus.className = 'admin-status';
     saveStatus.setAttribute('role', 'status');
     saveStatus.hidden = true;
-    codeForm.append(codeLabel, saveButton);
+    openLink.classList.add('consultation-code-link');
+    codeForm.append(codeLabel, codeField, openLink);
     codeForm.addEventListener('submit', async event => {
       event.preventDefault();
+      if (codeInput.value.trim() && !commitCodeInput()) return;
+      const codes = consultationCodes;
+      if (!codes.length) codeInput.setCustomValidity('請至少輸入一組諮詢代碼。');
+      else codeInput.setCustomValidity('');
       if (!codeInput.reportValidity()) return;
-      const code = codeInput.value.trim();
+
+      const code = codes.join(',');
       setButtonBusy(saveButton, true, '儲存中');
       const { data: updated, error } = await window.questionnaireSupabase
         .from('questionnaire_responses')
@@ -799,10 +1413,10 @@ document.addEventListener('DOMContentLoaded', () => {
       response.anonymous_consult_code = code;
       response.response_data = { ...response.response_data, anonymous_consult_code: code };
       renderResponses();
-      showStatus(saveStatus, '諮詢代碼已儲存。');
+      showStatus(saveStatus, `已儲存 ${codes.length} 組諮詢代碼。`);
     });
 
-    section.append(heading, note, answerList, actions, copyStatus, codeForm, saveStatus);
+    section.append(headingRow, copyStatus, note, codeForm, saveStatus, answerList);
     responseDetails.append(section);
   }
 
@@ -812,9 +1426,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .filter(([kind, path]) => SCREENING_PHOTO_LABELS[kind] && SCREENING_PHOTO_PATH.test(String(path)) && String(path).includes(`/${kind}.`));
     if (!entries.length) return;
 
-    const section = document.createElement('section');
+    const section = document.createElement('details');
     section.className = 'response-section';
-    const heading = document.createElement('h3');
+    const heading = document.createElement('summary');
     heading.className = 'response-section-title';
     heading.textContent = '陽性試劑照片';
     const content = document.createElement('div');
