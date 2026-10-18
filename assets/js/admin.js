@@ -118,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginOtpResendButton = document.getElementById('admin-login-otp-resend');
   const loginModeButtons = [...document.querySelectorAll('[data-admin-login-mode]')];
   const loginSubmitButton = loginForm.querySelector('button[type="submit"]');
+  const loginSubmitLabel = document.getElementById('admin-login-submit-label');
   const signupForm = document.getElementById('signup-form');
   const passwordResetForm = document.getElementById('password-reset-form');
   const passwordUpdateForm = document.getElementById('password-update-form');
@@ -208,9 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loginOtpInput.required = otpReady;
     loginOtpResendButton.hidden = !otpReady;
     loginModeButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.adminLoginMode === loginMode)));
-    const textNodes = [...loginSubmitButton.childNodes].filter(node => node.nodeType === Node.TEXT_NODE);
-    const textNode = textNodes[textNodes.length - 1];
-    if (textNode) textNode.textContent = `\n        ${loginMode === 'password' ? '登入後台' : otpReady ? '驗證並登入' : '寄送驗證碼'}\n      `;
+    loginSubmitLabel.textContent = loginMode === 'password' ? '登入後台' : otpReady ? '驗證並登入' : '寄送驗證碼';
   }
 
   loginModeButtons.forEach(button => button.addEventListener('click', () => {
@@ -1647,9 +1646,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function setButtonBusy(button, busy, label) {
     button.disabled = busy;
     button.querySelector('.material-icons')?.classList.toggle('spin', busy);
+    const labelElement = button.querySelector('[data-button-label]');
     const textNodes = Array.from(button.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
     const text = textNodes[textNodes.length - 1];
-    if (text) {
+    if (labelElement) {
+      labelElement.textContent = label;
+    } else if (text) {
       text.textContent = ` ${label}`;
     }
   }
