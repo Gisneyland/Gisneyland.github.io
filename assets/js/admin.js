@@ -210,6 +210,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('show-signup').addEventListener('click', () => showAuthForm(signupForm));
+  const searchParams = new URLSearchParams(window.location.search);
+  if (searchParams.get('signup') === '1') {
+    showAuthForm(signupForm);
+    searchParams.delete('signup');
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.search = searchParams.toString();
+    window.history.replaceState(null, '', cleanUrl);
+  }
   document.getElementById('show-password-reset').addEventListener('click', () => {
     document.getElementById('reset-email').value = document.getElementById('admin-email').value;
     showAuthForm(passwordResetForm);

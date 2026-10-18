@@ -45,7 +45,10 @@
           <input id="staff-login-email" name="email" type="email" autocomplete="username" placeholder="工作人員電子郵件" required>
           <label class="sr-only" for="staff-login-password">密碼</label>
           <input id="staff-login-password" name="password" type="password" autocomplete="current-password" placeholder="密碼" required>
-          <button id="staff-login-submit" class="staff-login-submit" type="submit">登入</button>
+          <div class="staff-login-actions">
+            <button id="staff-login-submit" class="staff-login-submit" type="submit" data-i18n="staff_login">登入</button>
+            <a class="staff-signup-link" href="{{ '/admin/?signup=1' | relative_url }}" data-i18n="staff_signup">申請工作人員帳號</a>
+          </div>
         </form>
         <p id="staff-login-feedback" class="staff-login-feedback" role="status" aria-live="polite" hidden></p>
         <a id="staff-admin-link" href="{{ '/admin/' | relative_url }}" class="staff-session-link" hidden>管理後台</a>
