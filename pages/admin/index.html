@@ -450,33 +450,84 @@ permalink: /admin/
         <div>
           <p class="eyebrow">篩檢規劃</p>
           <h2 id="screening-plan-title">常用地點與時段</h2>
-          <p class="admin-muted">設定每週篩檢安排；問卷只會在符合時段時預填地點，仍可修改。</p>
+          <p class="admin-muted">可設定每週或每月多筆安排；問卷只會在符合日期與時段時預填地點，仍可修改。</p>
         </div>
         <form id="screening-plan-form" class="screening-plan-form">
-          <label for="screening-plan-place">常用篩檢地點</label>
-          <input id="screening-plan-place" name="place" type="search" list="screening-plan-place-options" maxlength="180" autocomplete="street-address" placeholder="輸入地址或選擇地標" required disabled>
-          <datalist id="screening-plan-place-options"></datalist>
+          <div id="screening-plan-rules" class="screening-plan-rules"></div>
+          <button id="add-screening-plan-rule" class="admin-button secondary" type="button" disabled>
+            <span class="material-icons notranslate" translate="no" aria-hidden="true">add</span>
+            新增篩檢安排
+          </button>
+          <template id="screening-plan-rule-template">
+            <fieldset class="screening-plan-rule">
+              <div class="screening-plan-rule-heading">
+                <h3>安排 <span class="screening-plan-rule-number"></span></h3>
+                <button class="admin-button secondary icon-only screening-plan-rule-remove" type="button" aria-label="移除此安排" title="移除此安排">
+                  <span class="material-icons notranslate" translate="no" aria-hidden="true">delete</span>
+                </button>
+              </div>
+              <div class="screening-plan-rule-fields">
+                <label class="screening-plan-rule-frequency-label">週期
+                  <select class="screening-plan-rule-frequency" required>
+                    <option value="weekly">每週</option>
+                    <option value="monthly">每月</option>
+                  </select>
+                </label>
+                <fieldset class="screening-plan-rule-weekly screening-plan-weekdays">
+                  <legend>篩檢日（可複選）</legend>
+                  <div class="screening-weekday-options">
+                    <label><input type="checkbox" value="0">日</label>
+                    <label><input type="checkbox" value="1">一</label>
+                    <label><input type="checkbox" value="2">二</label>
+                    <label><input type="checkbox" value="3">三</label>
+                    <label><input type="checkbox" value="4">四</label>
+                    <label><input type="checkbox" value="5">五</label>
+                    <label><input type="checkbox" value="6">六</label>
+                  </div>
+                </fieldset>
+                <div class="screening-plan-rule-monthly" hidden>
+                  <label>每月第幾個星期
+                    <select class="screening-plan-rule-ordinal">
+                      <option value="1">第一個</option>
+                      <option value="2">第二個</option>
+                      <option value="3">第三個</option>
+                      <option value="4">第四個</option>
+                      <option value="-1">最後一個</option>
+                    </select>
+                  </label>
+                  <label>星期
+                    <select class="screening-plan-rule-monthly-weekday">
+                      <option value="0">星期日</option><option value="1">星期一</option>
+                      <option value="2">星期二</option><option value="3">星期三</option>
+                      <option value="4">星期四</option><option value="5">星期五</option>
+                      <option value="6">星期六</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="screening-plan-times">
+                  <label>開始時間<input class="screening-plan-rule-start" type="time" required></label>
+                  <label>結束時間<input class="screening-plan-rule-end" type="time" required></label>
+                </div>
+                <label>常用篩檢地點</label>
+                <div class="screening-plan-place-controls">
+                  <div class="screening-plan-place-picker">
+                    <input class="screening-plan-rule-place" type="search" maxlength="180" autocomplete="street-address" placeholder="輸入地址或選擇地標" aria-label="常用篩檢地點" role="combobox" aria-autocomplete="list" aria-expanded="false" required>
+                    <div class="screening-plan-place-options" role="listbox" aria-label="地點建議" hidden></div>
+                  </div>
+                  <button class="admin-button secondary icon-only screening-plan-rule-search" type="button" aria-label="搜尋地點並在地圖顯示" title="搜尋地點並在地圖顯示"><span class="material-icons notranslate" translate="no" aria-hidden="true">search</span></button>
+                </div>
+                <div class="screening-plan-place-actions">
+                  <button class="admin-button secondary screening-plan-rule-map-toggle" type="button" aria-expanded="false"><span class="material-icons notranslate" translate="no" aria-hidden="true">map</span>地圖選點</button>
+                  <button class="admin-button secondary screening-plan-rule-geolocate" type="button"><span class="material-icons notranslate" translate="no" aria-hidden="true">my_location</span>目前位置</button>
+                </div>
+                <p class="admin-muted screening-plan-rule-place-status" role="status" aria-live="polite" hidden></p>
+                <div class="screening-plan-rule-map screening-plan-place-map" hidden>
+                  <div class="screening-plan-rule-map-canvas" role="application" aria-label="此安排的常用篩檢地點地圖"></div>
+                </div>
+              </div>
+            </fieldset>
+          </template>
           <p class="admin-muted">自訂地址會傳送至 Photon 定位；座標會傳送至 Open-Meteo 查詢預報。</p>
-          <fieldset class="screening-plan-weekdays">
-            <legend>每週篩檢日</legend>
-            <div class="screening-weekday-options">
-              <label><input type="checkbox" name="screening-weekday" value="0" disabled>日</label>
-              <label><input type="checkbox" name="screening-weekday" value="1" disabled>一</label>
-              <label><input type="checkbox" name="screening-weekday" value="2" disabled>二</label>
-              <label><input type="checkbox" name="screening-weekday" value="3" disabled>三</label>
-              <label><input type="checkbox" name="screening-weekday" value="4" disabled>四</label>
-              <label><input type="checkbox" name="screening-weekday" value="5" disabled>五</label>
-              <label><input type="checkbox" name="screening-weekday" value="6" disabled>六</label>
-            </div>
-          </fieldset>
-          <div class="screening-plan-times">
-            <label for="screening-plan-start">開始時間
-              <input id="screening-plan-start" name="start" type="time" required disabled>
-            </label>
-            <label for="screening-plan-end">結束時間
-              <input id="screening-plan-end" name="end" type="time" required disabled>
-            </label>
-          </div>
           <button id="save-screening-plan" class="admin-button" type="submit" disabled>儲存篩檢安排</button>
           <p id="screening-plan-status" class="admin-status" role="status" hidden></p>
         </form>

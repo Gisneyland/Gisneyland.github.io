@@ -1106,27 +1106,54 @@ function applyPreferredScreeningPlace(staffSessionReady) {
   if (!input) return;
   staffSessionReady.then(staffState => {
     const preferences = staffState.screeningPreferences;
-    if (staffState.state !== 'staff' || !preferences?.place?.label
-      || !Array.isArray(preferences.weekdays) || !preferences.weekdays.length
-      || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(preferences.startTime || '')
-      || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(preferences.endTime || '')
-      || preferences.weekdays.some(day => !Number.isInteger(day) || day < 0 || day > 6)
-      || input.value.trim()) return;
+    if (staffState.state !== 'staff' || !preferences || input.value.trim()) return;
+
+    const rules = Array.isArray(preferences.rules)
+      ? preferences.rules
+      : preferences.place && Array.isArray(preferences.weekdays)
+        ? [{
+          frequency: 'weekly',
+          weekdays: preferences.weekdays,
+          place: preferences.place,
+          startTime: preferences.startTime,
+          endTime: preferences.endTime
+        }]
+        : [];
+    if (!rules.length) return;
 
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Taipei', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+      timeZone: 'Asia/Taipei', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
     }).formatToParts(new Date()).filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
     const weekdayNumbers = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
     const currentMinutes = Number(parts.hour) * 60 + Number(parts.minute);
-    const startMinutes = Number(preferences.startTime.slice(0, 2)) * 60 + Number(preferences.startTime.slice(3, 5));
-    const endMinutes = Number(preferences.endTime.slice(0, 2)) * 60 + Number(preferences.endTime.slice(3, 5));
-    if (startMinutes >= endMinutes) return;
-    if (!preferences.weekdays.includes(weekdayNumbers[parts.weekday])
-      || currentMinutes < startMinutes || currentMinutes >= endMinutes) return;
+    const weekday = weekdayNumbers[parts.weekday];
+    const dayOfMonth = Number(parts.day);
+    const daysInMonth = new Date(Date.UTC(Number(parts.year), Number(parts.month), 0)).getUTCDate();
+    const matchingRules = rules.filter(rule => {
+      if (!rule.place?.label || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(rule.startTime || '')
+        || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(rule.endTime || '')
+        || rule.startTime >= rule.endTime) return false;
+      const startMinutes = Number(rule.startTime.slice(0, 2)) * 60 + Number(rule.startTime.slice(3, 5));
+      const endMinutes = Number(rule.endTime.slice(0, 2)) * 60 + Number(rule.endTime.slice(3, 5));
+      if (currentMinutes < startMinutes || currentMinutes >= endMinutes) return false;
+      if (rule.frequency === 'weekly') {
+        return Array.isArray(rule.weekdays) && rule.weekdays.includes(weekday);
+      }
+      if (rule.frequency !== 'monthly' || Number(rule.weekday) !== weekday) return false;
+      if (Number(rule.ordinal) === -1) return dayOfMonth + 7 > daysInMonth;
+      return Number.isInteger(Number(rule.ordinal))
+        && Math.floor((dayOfMonth - 1) / 7) + 1 === Number(rule.ordinal);
+    });
+    const matchingPlaces = new Map(matchingRules.map(rule => [
+      `${rule.place.label}|${rule.place.coordinates?.join(',') || ''}`,
+      rule.place
+    ]));
+    if (matchingPlaces.size !== 1) return;
 
-    input.value = preferences.place.label;
+    input.value = [...matchingPlaces.values()][0].label;
     if (status) {
-      status.textContent = '已依目前時段帶入常用地點；你仍可修改。';
+      status.textContent = '已依目前日期與時段帶入常用地點；你仍可修改。';
       status.hidden = false;
     }
   }).catch(() => {});

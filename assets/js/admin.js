@@ -186,11 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const accountProfileStatus = document.getElementById('account-profile-status');
   const accountEmailLabel = document.getElementById('admin-account-email');
   const screeningPlanForm = document.getElementById('screening-plan-form');
-  const screeningPlanPlace = document.getElementById('screening-plan-place');
-  const screeningPlanPlacesList = document.getElementById('screening-plan-place-options');
-  const screeningPlanStart = document.getElementById('screening-plan-start');
-  const screeningPlanEnd = document.getElementById('screening-plan-end');
-  const screeningPlanWeekdays = [...document.querySelectorAll('[name="screening-weekday"]')];
+  const screeningPlanRulesContainer = document.getElementById('screening-plan-rules');
+  const screeningPlanRuleTemplate = document.getElementById('screening-plan-rule-template');
+  const addScreeningPlanRuleButton = document.getElementById('add-screening-plan-rule');
   const screeningPlanStatus = document.getElementById('screening-plan-status');
   const screeningPlanNext = document.getElementById('screening-plan-next');
   const screeningPlanWeather = document.getElementById('screening-plan-weather');
@@ -226,66 +224,337 @@ document.addEventListener('DOMContentLoaded', () => {
       .map(place => ({
         name: String(place.name || place.label || '').trim(),
         label: String(place.label || place.name || '').trim(),
+        aliases: Array.isArray(place.aliases) ? place.aliases.map(alias => String(alias || '').trim()) : [],
         coordinates: place.coordinates.map(Number)
       }))
       .filter(place => place.label);
   } catch {
     screeningPlanPlaces = [];
   }
-  screeningPlanPlacesList.replaceChildren(...screeningPlanPlaces.map(place => new Option(place.label, place.label)));
-
-  renderScreeningVolumeLegend();
-
-  if (!window.questionnaireSupabase) {
-    showStatus(loginStatus, '資料服務尚未設定，請聯絡系統管理員。', true);
-    loginSubmitButton.disabled = true;
-    return;
+  const screeningPlanRuleStates = new WeakMap();
+  const photonPlaceLabel = feature => {
+    const properties = feature.properties || {};
+    return [properties.name, properties.housenumber, properties.street, properties.district,
+      properties.city, properties.county, properties.state]
+      .map(value => String(value || '').trim())
+      .filter((value, index, values) => value && values.indexOf(value) === index)
+      .join('、');
+  };
+  function createScreeningPlanRule(rule = {}) {
+    const fragment = screeningPlanRuleTemplate.content.cloneNode(true);
+    const row = fragment.querySelector('.screening-plan-rule');
+    const frequency = row.querySelector('.screening-plan-rule-frequency');
+    const weeklyPanel = row.querySelector('.screening-plan-rule-weekly');
+    const monthlyPanel = row.querySelector('.screening-plan-rule-monthly');
+    const monthlyOrdinal = row.querySelector('.screening-plan-rule-ordinal');
+    const monthlyWeekday = row.querySelector('.screening-plan-rule-monthly-weekday');
+    const placeInput = row.querySelector('.screening-plan-rule-place');
+    const options = row.querySelector('.screening-plan-place-options');
+    const searchButton = row.querySelector('.screening-plan-rule-search');
+    const mapToggle = row.querySelector('.screening-plan-rule-map-toggle');
+    const geolocateButton = row.querySelector('.screening-plan-rule-geolocate');
+    const mapContainer = row.querySelector('.screening-plan-rule-map');
+    const mapCanvas = row.querySelector('.screening-plan-rule-map-canvas');
+    const placeStatus = row.querySelector('.screening-plan-rule-place-status');
+    const state = {
+      place: rule.place || null,
+      map: null,
+      marker: null,
+      searchRequest: null,
+      reverseRequest: null,
+      revision: 0
+    };
+    screeningPlanRuleStates.set(row, state);
+    frequency.value = rule.frequency === 'monthly' ? 'monthly' : 'weekly';
+    weeklyPanel.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.checked = Array.isArray(rule.weekdays) && rule.weekdays.includes(Number(input.value));
+    });
+    monthlyOrdinal.value = String(rule.ordinal || 2);
+    monthlyWeekday.value = String(Number.isInteger(rule.weekday) ? rule.weekday : 5);
+    row.querySelector('.screening-plan-rule-start').value = rule.startTime || '14:00';
+    row.querySelector('.screening-plan-rule-end').value = rule.endTime || '16:00';
+    placeInput.value = rule.place?.label || '';
+    const closeOptions = () => {
+      options.hidden = true;
+      placeInput.setAttribute('aria-expanded', 'false');
+    };
+    const showOptions = places => {
+      options.replaceChildren();
+      places.forEach(place => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'screening-plan-place-option';
+        button.setAttribute('role', 'option');
+        button.textContent = place.label;
+        button.addEventListener('pointerdown', event => event.preventDefault());
+        button.addEventListener('click', () => setPlace(place));
+        options.append(button);
+      });
+      options.hidden = places.length === 0;
+      placeInput.setAttribute('aria-expanded', String(places.length > 0));
+    };
+    const localOptions = () => {
+      const query = placeInput.value.trim().toLocaleLowerCase().replace(/[\s、,，.-]/g, '');
+      showOptions(screeningPlanPlaces.filter(place => !query
+        || [place.name, place.label, ...place.aliases].some(value =>
+          value.toLocaleLowerCase().replace(/[\s、,，.-]/g, '').includes(query))));
+    };
+    const ensureMap = () => {
+      if (!window.L) {
+        placeStatus.textContent = 'Leaflet 地圖無法載入，仍可輸入地址後儲存。';
+        placeStatus.hidden = false;
+        return false;
+      }
+      mapContainer.hidden = false;
+      mapToggle.setAttribute('aria-expanded', 'true');
+      if (!state.map) {
+        const center = state.place?.coordinates
+          ? [state.place.coordinates[1], state.place.coordinates[0]]
+          : [24.8036, 120.9719];
+        state.map = window.L.map(mapCanvas, { scrollWheelZoom: false }).setView(center, 13);
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(state.map);
+        state.map.on('click', event => chooseMapPoint(event.latlng.lat, event.latlng.lng));
+      }
+      window.requestAnimationFrame(() => state.map?.invalidateSize());
+      return true;
+    };
+    const moveMarker = (latitude, longitude) => {
+      if (!ensureMap()) return;
+      state.map.setView([latitude, longitude], 16);
+      if (!state.marker) {
+        state.marker = window.L.marker([latitude, longitude], { draggable: true }).addTo(state.map);
+        state.marker.on('dragend', () => {
+          const point = state.marker.getLatLng();
+          chooseMapPoint(point.lat, point.lng);
+        });
+      } else state.marker.setLatLng([latitude, longitude]);
+    };
+    const setPlace = place => {
+      state.place = { ...place, coordinates: place.coordinates.map(Number) };
+      placeInput.value = place.label;
+      closeOptions();
+      if (state.place.coordinates?.length === 2) moveMarker(state.place.coordinates[1], state.place.coordinates[0]);
+      placeStatus.textContent = `已選位置：${place.label}`;
+      placeStatus.hidden = false;
+    };
+    const chooseMapPoint = async (latitude, longitude) => {
+      state.revision += 1;
+      const revision = state.revision;
+      state.searchRequest?.abort();
+      state.reverseRequest?.abort();
+      moveMarker(latitude, longitude);
+      const coordinates = [longitude, latitude];
+      const coordinateLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+      state.place = { name: '地圖選點', label: coordinateLabel, coordinates };
+      placeInput.value = coordinateLabel;
+      placeStatus.textContent = '已標記位置，正在查詢地址…';
+      placeStatus.hidden = false;
+      const request = new AbortController();
+      state.reverseRequest = request;
+      const timeout = window.setTimeout(() => request.abort(), 10000);
+      try {
+        const params = new URLSearchParams({ lat: String(latitude), lon: String(longitude), lang: 'zh' });
+        const response = await fetch(`https://photon.komoot.io/reverse?${params}`, { signal: request.signal });
+        if (!response.ok) throw new Error('Reverse lookup unavailable');
+        const feature = (await response.json()).features?.[0];
+        const label = feature && photonPlaceLabel(feature);
+        if (revision !== state.revision) return;
+        if (label) {
+          state.place = { name: feature.properties?.name || label, label, coordinates };
+          placeInput.value = label;
+          placeStatus.textContent = `已選位置：${label}`;
+        } else placeStatus.textContent = `已標記座標：${coordinateLabel}`;
+      } catch {
+        if (revision === state.revision) placeStatus.textContent = `地址查詢未完成，已保留座標：${coordinateLabel}`;
+      } finally { window.clearTimeout(timeout); }
+    };
+    const searchPlace = async () => {
+      const query = placeInput.value.trim();
+      if (!query) {
+        placeStatus.textContent = '請先輸入地點名稱或地址。';
+        placeStatus.hidden = false;
+        placeInput.focus();
+        return;
+      }
+      state.searchRequest?.abort();
+      const request = new AbortController();
+      state.searchRequest = request;
+      const timeout = window.setTimeout(() => request.abort(), 12000);
+      searchButton.disabled = true;
+      placeStatus.textContent = '正在搜尋地點…';
+      placeStatus.hidden = false;
+      try {
+        const params = new URLSearchParams({ q: query, limit: '6', countrycodes: 'tw', lang: 'zh' });
+        const response = await fetch(`https://photon.komoot.io/api/?${params}`, { signal: request.signal });
+        if (!response.ok) throw new Error('Place search unavailable');
+        const payload = await response.json();
+        if (state.searchRequest !== request) return;
+        const places = (payload.features || []).filter(feature => feature.geometry?.type === 'Point')
+          .map(feature => ({
+            name: feature.properties?.name || query,
+            label: photonPlaceLabel(feature) || query,
+            coordinates: feature.geometry.coordinates.map(Number)
+          }))
+          .filter(place => place.coordinates.length === 2 && place.coordinates.every(Number.isFinite));
+        ensureMap();
+        showOptions(places);
+        placeStatus.textContent = places.length
+          ? `找到 ${places.length} 個地點，請選擇結果或在地圖上點選。`
+          : '找不到搜尋結果，可直接在地圖上點選位置。';
+        if (!places.length) closeOptions();
+      } catch {
+        if (state.searchRequest === request) {
+          ensureMap();
+          placeStatus.textContent = '搜尋服務暫時無法使用，可在地圖上點選位置。';
+        }
+      } finally {
+        window.clearTimeout(timeout);
+        if (state.searchRequest === request) searchButton.disabled = !screeningPlanEditable;
+      }
+    };
+    frequency.addEventListener('change', () => {
+      weeklyPanel.hidden = frequency.value !== 'weekly';
+      monthlyPanel.hidden = frequency.value !== 'monthly';
+    });
+    frequency.dispatchEvent(new Event('change'));
+    placeInput.addEventListener('focus', localOptions);
+    placeInput.addEventListener('input', () => {
+      state.revision += 1;
+      state.place = null;
+      state.reverseRequest?.abort();
+      localOptions();
+    });
+    placeInput.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown' && !options.hidden) {
+        event.preventDefault();
+        options.querySelector('button')?.focus();
+      } else if (event.key === 'Escape') closeOptions();
+    });
+    options.addEventListener('keydown', event => {
+      const buttons = [...options.querySelectorAll('button')];
+      const index = buttons.indexOf(document.activeElement);
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        buttons[Math.max(0, Math.min(buttons.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus();
+      } else if (event.key === 'Escape') {
+        closeOptions();
+        placeInput.focus();
+      }
+    });
+    row.querySelector('.screening-plan-rule-search').addEventListener('click', searchPlace);
+    row.querySelector('.screening-plan-rule-map-toggle').addEventListener('click', () => {
+      const toggle = row.querySelector('.screening-plan-rule-map-toggle');
+      const shouldOpen = mapContainer.hidden;
+      if (shouldOpen) ensureMap();
+      else mapContainer.hidden = true;
+      toggle.setAttribute('aria-expanded', String(shouldOpen));
+      if (shouldOpen && state.place?.coordinates) moveMarker(state.place.coordinates[1], state.place.coordinates[0]);
+    });
+    row.querySelector('.screening-plan-rule-geolocate').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        placeStatus.textContent = '此瀏覽器不支援目前位置定位。';
+        placeStatus.hidden = false;
+        return;
+      }
+      const button = row.querySelector('.screening-plan-rule-geolocate');
+      button.disabled = true;
+      placeStatus.textContent = '正在取得目前位置…';
+      placeStatus.hidden = false;
+      navigator.geolocation.getCurrentPosition(position => {
+        button.disabled = !screeningPlanEditable;
+        ensureMap();
+        chooseMapPoint(position.coords.latitude, position.coords.longitude);
+      }, () => {
+        button.disabled = !screeningPlanEditable;
+        placeStatus.textContent = '無法取得目前位置；請確認瀏覽器定位權限，或在地圖上選點。';
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+    });
+    row.querySelector('.screening-plan-rule-remove').addEventListener('click', () => {
+      state.searchRequest?.abort();
+      state.reverseRequest?.abort();
+      state.map?.remove();
+      row.remove();
+      updateScreeningPlanRuleNumbers();
+    });
+    row.querySelectorAll('input, select, button').forEach(control => {
+      if (control.classList.contains('screening-plan-rule-remove')) return;
+      control.disabled = !screeningPlanEditable;
+    });
+    row.querySelector('.screening-plan-rule-monthly').hidden = frequency.value !== 'monthly';
+    row.querySelector('.screening-plan-rule-weekly').hidden = frequency.value !== 'weekly';
+    screeningPlanRulesContainer.append(row);
+    updateScreeningPlanRuleNumbers();
+    return row;
   }
-
-  function updateLoginMode() {
-    const usingOtp = loginMode === 'otp';
-    const otpReady = usingOtp && otpSentFor !== '' && otpSentFor === loginEmailInput.value.trim();
-    loginPasswordField.hidden = usingOtp;
-    loginPasswordInput.required = !usingOtp;
-    loginOtpField.hidden = !otpReady;
-    loginOtpInput.required = otpReady;
-    loginOtpResendButton.hidden = !otpReady;
-    loginModeButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.adminLoginMode === loginMode)));
-    loginSubmitLabel.textContent = loginMode === 'password' ? '登入後台' : otpReady ? '驗證並登入' : '寄送驗證碼';
+  function updateScreeningPlanRuleNumbers() {
+    [...screeningPlanRulesContainer.children].forEach((row, index) => {
+      row.querySelector('.screening-plan-rule-number').textContent = String(index + 1);
+    });
+    addScreeningPlanRuleButton.disabled = !screeningPlanEditable || screeningPlanRulesContainer.children.length >= 16;
   }
+    function closeScreeningPlanPlaceOptions(event) {
+      if (event?.target?.closest('.screening-plan-place-picker')) return;
+      screeningPlanRulesContainer.querySelectorAll('.screening-plan-place-options').forEach(options => {
+        options.hidden = true;
+        options.closest('.screening-plan-rule')?.querySelector('.screening-plan-rule-place')?.setAttribute('aria-expanded', 'false');
+      });
+    }
+    document.addEventListener('pointerdown', closeScreeningPlanPlaceOptions);
 
-  loginModeButtons.forEach(button => button.addEventListener('click', () => {
-    loginMode = button.dataset.adminLoginMode;
-    loginStatus.hidden = true;
-    updateLoginMode();
-  }));
-  loginEmailInput.addEventListener('input', () => {
-    if (otpSentFor && otpSentFor !== loginEmailInput.value.trim()) {
-      otpSentFor = '';
+    renderScreeningVolumeLegend();
+
+    if (!window.questionnaireSupabase) {
+      showStatus(loginStatus, '資料服務尚未設定，請聯絡系統管理員。', true);
+      loginSubmitButton.disabled = true;
+      return;
+    }
+
+    function updateLoginMode() {
+      const usingOtp = loginMode === 'otp';
+      const otpReady = usingOtp && otpSentFor !== '' && otpSentFor === loginEmailInput.value.trim();
+      loginPasswordField.hidden = usingOtp;
+      loginPasswordInput.required = !usingOtp;
+      loginOtpField.hidden = !otpReady;
+      loginOtpInput.required = otpReady;
+      loginOtpResendButton.hidden = !otpReady;
+      loginModeButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.adminLoginMode === loginMode)));
+      loginSubmitLabel.textContent = loginMode === 'password' ? '登入後台' : otpReady ? '驗證並登入' : '寄送驗證碼';
+    }
+
+    loginModeButtons.forEach(button => button.addEventListener('click', () => {
+      loginMode = button.dataset.adminLoginMode;
+      loginStatus.hidden = true;
+      updateLoginMode();
+    }));
+    loginEmailInput.addEventListener('input', () => {
+      if (otpSentFor && otpSentFor !== loginEmailInput.value.trim()) {
+        otpSentFor = '';
+        loginOtpInput.value = '';
+        updateLoginMode();
+      }
+    });
+
+    async function sendLoginOtp() {
+      const email = loginEmailInput.value.trim();
+      if (!loginEmailInput.reportValidity()) return false;
+      const { error } = await window.StaffAccess.requestEmailOtp(
+        window.questionnaireSupabase,
+        email,
+        getAdminRedirectUrl()
+      );
+      if (error) {
+        showStatus(loginStatus, window.StaffAccess.otpErrorMessage(error), true);
+        return false;
+      }
+      otpSentFor = email;
       loginOtpInput.value = '';
       updateLoginMode();
+      showStatus(loginStatus, `驗證碼已寄至 ${email}，請查看收件匣與垃圾郵件。`);
+      return true;
     }
-  });
-
-  async function sendLoginOtp() {
-    const email = loginEmailInput.value.trim();
-    if (!loginEmailInput.reportValidity()) return false;
-    const { error } = await window.StaffAccess.requestEmailOtp(
-      window.questionnaireSupabase,
-      email,
-      getAdminRedirectUrl()
-    );
-    if (error) {
-      showStatus(loginStatus, window.StaffAccess.otpErrorMessage(error), true);
-      return false;
-    }
-    otpSentFor = email;
-    loginOtpInput.value = '';
-    updateLoginMode();
-    showStatus(loginStatus, `驗證碼已寄至 ${email}，請查看收件匣與垃圾郵件。`);
-    return true;
-  }
-
   loginOtpResendButton.addEventListener('click', async () => {
     loginOtpResendButton.disabled = true;
     try {
@@ -738,57 +1007,90 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setScreeningPlanDisabled(disabled) {
     screeningPlanEditable = !disabled;
-    screeningPlanPlace.disabled = disabled;
-    screeningPlanWeekdays.forEach(input => { input.disabled = disabled; });
-    screeningPlanStart.disabled = disabled;
-    screeningPlanEnd.disabled = disabled;
+    addScreeningPlanRuleButton.disabled = disabled || screeningPlanRulesContainer.children.length >= 16;
+    screeningPlanRulesContainer.querySelectorAll('input, select, button').forEach(control => {
+      control.disabled = disabled;
+    });
     saveScreeningPlanButton.disabled = disabled;
     refreshScreeningOutlookButton.disabled = disabled;
   }
 
   function loadScreeningPlan(user, canEdit) {
-    savedScreeningPreferences = user.user_metadata?.screening_preferences || null;
+    const stored = user.user_metadata?.screening_preferences || {};
+    const rules = Array.isArray(stored.rules)
+      ? stored.rules
+      : stored.place && Array.isArray(stored.weekdays)
+        ? [{
+          frequency: 'weekly',
+          weekdays: stored.weekdays,
+          place: stored.place,
+          startTime: stored.startTime,
+          endTime: stored.endTime
+        }]
+        : [];
+    [...screeningPlanRulesContainer.children].forEach(row => screeningPlanRuleStates.get(row)?.map?.remove());
+    screeningPlanRulesContainer.replaceChildren();
+    savedScreeningPreferences = { version: 2, rules };
+    screeningPlanEditable = canEdit;
+    if (rules.length) rules.forEach(rule => createScreeningPlanRule(rule));
+    else createScreeningPlanRule();
     setScreeningPlanDisabled(!canEdit);
-    const preferences = savedScreeningPreferences;
-    screeningPlanPlace.value = preferences?.place?.label || '';
-    screeningPlanWeekdays.forEach(input => {
-      input.checked = Array.isArray(preferences?.weekdays) && preferences.weekdays.includes(Number(input.value));
-    });
-    screeningPlanStart.value = preferences?.startTime || '';
-    screeningPlanEnd.value = preferences?.endTime || '';
     screeningPlanOutlookKey = '';
-    renderNextScreeningSlot(preferences);
+    renderNextScreeningSlot(savedScreeningPreferences);
   }
 
   async function saveScreeningPlan(event) {
     event.preventDefault();
     if (!activeUser || !screeningPlanForm.reportValidity()) return;
-    const placeQuery = screeningPlanPlace.value.trim();
-    const weekdays = screeningPlanWeekdays.filter(input => input.checked).map(input => Number(input.value));
-    const startTime = screeningPlanStart.value;
-    const endTime = screeningPlanEnd.value;
-    if (!placeQuery || weekdays.length === 0) {
-      showStatus(screeningPlanStatus, '請選擇地點與至少一個每週篩檢日。', true);
-      return;
-    }
-    if (startTime >= endTime) {
-      showStatus(screeningPlanStatus, '結束時間需晚於開始時間。', true);
-      screeningPlanEnd.focus();
+    const rows = [...screeningPlanRulesContainer.querySelectorAll('.screening-plan-rule')];
+    if (!rows.length) {
+      showStatus(screeningPlanStatus, '請至少新增一筆篩檢安排。', true);
       return;
     }
 
     setButtonBusy(saveScreeningPlanButton, true, '儲存中');
     try {
-      const place = await resolveScreeningPlanPlace(placeQuery);
-      if (!place) {
-        showStatus(screeningPlanStatus, '無法定位這個地點，請輸入較完整的地址或選擇清單中的地標。', true);
-        return;
+      const rules = [];
+      for (const [index, row] of rows.entries()) {
+        const frequency = row.querySelector('.screening-plan-rule-frequency').value;
+        const weekdays = [...row.querySelectorAll('.screening-plan-rule-weekly input:checked')]
+          .map(input => Number(input.value))
+          .sort((left, right) => left - right);
+        const startTime = row.querySelector('.screening-plan-rule-start').value;
+        const endTime = row.querySelector('.screening-plan-rule-end').value;
+        const placeInput = row.querySelector('.screening-plan-rule-place');
+        const placeQuery = placeInput.value.trim();
+        if (frequency === 'weekly' && !weekdays.length) {
+          showStatus(screeningPlanStatus, `安排 ${index + 1}：每週請至少選一個星期。`, true);
+          row.querySelector('.screening-plan-rule-weekly input')?.focus();
+          return;
+        }
+        if (startTime >= endTime) {
+          showStatus(screeningPlanStatus, `安排 ${index + 1}：結束時間需晚於開始時間。`, true);
+          row.querySelector('.screening-plan-rule-end').focus();
+          return;
+        }
+        const state = screeningPlanRuleStates.get(row);
+        const place = await resolveScreeningPlanPlace(placeQuery, state?.place);
+        if (!place) {
+          showStatus(screeningPlanStatus, `安排 ${index + 1}：無法定位地點，請輸入較完整地址或在地圖選點。`, true);
+          placeInput.focus();
+          return;
+        }
+        rules.push(frequency === 'monthly'
+          ? {
+            frequency,
+            ordinal: Number(row.querySelector('.screening-plan-rule-ordinal').value),
+            weekday: Number(row.querySelector('.screening-plan-rule-monthly-weekday').value),
+            place,
+            startTime,
+            endTime
+          }
+          : { frequency, weekdays, place, startTime, endTime });
       }
       const preferences = {
-        place,
-        weekdays: weekdays.sort((left, right) => left - right),
-        startTime,
-        endTime
+        version: 2,
+        rules
       };
       const { data, error } = await window.questionnaireSupabase.auth.updateUser({
         data: { screening_preferences: preferences }
@@ -805,7 +1107,7 @@ document.addEventListener('DOMContentLoaded', () => {
       savedScreeningPreferences = preferences;
       screeningOutlookKey = '';
       renderNextScreeningSlot(preferences);
-      showStatus(screeningPlanStatus, '常用地點與時段已儲存。符合時段時，問卷會預填此地點。');
+      showStatus(screeningPlanStatus, `已儲存 ${rules.length} 筆篩檢安排。符合日期與時段時，問卷會預填對應地點。`);
       refreshScreeningPlanOutlook(true);
     } catch {
       showStatus(screeningPlanStatus, '目前無法連線儲存，請稍後再試。', true);
@@ -814,7 +1116,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function resolveScreeningPlanPlace(query) {
+  async function resolveScreeningPlanPlace(query, chosenPlace) {
+    if (!query) return null;
+    if (chosenPlace?.label === query
+      && Array.isArray(chosenPlace.coordinates)
+      && chosenPlace.coordinates.length === 2
+      && chosenPlace.coordinates.every(Number.isFinite)) return chosenPlace;
     const savedPlace = screeningPlanPlaces.find(place => place.label === query || place.name === query);
     if (savedPlace) return savedPlace;
     try {
@@ -852,21 +1159,30 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getNextScreeningSlot(preferences) {
-    if (!preferences?.place?.coordinates || !Array.isArray(preferences.weekdays)
-      || !Array.isArray(preferences.place.coordinates) || preferences.place.coordinates.length !== 2
-      || !preferences.weekdays.length || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(preferences.startTime || '')
-      || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(preferences.endTime || '')
-      || preferences.weekdays.some(day => !Number.isInteger(day) || day < 0 || day > 6)) return null;
+    if (!Array.isArray(preferences?.rules) || !preferences.rules.length) return null;
     const now = getTaipeiParts();
     const today = Date.UTC(Number(now.year), Number(now.month) - 1, Number(now.day));
     const currentMinutes = Number(now.hour) * 60 + Number(now.minute);
-    const startMinutes = Number(preferences.startTime.slice(0, 2)) * 60 + Number(preferences.startTime.slice(3, 5));
-    const endMinutes = Number(preferences.endTime.slice(0, 2)) * 60 + Number(preferences.endTime.slice(3, 5));
-    if (startMinutes >= endMinutes || !preferences.place.coordinates.every(Number.isFinite)) return null;
-    for (let offset = 0; offset <= 7; offset += 1) {
+    for (let offset = 0; offset <= 370; offset += 1) {
       const date = new Date(today + offset * 86400000);
-      if (!preferences.weekdays.includes(date.getUTCDay())) continue;
-      if (offset === 0 && currentMinutes >= endMinutes) continue;
+      const weekday = date.getUTCDay();
+      const dayOfMonth = date.getUTCDate();
+      const daysInMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+      const candidates = preferences.rules.filter(rule => {
+        if (!rule.place?.label || !Array.isArray(rule.place.coordinates)
+          || rule.place.coordinates.length !== 2 || !rule.place.coordinates.every(Number.isFinite)
+          || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(rule.startTime || '')
+          || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(rule.endTime || '')
+          || rule.startTime >= rule.endTime) return false;
+        if (rule.frequency === 'weekly') return Array.isArray(rule.weekdays) && rule.weekdays.includes(weekday);
+        if (rule.frequency !== 'monthly' || Number(rule.weekday) !== weekday) return false;
+        if (Number(rule.ordinal) === -1) return dayOfMonth + 7 > daysInMonth;
+        return Number.isInteger(Number(rule.ordinal))
+          && Math.floor((dayOfMonth - 1) / 7) + 1 === Number(rule.ordinal);
+      }).filter(rule => offset > 0 || currentMinutes < Number(rule.endTime.slice(0, 2)) * 60 + Number(rule.endTime.slice(3, 5)));
+      if (!candidates.length) continue;
+      candidates.sort((left, right) => left.startTime.localeCompare(right.startTime));
+      const rule = candidates[0];
       const year = date.getUTCFullYear();
       const month = String(date.getUTCMonth() + 1).padStart(2, '0');
       const day = String(date.getUTCDate()).padStart(2, '0');
@@ -875,9 +1191,9 @@ document.addEventListener('DOMContentLoaded', () => {
         dateLabel: new Intl.DateTimeFormat('zh-TW', {
           timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric'
         }).format(new Date(Date.UTC(year, date.getUTCMonth(), date.getUTCDate(), 12))),
-        startTime: preferences.startTime,
-        endTime: preferences.endTime,
-        place: preferences.place
+        startTime: rule.startTime,
+        endTime: rule.endTime,
+        place: rule.place
       };
     }
     return null;
@@ -887,7 +1203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const slot = getNextScreeningSlot(preferences);
     screeningPlanNext.textContent = slot
       ? `${slot.dateLabel} ${slot.startTime}–${slot.endTime} · ${slot.place.label}`
-      : '設定地點、每週日期與起訖時間後顯示。';
+      : '設定至少一筆地點與週期安排後顯示。';
   }
 
   async function refreshScreeningPlanOutlook(force = false) {
@@ -940,6 +1256,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadScreeningWeather(slot) {
+    const today = getTaipeiParts();
+    const todayUtc = Date.UTC(Number(today.year), Number(today.month) - 1, Number(today.day));
+    const slotUtc = Date.parse(`${slot.dateKey}T00:00:00Z`);
+    if (slotUtc - todayUtc > 15 * 86400000) {
+      return {
+        available: false,
+        maxProbability: null,
+        message: '此時段超出目前約 16 日的預報範圍，接近篩檢日期後可重新查詢。'
+      };
+    }
     try {
       const params = new URLSearchParams({
         latitude: String(slot.place.coordinates[1]),
