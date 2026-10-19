@@ -353,7 +353,6 @@ function initializeQuestionnaireFields() {
   initializeNationalityPicker();
   initializeScreeningDate();
   initializeScreeningPlace();
-  applyPreferredScreeningPlace(staffSessionReady);
   const resetReferralAddressPicker = initializeScreeningPlace('hiv_positive_address', 'hiv-positive-address', 'hiv-positive-address-locate-button');
   const resetReferralContacts = initializeReferralContacts();
   initializeScreeningInterpretation(resetReferralAddressPicker, resetReferralContacts);
