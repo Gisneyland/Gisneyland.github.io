@@ -12,14 +12,14 @@ permalink: /admin/
       <p class="admin-subtitle">管理篩檢分析、回覆紀錄與網站內容；僅供授權工作人員使用。</p>
     </div>
     <div class="admin-header-actions">
-      <a id="open-questionnaire-button" class="admin-button secondary" href="{{ '/hiva/' | relative_url }}" target="_blank" rel="noopener" hidden>
-        <span class="material-icons notranslate" translate="no" aria-hidden="true">assignment</span>
-        回到問卷
-        <span class="sr-only">（在新分頁開啟）</span>
+      <a id="admin-home-button" class="admin-button secondary icon-only" href="{{ '/' | relative_url }}" aria-label="回到首頁" title="回到首頁">
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">home</span>
       </a>
-      <button id="sign-out-button" class="admin-button secondary" type="button" hidden>
+      <a id="open-questionnaire-button" class="admin-button secondary icon-only" href="{{ '/hiva/' | relative_url }}" target="_blank" rel="noopener" aria-label="回到問卷（在新分頁開啟）" title="回到問卷（在新分頁開啟）" hidden>
+        <span class="material-icons notranslate" translate="no" aria-hidden="true">assignment</span>
+      </a>
+      <button id="sign-out-button" class="admin-button secondary icon-only" type="button" aria-label="登出" title="登出" hidden>
         <span class="material-icons notranslate" translate="no" aria-hidden="true">logout</span>
-        登出
       </button>
     </div>
   </div>

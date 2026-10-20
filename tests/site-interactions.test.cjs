@@ -133,6 +133,46 @@ test('site initialization and permission-gated admin interactions', {
   const click = selector => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
   const hidden = id => evaluate(`document.getElementById(${JSON.stringify(id)}).hidden`);
 
+  await t.test('admin favicon and compact icon navigation work before and after login', async () => {
+    await open('/admin/', 'anonymous');
+    await waitFor('!document.getElementById("admin-login").hidden');
+    const favicon = await evaluate('document.querySelector(\'link[rel="icon"]\').getAttribute("href")');
+    assert.equal(favicon, '/assets/images/favicon.ico');
+    const iconResponse = await fetch(`${origin}${favicon}`);
+    assert.equal(iconResponse.ok, true);
+    assert.deepEqual(Array.from(new Uint8Array(await iconResponse.arrayBuffer()).slice(0, 4)), [0, 0, 1, 0]);
+    assert.equal(await hidden('open-questionnaire-button'), true);
+    assert.equal(await hidden('sign-out-button'), true);
+    assert.equal(await evaluate('document.getElementById("admin-home-button").title'), '回到首頁');
+    await click('#admin-home-button');
+    await waitFor('location.pathname === "/"');
+
+    await open('/admin/', 'administrator');
+    await waitFor('!document.getElementById("open-questionnaire-button").hidden');
+    for (const id of ['admin-home-button', 'open-questionnaire-button', 'sign-out-button']) {
+      const state = await evaluate(`(() => {
+        const button = document.getElementById(${JSON.stringify(id)});
+        const style = getComputedStyle(button);
+        const bounds = button.getBoundingClientRect();
+        return {
+          title: button.title, label: button.getAttribute('aria-label'),
+          decoration: style.textDecorationLine, width: bounds.width, height: bounds.height,
+          text: [...button.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('').trim()
+        };
+      })()`);
+      assert.ok(state.title);
+      assert.equal(state.title, state.label);
+      assert.equal(state.decoration, 'none');
+      assert.ok(state.width <= 40 && state.height <= 40);
+      assert.equal(state.text, '');
+    }
+    await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 812, deviceScaleFactor: 1, mobile: true });
+    assert.equal(await evaluate('getComputedStyle(document.querySelector(".admin-header-actions")).display'), 'flex');
+    assert.ok(await evaluate('document.getElementById("open-questionnaire-button").getBoundingClientRect().width <= 40'));
+    await send('Emulation.clearDeviceMetricsOverride');
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('public navigation, theme, language and staff login buttons respond', async () => {
     await open('/', 'anonymous');
     await waitFor('document.querySelector(".staff-session-tool").dataset.state === "signed-out"');
