@@ -123,37 +123,39 @@
       if (!changes.length && !source) return true;
       if (!active()) return false;
       const apply = draft => {
-          if (source) {
-            const block = draft.blocks.find(item => item.id === source.id);
-            if (block) {
-              block.body = source.body;
-              if (block.type === 'code') block.language = source.language;
-            }
+        if (source) {
+          const block = draft.blocks.find(item => item.id === source.id);
+          if (block) {
+            block.body = source.body;
+            if (block.type === 'code') block.language = source.language;
           }
-          for (const { record, value } of changes) {
-            if (record.block) {
-              const block = draft.blocks.find(item => item.id === record.block);
-              if (!block) continue;
-              block[record.field] = value.text;
-              if (record.field === 'body') {
-                if (value.rich) block.rich = value.rich;
-                if (value.style) block.style = value.style;
-              }
-            } else {
-              draft.patches[record.id] = { ...draft.patches[record.id], ...value };
+        }
+        for (const { record, value } of changes) {
+          if (record.block) {
+            const block = draft.blocks.find(item => item.id === record.block);
+            if (!block) continue;
+            block[record.field] = value.text;
+            if (record.field === 'body') {
+              if (value.rich) block.rich = value.rich;
+              if (value.style) block.style = value.style;
             }
+          } else {
+            draft.patches[record.id] = { ...draft.patches[record.id], ...value };
           }
+        }
       };
       try {
         const candidate = JSON.parse(JSON.stringify(getDraft()));
         apply(candidate); global.SiteEditorModel.normalize(candidate);
       } catch (error) { notify(error.message || '內容無法儲存。'); return false; }
+      const selectedId = selected?.id;
       flushing = true;
       try {
         for (const { record } of changes) record.dirty = false;
         if (source) sourceDraft.dirty = false;
         mutate(() => apply(getDraft()));
       } finally { flushing = false; }
+      if (selectedId && enabled()) reselect(selectedId);
       return true;
     }
     function commit(action) {
@@ -174,7 +176,7 @@
       records.set(key, { ...details, id: key, element: node, dirty: false });
       cleanups.push(() => {
         if (ownedNode) {
-          if (node.parentNode) { ownedNode.nodeValue = node.textContent; node.replaceWith(ownedNode); }
+          if (node.parentNode) node.replaceWith(ownedNode);
         } else {
           for (const [name, value] of previous) {
             if (value === null) node.removeAttribute(name); else node.setAttribute(name, value);
@@ -187,6 +189,7 @@
       const rendered = new Map(Array.from(root.querySelectorAll('[data-site-editor-text]'))
         .map(node => [node.dataset.siteEditorText, node]));
       for (const [id, text] of baseline.texts) {
+        if (baseline.PROTECTED && text.element.closest(baseline.PROTECTED)) continue;
         if (rendered.has(id) && rendered.get(id).parentNode === text.element) {
           editable(rendered.get(id), id, { style: getDraft().patches[id]?.style });
         } else if (text.node.parentNode === text.element && root.contains(text.element)
@@ -194,7 +197,7 @@
           && !(baseline.PROTECTED && text.element.closest(baseline.PROTECTED))
           && !text.element.closest('script,style,form,button,input,textarea,select,[data-site-editor-protected]')) {
           const wrapper = element('span'); wrapper.dataset.siteEditorText = id;
-          text.node.replaceWith(wrapper); wrapper.append(text.node);
+          wrapper.textContent = text.node.nodeValue; text.node.replaceWith(wrapper);
           editable(wrapper, id, { style: getDraft().patches[id]?.style }, text.node);
         }
       }
@@ -518,6 +521,8 @@
         const media = mediaTarget || /^(IMG|AUDIO|VIDEO)$/.test(item.element.tagName)
           || item.element.querySelector('img,audio,video') && !item.element.querySelector('[contenteditable="true"]');
         if (media) { suppressClick = true; removeSelected(true); return; }
+        // Long-press inside text belongs to native selection; the component handle reorders it.
+        if (event.target.closest('[contenteditable="true"]')) return;
         if (!item.movable || !item.parent) return;
         drag = { ...start, item }; item.element.classList.add('site-editor-dragging');
         suppressClick = true; notify('拖曳至同一容器內的元件；也可使用 Alt + ↑／↓。');
@@ -603,9 +608,19 @@
       });
       listen(root, 'drop', event => { if (enabled()) event.preventDefault(); });
       listen(root, 'dragstart', event => { if (enabled()) event.preventDefault(); });
+      listen(root, 'contextmenu', event => {
+        if (enabled() && (drag || event.target.closest('img,audio,video'))) event.preventDefault();
+      });
       listen(root, 'beforeinput', event => {
         if (!enabled()) return;
         if (event.inputType === 'insertFromDrop' || event.inputType === 'insertHTML') event.preventDefault();
+        if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromPasteAsQuotation') {
+          const record = recordFor(event.target);
+          if (!record) return;
+          event.preventDefault();
+          const text = event.dataTransfer?.getData('text/plain') ?? event.data;
+          if (typeof text === 'string') { plainInsert(text.slice(0, 12000)); record.dirty = true; }
+        }
       });
       listen(doc, 'selectionchange', updateSelection);
       listen(doc, 'keydown', keydown);

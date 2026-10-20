@@ -19,7 +19,7 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       <p id="mixed">Lead <strong>bold</strong> tail</p><p id="second">Second paragraph</p>
       <p id="empty">Placeholder</p><a id="link" href="/do-not-follow/">A link</a>
       <form id="widget"><input value="keep"><button type="button">Widget</button></form>
-    </section></main>
+    </section><section id="other"><p id="foreign">Different parent</p></section></main>
     <script src="/assets/js/site-editor-model.js"></script>
     <script src="/assets/js/site-editor-rich.js"></script>
     <script src="/assets/js/site-editor-dom.js"></script>
@@ -178,6 +178,16 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       return order.indexOf(paragraphId)>order.indexOf(nodeId('empty'))
         && !document.querySelector('.site-editor-dragging');
     })()`), true);
+    assert.equal(await evaluate(`(async()=>{
+      document.querySelector('[data-site-editor-block="'+paragraphId+'"]').click();
+      const handle=document.querySelector('[aria-label="長按拖曳排序；或使用向前／向後按鈕"]'),before=changes;
+      handle.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,button:0,pointerId:10,clientX:5,clientY:5}));
+      await new Promise(resolve=>setTimeout(resolve,720));
+      const rect=document.querySelector('#foreign').getBoundingClientRect();
+      document.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,cancelable:true,pointerId:10,clientX:rect.right-15,clientY:rect.top+12}));
+      document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:10}));
+      return changes===before&&!document.querySelector('.site-editor-dragging');
+    })()`), true);
   });
   await t.test('rich formatting is serialized into structured text, never HTML', async () => {
     assert.equal(await evaluate(`(()=>{
@@ -230,6 +240,7 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
   });
   await t.test('safe media URLs, existing library and permission-owned uploads', async () => {
     assert.equal(await evaluate(`(async()=>{
+      inputText(document.querySelector('#second [contenteditable]'),'Second edited before media');
       add('圖片');const pane=document.querySelector('[role=dialog]'),input=pane.querySelector('input[type=url]');
       input.value='javascript:alert(1)';clickLabel('套用媒體網址',pane);
       const rejected=!draft.blocks.some(item=>item.type==='image');
@@ -242,7 +253,7 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       document.querySelector('[data-site-editor-block="'+block.id+'"]').click();clickLabel('更換媒體網址');
       clickLabel('開啟媒體庫網址',document.querySelector('[role=dialog]'));
       const library=document.querySelector('[role=dialog] select');
-      return rejected&&uploaded&&block.url==='https://cdn.example.org/public.png'&&!library.hidden
+      return rejected&&uploaded&&block.url==='https://cdn.example.org/public.png'&&block.parent===nodeId('area')&&!library.hidden
         && Array.from(library.options).some(option=>option.value===block.url);
     })()`), true);
     await evaluate(`clickLabel('關閉',document.querySelector('[role=dialog]'))`);
@@ -260,12 +271,20 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       inputText(node,'');node.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Delete'}));
       return draft.patches[nodeId('empty')].deleted===true && document.querySelector('#empty').hidden;
     })()`), true);
+    assert.equal(await evaluate(`(()=>{
+      add('卡片');const block=draft.blocks.find(item=>item.type==='card');
+      const node=document.querySelector('[data-site-editor-block="'+block.id+'"] [contenteditable]');
+      node.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Backspace'}));
+      return !draft.blocks.some(item=>item.id===block.id);
+    })()`), true);
   });
   await t.test('inactive lifecycle removes only owned wrappers and never commits after revocation', async () => {
     assert.equal(await evaluate(`(()=>{
-      const node=document.querySelector('#second [contenteditable]');inputText(node,'Uncommitted');
+      const node=document.querySelector('#foreign [contenteditable]');inputText(node,'Uncommitted');
+      const isolated=baseline.texts.get(textId('Different parent')).node.nodeValue==='Different parent';
       const before=changes;allowed=false;inline.stop();
       return changes===before&&!document.querySelector('[contenteditable]')&&!document.querySelector('.site-editor-inline-ui')
+        && isolated&&document.querySelector('#foreign').textContent==='Different parent'
         && originalStrong===document.querySelector('strong')&&originalInput===document.querySelector('#widget input');
     })()`), true);
   });

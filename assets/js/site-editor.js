@@ -189,19 +189,19 @@
     message('草稿已修改，尚未儲存／發布。');
   }
   function mutate(action) {
-    if (!admin || busy || !draft) return;
+    if (!admin || busy || !draft) return false;
     const before = copy(draft), navBefore = copy(navDraft);
     try {
       action();
       draft = M.normalize(draft); navDraft = M.normalize(navDraft);
-      if (JSON.stringify([before, navBefore]) === JSON.stringify([draft, navDraft])) return;
+      if (JSON.stringify([before, navBefore]) === JSON.stringify([draft, navDraft])) return true;
       if (!restoring) {
         undo.push([before, navBefore]); if (undo.length > 100) undo.shift();
         redo.length = 0;
       }
-      changed(); historyControls();
+      changed(); historyControls(); return true;
     }
-    catch (error) { draft = before; navDraft = navBefore; message(error.message); }
+    catch (error) { draft = before; navDraft = navBefore; message(error.message); return false; }
   }
   async function open() {
     if (!admin) return;

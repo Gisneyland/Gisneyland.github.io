@@ -87,6 +87,29 @@ test('browser: semantic runs, all block previews, literal hostile source and rev
     const multiline = document.createElement('div'), line = document.createElement('div');
     multiline.append(document.createTextNode('one')); line.textContent = 'two'; multiline.append(line);
     expect(R.readRuns(multiline).map(run => run.text).join('') === 'one\ntwo', 'contenteditable line boundaries retained');
+    const native = document.createElement('span');
+    native.style.fontWeight = '700'; native.style.fontStyle = 'italic'; native.style.textDecoration = 'underline';
+    native.style.backgroundColor = '#fff59d'; native.style.color = '#123456'; native.style.verticalAlign = 'sub';
+    native.textContent = 'native';
+    const nativeRun = R.readRuns(native)[0];
+    expect(nativeRun.bold && nativeRun.italic && nativeRun.underline && nativeRun.highlight && nativeRun.color === '#123456' &&
+      nativeRun.script === 'sub', 'native command CSS serialized to safe schema');
+    const font = document.createElement('font'); font.setAttribute('color', '#abc'); font.textContent = 'font';
+    expect(R.readRuns(font)[0].color === '#aabbcc', 'native FONT color serialized');
+    native.style.backgroundColor = 'transparent'; native.style.fontWeight = 'normal'; native.style.fontStyle = 'normal';
+    native.style.textDecoration = 'none';
+    const cleared = R.readRuns(native)[0];
+    expect(!cleared.highlight && !cleared.bold && !cleared.italic && !cleared.underline, 'native command formatting cleared');
+    const editable = document.createElement('div'); editable.contentEditable = 'true'; editable.textContent = 'commands'; document.body.append(editable);
+    const selection = getSelection(), range = document.createRange();
+    range.selectNodeContents(editable); selection.removeAllRanges(); selection.addRange(range);
+    for (const [command, value] of [['bold', null], ['italic', null], ['underline', null], ['hiliteColor', '#fff59d'], ['foreColor', '#123456']]) {
+      document.execCommand(command, false, value);
+    }
+    const commanded = R.readRuns(editable)[0];
+    expect(commanded.bold && commanded.italic && commanded.underline && commanded.highlight && commanded.color === '#123456',
+      'actual browser editing commands retain all supported styles');
+    editable.remove(); selection.removeAllRanges();
     const doc = M.empty();
     doc.patches[textId] = { rich: runs, style: 'h2' };
     const widgetParentId = [...baseline.nodes].find(([, item]) => item.element.id === 'widgets')[0];
@@ -138,9 +161,27 @@ test('browser: semantic runs, all block previews, literal hostile source and rev
     doc.blocks = [make({ type: 'math', body: 'x^2' })]; baseline.render(doc);
     expect(main.querySelector('[data-site-editor-block=block] math'), 'DOM uses rich block renderer');
     baseline.restore(); expect(!main.querySelector('[data-site-editor-block]'), 'added block removed on restore');
+    const cards = document.querySelector('#cards'), originalCards = Array.from(cards.childNodes);
+    const cardsId = [...baseline.nodes].find(([, item]) => item.element === cards)[0];
+    const aId = [...baseline.nodes].find(([, item]) => item.element.id === 'card-a')[0];
+    const bId = [...baseline.nodes].find(([, item]) => item.element.id === 'card-b')[0];
+    const mixedOrder = M.empty();
+    mixedOrder.blocks = [make({ id: 'added-a', parent: cardsId }), make({ id: 'added-b', parent: cardsId })];
+    mixedOrder.orders[cardsId] = ['added-b', bId, 'added-a', aId];
+    baseline.render(mixedOrder);
+    expect(Array.from(cards.children).map(child => child.getAttribute('data-site-editor-block') || child.id).join(',') ===
+      'added-b,card-b,card-widget,added-a,card-a', 'mixed original and added order keeps protected slot');
+    baseline.restore(); expect(originalCards.every((child, index) => cards.childNodes[index] === child), 'mixed ordering restores original nodes');
+    const anchors = M.empty();
+    anchors.blocks = [make({ id: 'added-c', parent: cardsId }), make({ id: 'added-a', parent: cardsId, before: 'added-b' }),
+      make({ id: 'added-b', parent: cardsId, before: 'added-c' })];
+    baseline.render(anchors);
+    expect(Array.from(cards.querySelectorAll('[data-site-editor-block]')).map(child => child.getAttribute('data-site-editor-block')).join(',') ===
+      'added-a,added-b,added-c', 'forward added-block anchor chains resolved');
+    baseline.restore();
     return 'all rich browser assertions passed';
   }
-  const html = `<!doctype html><meta charset="utf-8"><main><p id="mixed">Mixed <strong>bold</strong> tail</p><section id="widgets"><h2>Widget</h2><form id="widget"><input value="keep"><button type="button">Click</button></form></section></main>
+  const html = `<!doctype html><meta charset="utf-8"><main><p id="mixed">Mixed <strong>bold</strong> tail</p><section id="widgets"><h2>Widget</h2><form id="widget"><input value="keep"><button type="button">Click</button></form></section><section id="cards"><article id="card-a">A</article><button id="card-widget">Keep</button><article id="card-b">B</article></section></main>
     ${scripts}<script>try { document.body.setAttribute('data-result', (${checks.toString()})()); } catch (error) { document.body.setAttribute('data-result', 'FAIL: ' + error.stack); }</script>`;
   const server = http.createServer((request, response) => {
     response.setHeader('Content-Type', 'text/html; charset=utf-8'); response.end(html);

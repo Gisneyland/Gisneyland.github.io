@@ -46,6 +46,16 @@
   function readRuns(element) {
     const result = [];
     let total = 0;
+    function hexColor(color) {
+      if (!color) return null;
+      if (/^#[0-9a-f]{6}$/i.test(color)) return color;
+      if (/^#[0-9a-f]{3}$/i.test(color)) return '#' + Array.from(color.slice(1)).map(value => value + value).join('');
+      const rgb = color.match(/^rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)(?:,\s*1(?:\.0*)?)?\s*\)$/);
+      if (rgb && rgb.slice(1).every(value => Number(value) <= 255)) {
+        return '#' + rgb.slice(1).map(value => Number(value).toString(16).padStart(2, '0')).join('');
+      }
+      return null;
+    }
     function append(text, flags) {
       if (!text) return;
       total += text.length;
@@ -67,13 +77,19 @@
       if (tag === 'SUB' || tag === 'SUP') flags.script = tag === 'SUB' ? 'sub' : 'super';
       const href = current.getAttribute?.('href');
       if (tag === 'A' && M.safeURL(href)) flags.href = href;
-      const color = current.style?.color;
-      if (color) {
-        const rgb = color.match(/^rgb\(\s*(\d+),\s*(\d+),\s*(\d+)\s*\)$/);
-        if (/^#[0-9a-f]{6}$/i.test(color)) flags.color = color;
-        else if (rgb && rgb.slice(1).every(value => Number(value) <= 255)) {
-          flags.color = '#' + rgb.slice(1).map(value => Number(value).toString(16).padStart(2, '0')).join('');
+      const style = current.style;
+      const color = hexColor(style?.color || (tag === 'FONT' ? current.getAttribute('color') : ''));
+      if (color) flags.color = color;
+      if (style) {
+        if (style.fontWeight) flags.bold = /^(bold|bolder)$/.test(style.fontWeight) || Number(style.fontWeight) >= 600;
+        if (style.fontStyle) flags.italic = /^(italic|oblique)/.test(style.fontStyle);
+        const decoration = style.textDecorationLine || style.textDecoration;
+        if (decoration) flags.underline = decoration.includes('underline');
+        if (style.backgroundColor) {
+          flags.highlight = style.backgroundColor !== 'transparent' && !/^rgba\([^)]*,\s*0(?:\.0*)?\s*\)$/.test(style.backgroundColor);
         }
+        if (['sub', 'super'].includes(style.verticalAlign)) flags.script = style.verticalAlign;
+        else if (style.verticalAlign === 'baseline') delete flags.script;
       }
       if (tag === 'BR') append('\n', flags);
       else {

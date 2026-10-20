@@ -166,6 +166,7 @@
         let slot = 0;
         parent.childNodes.forEach(child => parent.element.append(parent.ids.some(id => nodes.get(id).element === child) ? all[slot++] : wrappedNodes.get(child) || child));
       }
+      const newBlocks = new Map();
       for (const block of doc.blocks) {
         const parent = parents.get(block.parent);
         if (!parent || !['MAIN', 'DIV', 'SECTION', 'ARTICLE'].includes(parent.element.tagName)) continue;
@@ -190,6 +191,38 @@
           parent.element.append(article);
         }
         added.push(article);
+        newBlocks.set(block.id, { block, article, parent });
+      }
+      // Added-block anchors may point forward in the document. Resolve their
+      // dependency first; cycles are ignored rather than moving original nodes.
+      const placed = new Set(), placing = new Set();
+      function placeAdded(id) {
+        if (placed.has(id)) return true;
+        if (placing.has(id)) return false;
+        const entry = newBlocks.get(id), before = newBlocks.get(entry.block.before);
+        if (!before || before.block.parent !== entry.block.parent) { placed.add(id); return true; }
+        placing.add(id);
+        const valid = placeAdded(before.block.id);
+        placing.delete(id); placed.add(id);
+        if (valid) entry.parent.element.insertBefore(entry.article, before.article);
+        return valid;
+      }
+      newBlocks.forEach((entry, id) => placeAdded(id));
+      for (const [parentId, order] of Object.entries(doc.orders)) {
+        const parent = parents.get(parentId);
+        if (!parent || !order.some(id => newBlocks.get(id)?.block.parent === parentId)) continue;
+        const blockIds = Array.from(newBlocks).filter(([, entry]) => entry.block.parent === parentId).map(([id]) => id);
+        const ranked = order.filter(id => parent.ids.includes(id) || blockIds.includes(id));
+        const all = [...ranked, ...parent.ids.filter(id => !ranked.includes(id)), ...blockIds.filter(id => !ranked.includes(id))];
+        // Original editable slots have already been ranked above. Only insert
+        // new articles around those slots; protected siblings are never moved.
+        all.forEach((id, index) => {
+          const entry = newBlocks.get(id);
+          if (!entry || entry.block.parent !== parentId) return;
+          const nextOriginal = all.slice(index + 1).find(next => parent.ids.includes(next));
+          const anchor = nextOriginal ? nodes.get(nextOriginal).element : null;
+          parent.element.insertBefore(entry.article, anchor);
+        });
       }
       const nav = navDocument.navigation;
       if (nav) for (const group of ['main', 'more']) {
