@@ -182,6 +182,37 @@ test('site initialization and permission-gated admin interactions', {
     assert.deepEqual(errors, []);
   });
 
+  await t.test('scheduling information stays hidden until opened and closes through every dismissal control', async () => {
+    await open('/admin/', 'administrator');
+    await waitFor('!document.getElementById("admin-tab-content").hidden');
+    await click('#admin-tab-settings');
+    const dialogState = () => evaluate(`(() => {
+      const dialog = document.getElementById('screening-plan-info-dialog');
+      return { open: dialog.open, display: getComputedStyle(dialog).display, visible: dialog.getClientRects().length > 0 };
+    })()`);
+    const closedState = { open: false, display: 'none', visible: false };
+    assert.deepEqual(await dialogState(), closedState);
+    for (const selector of [
+      '#screening-plan-info-dialog .dialog-header [data-close-screening-plan-info]',
+      '#screening-plan-info-dialog > [data-close-screening-plan-info]'
+    ]) {
+      await click('#screening-plan-info-button');
+      assert.deepEqual(await dialogState(), { open: true, display: 'grid', visible: true });
+      await click(selector);
+      assert.deepEqual(await dialogState(), closedState);
+    }
+    await click('#screening-plan-info-button');
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await waitFor('!document.getElementById("screening-plan-info-dialog").open');
+    assert.deepEqual(await dialogState(), closedState);
+    await click('#screening-plan-info-button');
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 1, y: 1, button: 'left', clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 1, y: 1, button: 'left', clickCount: 1 });
+    assert.deepEqual(await dialogState(), closedState);
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('restricted and pending staff do not gain management access', async () => {
     await open('/admin/', 'reader');
     await waitFor('!document.getElementById("admin-dashboard").hidden');
