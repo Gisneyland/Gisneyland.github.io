@@ -2,6 +2,12 @@
   'use strict';
   const M = global.SiteEditorModel;
   const SVG = 'http://www.w3.org/2000/svg', MATH = 'http://www.w3.org/1998/Math/MathML';
+  const PREVIEW_HELP = Object.freeze({
+    math: 'LaTeX 子集：分數 \\frac、根號 \\sqrt、上下標、希臘字母與常用運算。矩陣、巨集及其他指令不支援 / Supported subset only.',
+    music: 'ABC 音高草圖（非完整樂譜）：單聲部 C 大調／A 小調音符、臨時記號、休止及小節線；長度以原始倍數標註，不排版節奏、拍號、速度、反覆或裝飾音 / Pitch sketch only.',
+    mermaid: 'Mermaid 子集：flowchart/graph TD、TB、LR、RL、BT；方框、圓角框、菱形，單條 -->、---、-.->、==> 連線及 |標籤|。採簡化線性配置；不支援指令、互動或 HTML / Simplified layout.',
+    markdown: 'Markdown 子集：標題、清單、引文、粗斜體、程式碼及安全連結。HTML 保持純文字 / HTML is literal text.'
+  });
   function node(tag, text) {
     const element = document.createElement(tag);
     if (text !== undefined) element.textContent = text;
@@ -81,7 +87,8 @@
       const color = hexColor(style?.color || (tag === 'FONT' ? current.getAttribute('color') : ''));
       if (color) flags.color = color;
       if (style) {
-        if (style.fontWeight) flags.bold = /^(bold|bolder)$/.test(style.fontWeight) || Number(style.fontWeight) >= 600;
+        const presentationRoot = current === element && current.hasAttribute('data-site-editor-style');
+        if (style.fontWeight && !presentationRoot) flags.bold = /^(bold|bolder)$/.test(style.fontWeight) || Number(style.fontWeight) >= 600;
         if (style.fontStyle) flags.italic = /^(italic|oblique)/.test(style.fontStyle);
         const decoration = style.textDecorationLine || style.textDecoration;
         if (decoration) flags.underline = decoration.includes('underline');
@@ -143,7 +150,7 @@
       if (++count > 3000 || depth > 30) throw new Error('Formula too complex');
       while (/\s/.test(input[index] || '') && index < input.length) index++;
       const character = input[index++];
-      if (!character || character === '}') throw new Error('Incomplete formula');
+      if (!character || /^[}^_$&%#~]$/.test(character)) throw new Error('Incomplete or unsupported formula');
       if (character === '{') return sequence(depth + 1, true);
       if (character === '\\') {
         const command = input.slice(index).match(/^[a-zA-Z]+/)?.[0];
@@ -152,7 +159,10 @@
         if (command === 'frac') {
           const fraction = namespaced(MATH, 'mfrac'); fraction.append(atom(depth + 1), atom(depth + 1)); return fraction;
         }
-        if (command === 'sqrt') { const root = namespaced(MATH, 'msqrt'); root.append(atom(depth + 1)); return root; }
+        if (command === 'sqrt') {
+          if (/^\s*\[/.test(input.slice(index))) throw new Error('Indexed roots are not supported');
+          const root = namespaced(MATH, 'msqrt'); root.append(atom(depth + 1)); return root;
+        }
         if (command === 'text' || command === 'mathrm') {
           while (input[index] === ' ') index++;
           const match = input.slice(index).match(/^\{([^{}]*)\}/);
@@ -196,19 +206,24 @@
   function svg(width, height, label) {
     return namespaced(SVG, 'svg', { viewBox: `0 0 ${width} ${height}`, width, height, role: 'img', 'aria-label': label });
   }
-  // Safe ABC staff preview: monophonic notes/rests, durations, accidentals and bar lines.
+  // Pitch sketch, not a full engraving engine. Unsupported notation is rejected.
   function musicPreview(text) {
     const lines = text.split('\n'), headers = {}, tune = [];
     for (const line of lines) {
       const header = line.match(/^([A-Z]):\s*(.*)$/);
-      if (header) headers[header[1]] = header[2]; else tune.push(line.replace(/%.*/, ''));
+      if (header) {
+        if (header[1] === 'V' || (header[1] === 'K' && headers.K)) throw new Error('Multiple ABC voices or key changes are not supported');
+        headers[header[1]] = header[2];
+      } else tune.push(line.replace(/%.*/, ''));
     }
-    const music = tune.join(' ').replace(/"[^"]*"|![^!]*!|\{[^}]*\}/g, '');
+    if (headers.K && !/^(C(?:maj)?|Am(?:in)?)\s*$/.test(headers.K)) throw new Error('Pitch preview supports only C major or A minor');
+    const music = tune.join(' ');
     const pattern = /(?:[_^=]{0,2}[A-Ga-g][,']*|z|x)\d*(?:\/\d*)?|[|:]+/g;
     const tokens = music.match(pattern) || [];
     if (!tokens.length || tokens.length > 256 || music.replace(pattern, '').trim()) throw new Error('Unsupported ABC score');
     const width = 760, rows = Math.ceil(tokens.length / 24), score = svg(width, rows * 130 + 40, headers.T || 'ABC music');
-    score.append(namespaced(SVG, 'text', { x: 12, y: 22, 'font-size': 18, fill: 'currentColor' }, headers.T || 'ABC'));
+    score.append(namespaced(SVG, 'text', { x: 12, y: 22, 'font-size': 18, fill: 'currentColor' },
+      `${headers.T || 'ABC'} — K:${headers.K || 'C'} L:${headers.L || '1/8'} (pitch sketch)`));
     for (let row = 0; row < rows; row++) {
       const top = row * 130 + 55;
       for (let line = 0; line < 5; line++) score.append(namespaced(SVG, 'line', { x1: 15, y1: top + line * 10, x2: 745, y2: top + line * 10, stroke: 'currentColor' }));
@@ -216,9 +231,15 @@
       tokens.slice(row * 24, row * 24 + 24).forEach((token, slot) => {
         const x = 65 + slot * 28;
         if (/^[|:]+$/.test(token)) {
-          score.append(namespaced(SVG, 'line', { x1: x, y1: top, x2: x, y2: top + 40, stroke: 'currentColor' })); return;
+          if (!/^\|{1,2}$/.test(token)) throw new Error('ABC repeats are not supported');
+          for (let bar = 0; bar < token.length; bar++) {
+            score.append(namespaced(SVG, 'line', { x1: x + bar * 3, y1: top, x2: x + bar * 3, y2: top + 40, stroke: 'currentColor' }));
+          }
+          return;
         }
-        if (/^[zx]/.test(token)) { score.append(namespaced(SVG, 'text', { x, y: top + 25, fill: 'currentColor' }, '𝄽')); return; }
+        if (/^[zx]/.test(token)) {
+          score.append(namespaced(SVG, 'text', { x, y: top + 25, fill: 'currentColor' }, token)); return;
+        }
         const match = token.match(/^([_^=]*)([A-Ga-g])([,']*)(.*)$/);
         if (match[3].length > 3) throw new Error('ABC pitch outside preview range');
         const degree = 'CDEFGAB'.indexOf(match[2].toUpperCase()) + (match[2] === match[2].toLowerCase() ? 7 : 0)
@@ -229,7 +250,7 @@
         score.append(namespaced(SVG, 'ellipse', { cx: x, cy: y, rx: 5, ry: 3.5, fill: 'currentColor' }));
         score.append(namespaced(SVG, 'line', { x1: x + 5, y1: y, x2: x + 5, y2: y - 27, stroke: 'currentColor' }));
         if (match[1]) score.append(namespaced(SVG, 'text', { x: x - 15, y: y + 4, fill: 'currentColor' }, match[1].replace(/\^/g, '♯').replace(/_/g, '♭').replace(/=/g, '♮')));
-        if (match[4]) score.append(namespaced(SVG, 'text', { x: x - 4, y: top + 75, 'font-size': 10, fill: 'currentColor' }, match[4]));
+        score.append(namespaced(SVG, 'text', { x: x - 4, y: top + 75, 'font-size': 10, fill: 'currentColor' }, match[4] || '1'));
       });
     }
     return score;
@@ -237,17 +258,22 @@
   // Mermaid flowchart subset only. Directives, HTML labels, click handlers and source code are never interpreted.
   function diagramPreview(text) {
     const lines = text.split(/[;\n]/).map(line => line.trim()).filter(line => line && !line.startsWith('%%'));
-    if (!/^(flowchart|graph)\s+(TD|TB|LR|RL|BT)$/.test(lines.shift() || '')) throw new Error('Use Mermaid flowchart TD or LR');
+    const header = (lines.shift() || '').match(/^(flowchart|graph)\s+(TD|TB|LR|RL|BT)$/);
+    if (!header) throw new Error('Use Mermaid flowchart TD, TB, LR, RL or BT');
+    const direction = header[2], horizontal = ['LR', 'RL'].includes(direction), reversed = ['RL', 'BT'].includes(direction);
     const nodes = new Map(), edges = [];
     const token = '([a-zA-Z][\\w-]*)(?:\\[([^\\]]*)\\]|\\(([^)]*)\\)|\\{([^}]*)\\})?';
     function remember(match, offset) {
       const id = match[offset], label = match[offset + 1] ?? match[offset + 2] ?? match[offset + 3];
-      if (!nodes.has(id) || label !== undefined) nodes.set(id, label ?? id);
+      if (!nodes.has(id) || label !== undefined) nodes.set(id, {
+        label: (label ?? id).replace(/^"(.*)"$/, '$1'),
+        shape: match[offset + 3] !== undefined ? 'diamond' : match[offset + 2] !== undefined ? 'rounded' : 'square'
+      });
       return id;
     }
     for (const line of lines) {
-      const edge = line.match(new RegExp(`^${token}\\s*(-->|---|-.->|==>)(?:\\|([^|]*)\\|)?\\s*${token}$`));
-      if (edge) { edges.push([remember(edge, 1), remember(edge, 7), edge[6] || '']); }
+      const edge = line.match(new RegExp(`^${token}\\s*(-->|---|-\\.->|==>)(?:\\|([^|]*)\\|)?\\s*${token}$`));
+      if (edge) { edges.push([remember(edge, 1), remember(edge, 7), edge[6] || '', edge[5]]); }
       else {
         const single = line.match(new RegExp(`^${token}$`));
         if (!single) throw new Error('Unsupported Mermaid syntax');
@@ -256,18 +282,40 @@
       if (nodes.size > 60 || edges.length > 100) throw new Error('Diagram too large');
     }
     if (!nodes.size) throw new Error('Empty diagram');
-    const result = svg(760, nodes.size * 90 + 20, 'Mermaid flowchart'), positions = new Map();
-    Array.from(nodes).forEach(([id], index) => positions.set(id, 25 + index * 90));
-    for (const [from, to, label] of edges) {
-      const y1 = positions.get(from) + 40, y2 = positions.get(to);
-      result.append(namespaced(SVG, 'line', { x1: 380, y1, x2: 380, y2, stroke: 'currentColor' }));
-      result.append(namespaced(SVG, 'path', { d: `M 375 ${y2 - 7} L 380 ${y2} L 385 ${y2 - 7}`, fill: 'none', stroke: 'currentColor' }));
-      if (label) result.append(namespaced(SVG, 'text', { x: 390, y: (y1 + y2) / 2, fill: 'currentColor' }, label));
-    }
-    for (const [id, label] of nodes) {
-      const y = positions.get(id);
-      result.append(namespaced(SVG, 'rect', { x: 180, y, width: 400, height: 40, rx: 6, fill: 'Canvas', stroke: 'currentColor' }));
-      result.append(namespaced(SVG, 'text', { x: 380, y: y + 26, 'text-anchor': 'middle', fill: 'currentColor' }, label));
+    const width = horizontal ? nodes.size * 240 + 30 : 760, height = horizontal ? 260 : nodes.size * 100 + 30;
+    const result = svg(width, height, `Mermaid flowchart ${direction}`), positions = new Map();
+    Array.from(nodes).forEach(([id], index) => {
+      const slot = reversed ? nodes.size - index - 1 : index;
+      positions.set(id, horizontal ? { x: 25 + slot * 240, y: 100 } : { x: 180, y: 25 + slot * 100 });
+    });
+    edges.forEach(([from, to, label, operator], index) => {
+      const start = positions.get(from), end = positions.get(to), forward = horizontal ? end.x > start.x : end.y > start.y;
+      let x1, y1, x2, y2, path, arrow;
+      if (horizontal) {
+        x1 = start.x + (forward ? 170 : 0); y1 = start.y + 25;
+        x2 = end.x + (forward ? 0 : 170); y2 = end.y + 25;
+        const lane = 35 + (index % 5) * 10, outside = forward ? 12 : -12;
+        path = `M ${x1} ${y1} H ${x1 + outside} V ${lane} H ${x2 - outside} V ${y2} H ${x2}`;
+        arrow = `M ${x2 - (forward ? 7 : -7)} ${y2 - 5} L ${x2} ${y2} L ${x2 - (forward ? 7 : -7)} ${y2 + 5}`;
+      } else {
+        x1 = start.x + 200; y1 = start.y + (forward ? 50 : 0);
+        x2 = end.x + 200; y2 = end.y + (forward ? 0 : 50);
+        const lane = 80 + (index % 5) * 12, outside = forward ? 12 : -12;
+        path = `M ${x1} ${y1} V ${y1 + outside} H ${lane} V ${y2 - outside} H ${x2} V ${y2}`;
+        arrow = `M ${x2 - 5} ${y2 - (forward ? 7 : -7)} L ${x2} ${y2} L ${x2 + 5} ${y2 - (forward ? 7 : -7)}`;
+      }
+      result.append(namespaced(SVG, 'path', { d: path, fill: 'none', stroke: 'currentColor',
+        'stroke-width': operator === '==>' ? 3 : 1, 'stroke-dasharray': operator === '-.->' ? '5 4' : 'none' }));
+      if (operator !== '---') result.append(namespaced(SVG, 'path', { d: arrow, fill: 'none', stroke: 'currentColor' }));
+      if (label) result.append(namespaced(SVG, 'text', { x: horizontal ? (x1 + x2) / 2 : 20, y: horizontal ? 25 : (y1 + y2) / 2, fill: 'currentColor' }, label));
+    });
+    for (const [id, item] of nodes) {
+      const { x, y } = positions.get(id), boxWidth = horizontal ? 170 : 400;
+      if (item.shape === 'diamond') {
+        result.append(namespaced(SVG, 'polygon', { points: `${x + boxWidth / 2},${y} ${x + boxWidth},${y + 25} ${x + boxWidth / 2},${y + 50} ${x},${y + 25}`,
+          fill: 'Canvas', stroke: 'currentColor' }));
+      } else result.append(namespaced(SVG, 'rect', { x, y, width: boxWidth, height: 50, rx: item.shape === 'rounded' ? 20 : 0, fill: 'Canvas', stroke: 'currentColor' }));
+      result.append(namespaced(SVG, 'text', { x: x + boxWidth / 2, y: y + 30, 'text-anchor': 'middle', fill: 'currentColor' }, item.label));
     }
     return result;
   }
@@ -340,10 +388,13 @@
     } else if (['math', 'music', 'mermaid', 'markdown'].includes(type)) {
       const preview = node('div'); preview.setAttribute('data-site-editor-preview', type);
       preview.setAttribute('data-site-editor-protected', '');
+      const help = node('p', PREVIEW_HELP[type]); help.setAttribute('data-site-editor-preview-help', type);
+      preview.append(help);
       try {
         preview.append(({ math: mathPreview, music: musicPreview, mermaid: diagramPreview, markdown: markdownPreview })[type](block.body));
-      } catch {
-        preview.append(node('p', '無法預覽此語法；原始碼仍完整保留 / Unsupported preview syntax; source preserved.'));
+      } catch (error) {
+        const message = node('p', `無法預覽此語法；原始碼仍完整保留 / Unsupported preview syntax; source preserved. ${error.message}`);
+        message.setAttribute('data-site-editor-preview-error', type); preview.append(message);
       }
       article.append(preview, source(block));
     } else article.append(bodyText(block));

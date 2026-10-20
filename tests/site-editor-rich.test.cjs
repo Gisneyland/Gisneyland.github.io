@@ -110,6 +110,13 @@ test('browser: semantic runs, all block previews, literal hostile source and rev
     expect(commanded.bold && commanded.italic && commanded.underline && commanded.highlight && commanded.color === '#123456',
       'actual browser editing commands retain all supported styles');
     editable.remove(); selection.removeAllRanges();
+    const headingRoot = document.createElement('span'), explicitBold = document.createElement('span');
+    R.applyStyle(headingRoot, 'h1'); headingRoot.append(document.createTextNode('heading '));
+    explicitBold.style.fontWeight = 'bold'; explicitBold.textContent = 'explicit'; headingRoot.append(explicitBold);
+    const headingRuns = R.readRuns(headingRoot);
+    expect(!headingRuns[0].bold && headingRuns[1].bold, 'heading presentation is not persisted as inline bold');
+    R.applyStyle(headingRoot, 'p');
+    expect(JSON.stringify(R.readRuns(headingRoot)) === JSON.stringify(headingRuns), 'heading to paragraph retains only explicit inline bold');
     const doc = M.empty();
     doc.patches[textId] = { rich: runs, style: 'h2' };
     const widgetParentId = [...baseline.nodes].find(([, item]) => item.element.id === 'widgets')[0];
@@ -144,10 +151,23 @@ test('browser: semantic runs, all block previews, literal hostile source and rev
     expect(code.querySelector('code').getAttribute('data-language') === 'javascript' && !code.querySelector('script'), 'code never executes');
     const math = R.render(make({ type: 'math', body: '\\frac{x_1^2}{\\sqrt{\\alpha}}' }));
     expect(math.querySelector('math mfrac') && math.querySelector('msubsup') && math.querySelector('msqrt'), 'actual MathML preview');
+    expect(math.querySelector('[data-site-editor-preview-help=math]'), 'math supported subset is explicit');
+    const unsupportedMath = R.render(make({ type: 'math', body: '\\sqrt[3]{x}' }));
+    expect(!unsupportedMath.querySelector('math') && unsupportedMath.querySelector('[data-site-editor-preview-error=math]'), 'unsupported indexed roots rejected');
     const music = R.render(make({ type: 'music', body: 'X:1\nT:Scale\nM:4/4\nL:1/4\nK:C\nC D E F | G A B c |' }));
     expect(music.querySelectorAll('svg ellipse').length === 8 && music.querySelectorAll('svg line').length >= 15, 'actual ABC score');
+    expect(music.querySelector('[data-site-editor-preview-help=music]').textContent.includes('Pitch sketch only'), 'music limitations are explicit');
+    const unsupportedMusic = R.render(make({ type: 'music', body: 'X:1\nK:G\nC D E F' }));
+    expect(!unsupportedMusic.querySelector('svg') && unsupportedMusic.querySelector('[data-site-editor-preview-error=music]'), 'unsupported key rejected instead of wrong signature');
     const mermaid = R.render(make({ type: 'mermaid', body: 'flowchart TD\nA[Start] -->|yes| B[End]' }));
     expect(mermaid.querySelectorAll('svg rect').length === 2 && mermaid.querySelector('svg path'), 'actual Mermaid flowchart');
+    const horizontal = R.render(make({ type: 'mermaid', body: 'flowchart RL\nA(Start) -.-> B{End}' }));
+    expect(horizontal.querySelector('svg rect').getAttribute('rx') === '20' && horizontal.querySelector('svg polygon') &&
+      horizontal.querySelector('svg path[stroke-dasharray="5 4"]'), 'Mermaid direction shapes and dashed edges retained');
+    expect(Number(horizontal.querySelector('svg rect').getAttribute('x')) > Number(horizontal.querySelector('svg polygon').getAttribute('points').split(',')[0]),
+      'Mermaid RL places first node on right');
+    const undirected = R.render(make({ type: 'mermaid', body: 'flowchart LR\nA --- B' }));
+    expect(undirected.querySelectorAll('svg path').length === 1, 'undirected Mermaid edge has no arrow');
     const unsupported = R.render(make({ type: 'mermaid', body: 'flowchart TD\nclick A "javascript:alert(1)"' }));
     expect(!unsupported.querySelector('svg') && unsupported.textContent.includes('Unsupported preview'), 'unsupported diagrams fall back');
     const markdown = R.render(make({ type: 'markdown', body: '# Hello\n- **Bold**\n- [Safe](/safe)\n<script>alert(1)</' + 'script>\n[bad](javascript:alert(1))' }));
@@ -171,6 +191,14 @@ test('browser: semantic runs, all block previews, literal hostile source and rev
     baseline.render(mixedOrder);
     expect(Array.from(cards.children).map(child => child.getAttribute('data-site-editor-block') || child.id).join(',') ===
       'added-b,card-b,card-widget,added-a,card-a', 'mixed original and added order keeps protected slot');
+    mixedOrder.orders[cardsId] = ['added-b', 'added-a', bId, aId];
+    baseline.render(mixedOrder);
+    expect(Array.from(cards.children).map(child => child.getAttribute('data-site-editor-block') || child.id).join(',') ===
+      'added-b,added-a,card-b,card-widget,card-a', 'consecutive added blocks preserve their ranked same-slot order');
+    mixedOrder.orders[cardsId] = [bId, 'added-a', 'added-b', aId];
+    baseline.render(mixedOrder);
+    expect(Array.from(cards.children).map(child => child.getAttribute('data-site-editor-block') || child.id).join(',') ===
+      'card-b,card-widget,added-a,added-b,card-a', 'consecutive blocks persist after moving across protected static slots');
     baseline.restore(); expect(originalCards.every((child, index) => cards.childNodes[index] === child), 'mixed ordering restores original nodes');
     const anchors = M.empty();
     anchors.blocks = [make({ id: 'added-c', parent: cardsId }), make({ id: 'added-a', parent: cardsId, before: 'added-b' }),

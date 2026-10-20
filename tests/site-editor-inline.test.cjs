@@ -17,9 +17,13 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
     textarea{width:400px}.site-editor-selected{outline:1px solid blue}</style>
     <main id="main-content"><section id="area">
       <p id="mixed">Lead <strong>bold</strong> tail</p><p id="second">Second paragraph</p>
+      <article id="static-card-a"><h3>Static card A</h3><p>Card A body</p></article>
+      <article id="static-card-b"><h3>Static card B</h3><p>Card B body</p></article>
       <p id="empty">Placeholder</p><a id="link" href="/do-not-follow/">A link</a>
       <form id="widget"><input value="keep"><button type="button">Widget</button></form>
-    </section><section id="other"><p id="foreign">Different parent</p></section></main>
+      <div id="static-div-card" class="detail-card"><h3></h3><p>Only body</p></div>
+    </section><section id="other"><p id="foreign">Different parent</p></section>
+    <section id="empty-layout"><p id="layout-copy">Layout text</p></section></main>
     <script src="/assets/js/site-editor-model.js"></script>
     <script src="/assets/js/site-editor-rich.js"></script>
     <script src="/assets/js/site-editor-dom.js"></script>
@@ -32,7 +36,7 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       window.allowed=true;
       window.redraw=()=>{inline.stop();baseline.render(draft);inline.start();};
       window.inline=SiteEditorInline.create({baseline,getDraft:()=>draft,active:()=>allowed,
-        notify:value=>notices.push(value),mutate:fn=>{fn();draft=SiteEditorModel.normalize(draft);changes++;redraw()},
+        notify:value=>notices.push(value),mutate:fn=>{if(window.rejectMutations)return false;fn();draft=SiteEditorModel.normalize(draft);changes++;redraw();return true},
         uploadMedia:async file=>{uploads.push({name:file.name,type:file.type});return 'https://cdn.example.org/public.png'}});
       inline.start();
       window.clickLabel=(label,scope=document)=>{const button=scope.querySelector('[aria-label="'+label+'"]');if(!button)throw Error('Missing '+label);button.click();};
@@ -96,11 +100,14 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
     return result.result.value;
   };
   await send('Runtime.enable'); await send('Page.enable');
+  await send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await send('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/` });
   for (let attempt = 0; attempt < 100 && !await evaluate('Boolean(window.inline)'); attempt++) {
     await new Promise(resolve => setTimeout(resolve, 30));
   }
   assert.equal(await evaluate('Boolean(window.inline)'), true, errors.join('\n'));
+  assert.equal(await evaluate(`!document.querySelector('.site-editor-inline-root').classList.contains('site-editor-inline-ui')
+    &&Number(document.querySelector('.site-editor-format-toolbar').style.zIndex)>=10060`), true);
 
   await t.test('local text state waits for flush and never replaces mixed markup or widgets', async () => {
     assert.equal(await evaluate(`(()=>{
@@ -116,6 +123,41 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
         && document.querySelector('#mixed').lastChild===baseline.texts.get(textId(' tail')).node
         && originalStrong===document.querySelector('strong');
       inline.start(); return okay;
+    })()`), true);
+  });
+  await t.test('rejected mutations preserve dirty text and prevent structural changes until retry', async () => {
+    assert.equal(await evaluate(`(()=>{
+      const node=document.querySelector('#second [contenteditable]');inputText(node,'Retry pending text');
+      const before=changes;window.rejectMutations=true;
+      const rejected=inline.flush()===false&&changes===before&&node.isConnected&&node.textContent==='Retry pending text';
+      window.rejectMutations=false;const retried=inline.flush();
+      const persisted=draft.patches[textId('Second paragraph')].text==='Retry pending text';
+      const count=draft.blocks.length;window.rejectMutations=true;add('文字');
+      const blocked=draft.blocks.length===count;window.rejectMutations=false;
+      return rejected&&retried&&persisted&&blocked;
+    })()`), true);
+  });
+  await t.test('caret focus exposes formatting and paragraph styles persist on blur', async () => {
+    assert.deepEqual(await evaluate(`(()=>{
+      const node=document.querySelector('#second [contenteditable]');node.focus();
+      const selection=getSelection(),range=document.createRange();range.selectNodeContents(node);range.collapse(false);
+      selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
+      const toolbar=document.querySelector('.site-editor-format-toolbar');
+      const visible=selection.isCollapsed&&!toolbar.hidden&&Number.isFinite(parseFloat(toolbar.style.top));
+      const style=toolbar.querySelector('select');style.value='blockquote';style.dispatchEvent(new Event('change',{bubbles:true}));
+      document.querySelector('#widget button').focus();
+      return {visible,style:draft.patches[textId('Second paragraph')].style,
+        text:draft.patches[textId('Second paragraph')].text};
+    })()`), { visible: true, style: 'blockquote', text: 'Retry pending text' });
+  });
+  await t.test('formatting at a collapsed caret applies to subsequent input', async () => {
+    assert.equal(await evaluate(`(()=>{
+      const node=document.querySelector('#second [contenteditable]');node.focus();
+      const selection=getSelection(),range=document.createRange();range.selectNodeContents(node);range.collapse(false);
+      selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
+      clickLabel('粗體');document.execCommand('insertText',false,' formatted');
+      document.querySelector('#widget button').focus();
+      return draft.patches[textId('Second paragraph')].rich.some(run=>run.bold&&run.text.includes('formatted'));
     })()`), true);
   });
   await t.test('IME blocks flush and empty-delete until composition is complete', async () => {
@@ -219,22 +261,78 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
         color:block.rich.some(run=>run.text==='First'&&run.color==='#ff0000')};
     })()`), { body: 'First\nSecond', highlight: true, color: true });
   });
+  await t.test('consecutive added blocks reorder across static cards without moving protected slots', async () => {
+    assert.equal(await evaluate(`(()=>{
+      const first=draft.blocks.find(item=>item.id===paragraphId),parent=baseline.parents.get(first.parent);
+      const form=document.querySelector('#widget');
+      const originalSlot=parent.childNodes.filter(node=>node.nodeType===1).indexOf(form);
+      function appendAfter(id,text){
+        document.querySelector('[data-site-editor-block="'+id+'"]').click();
+        clickLabel('在此元件後新增區塊');clickLabel('文字',document.querySelector('[role=menu]'));
+        const block=draft.blocks.at(-1);
+        inputText(document.querySelector('[data-site-editor-block="'+block.id+'"] [data-site-editor-field=body]'),text);
+        inline.flush();return block.id;
+      }
+      const second=appendAfter(paragraphId,'Consecutive two');
+      const third=appendAfter(second,'Consecutive three');
+      function moveAdded(key){
+        const node=document.querySelector('[data-site-editor-block="'+second+'"] [data-site-editor-field=body]');
+        node.focus();node.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key,altKey:true}));
+      }
+      moveAdded('ArrowDown');moveAdded('ArrowDown');
+      for(let index=0;index<7;index++)moveAdded('ArrowUp');
+      const expected=draft.orders[first.parent].slice();
+      redraw();
+      const actual=Array.from(parent.element.children).map(node=>node.dataset.siteEditorBlock
+        ||Array.from(baseline.nodes).find(([,entry])=>entry.element===node)?.[0]).filter(Boolean);
+      const originalChildren=Array.from(parent.element.children).filter(node=>!node.hasAttribute('data-site-editor-block'));
+      const positions=actual.indexOf(second)<actual.indexOf(paragraphId)
+        &&actual.indexOf(third)>actual.indexOf(paragraphId)
+        &&actual.indexOf(second)<actual.indexOf(nodeId('static-card-a'))
+        &&actual.indexOf(second)<actual.indexOf(nodeId('static-card-b'));
+      return JSON.stringify(actual)===JSON.stringify(expected)&&positions
+        &&originalChildren.indexOf(form)===originalSlot
+        &&form.querySelector('input')===originalInput
+        &&form.querySelector('button').textContent==='Widget';
+    })()`), true);
+  });
+  await t.test('empty original article/card containers delete as a unit, but structural sections remain', async () => {
+    assert.equal(await evaluate(`(()=>{
+      function erase(selector){
+        const input=document.querySelector(selector+' [contenteditable]');input.focus();input.textContent='';
+        input.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'deleteContentBackward'}));
+      }
+      erase('#static-card-a p');
+      const retained=!document.querySelector('#static-card-a').hidden;
+      erase('#static-card-a h3');
+      erase('#static-div-card p');
+      erase('#layout-copy');
+      return retained&&document.querySelector('#static-card-a').hidden
+        &&document.querySelector('#static-div-card').hidden
+        &&!document.querySelector('#static-card-b').hidden&&!document.querySelector('#area').hidden
+        &&document.querySelector('#layout-copy').hidden&&!document.querySelector('#empty-layout').hidden
+        &&document.querySelector('#widget input')===originalInput;
+    })()`), true);
+  });
   await t.test('source/table edits preview and flush before save; empty source blocks delete', async () => {
     assert.equal(await evaluate(`(()=>{
       add('表格');const block=draft.blocks.find(item=>item.type==='table');
       const input=document.querySelector('[role=dialog] textarea');input.value='A\\tB\\n1\\t2';
       input.dispatchEvent(new Event('input',{bubbles:true}));
       const preview=Boolean(document.querySelector('[role=dialog] table'));
+      window.rejectMutations=true;
+      const rejected=inline.flush()===false&&document.querySelector('[role=dialog] textarea')===input
+        &&draft.blocks.find(item=>item.id===block.id).body!=='A\\tB\\n1\\t2';
+      window.rejectMutations=false;
       inline.flush();
-      return preview&&draft.blocks.find(item=>item.id===block.id).body==='A\\tB\\n1\\t2';
+      return preview&&rejected&&draft.blocks.find(item=>item.id===block.id).body==='A\\tB\\n1\\t2';
     })()`), true);
     assert.equal(await evaluate(`(()=>{
       const block=draft.blocks.find(item=>item.type==='table');
       document.querySelector('[data-site-editor-block="'+block.id+'"]').click();
       clickLabel('編輯原始內容／表格');
       const input=document.querySelector('[role=dialog] textarea');input.value='';
-      input.dispatchEvent(new Event('input',{bubbles:true}));
-      input.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Backspace'}));
+      input.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'deleteContentForward'}));
       return !draft.blocks.some(item=>item.id===block.id);
     })()`), true);
   });
@@ -258,17 +356,19 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
     })()`), true);
     await evaluate(`clickLabel('關閉',document.querySelector('[role=dialog]'))`);
   });
-  await t.test('long press deletes media with confirmation and empty text deletes via keyboard', async () => {
+  await t.test('long press reveals media deletion; deleting the final text character removes its block', async () => {
     assert.equal(await evaluate(`(async()=>{
       const block=draft.blocks.find(item=>item.type==='image'),node=document.querySelector('[data-site-editor-block="'+block.id+'"] img');
       node.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerId:8,clientX:20,clientY:20}));
       await new Promise(resolve=>setTimeout(resolve,720));
       document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:8}));
-      return !draft.blocks.some(item=>item.id===block.id);
+      const offered=draft.blocks.some(item=>item.id===block.id)&&document.activeElement.hasAttribute('data-delete');
+      clickLabel('刪除元件');return offered&&!draft.blocks.some(item=>item.id===block.id);
     })()`), true);
     assert.equal(await evaluate(`(()=>{
       const node=document.querySelector('#empty [contenteditable]');
-      inputText(node,'');node.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Delete'}));
+      node.focus();node.textContent='';
+      node.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'deleteContentBackward'}));
       return draft.patches[nodeId('empty')].deleted===true && document.querySelector('#empty').hidden;
     })()`), true);
     assert.equal(await evaluate(`(()=>{
@@ -276,6 +376,15 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       const node=document.querySelector('[data-site-editor-block="'+block.id+'"] [contenteditable]');
       node.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Backspace'}));
       return !draft.blocks.some(item=>item.id===block.id);
+    })()`), true);
+  });
+  await t.test('stop is teardown only and never implicitly flushes dirty text', async () => {
+    assert.equal(await evaluate(`(()=>{
+      inputText(document.querySelector('#foreign [contenteditable]'),'Transient only');
+      const before=changes;inline.stop();
+      const clean=changes===before&&document.querySelector('#foreign').textContent==='Different parent'
+        &&!document.querySelector('.site-editor-inline-ui');
+      inline.start();return clean;
     })()`), true);
   });
   await t.test('inactive lifecycle removes only owned wrappers and never commits after revocation', async () => {

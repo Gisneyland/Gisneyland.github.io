@@ -43,7 +43,7 @@
         global.innerHeight - (node.offsetHeight || 44) - 8))}px`;
     }
     function floating(node) {
-      node.style.position = 'fixed'; node.style.zIndex = '10020'; node.hidden = true;
+      node.style.position = 'fixed'; node.style.zIndex = '10060'; node.hidden = true;
       return node;
     }
     function isVisible(node) {
@@ -149,19 +149,31 @@
         apply(candidate); global.SiteEditorModel.normalize(candidate);
       } catch (error) { notify(error.message || '內容無法儲存。'); return false; }
       const selectedId = selected?.id;
+      const restoreDirty = () => {
+        for (const { record } of changes) {
+          record.dirty = true;
+          const current = records.get(record.id); if (current) current.dirty = true;
+        }
+        if (source) {
+          if (sourceDraft?.id === source.id) sourceDraft.dirty = true;
+          else sourceDraft = { ...source, dirty: true };
+        }
+      };
       flushing = true;
       try {
         for (const { record } of changes) record.dirty = false;
         if (source) sourceDraft.dirty = false;
-        mutate(() => apply(getDraft()));
+        if (mutate(() => apply(getDraft())) === false) { restoreDirty(); return false; }
+      } catch (error) {
+        restoreDirty(); notify(error.message || '內容無法儲存。'); return false;
       } finally { flushing = false; }
       if (selectedId && enabled()) reselect(selectedId);
       return true;
     }
     function commit(action) {
       if (!enabled() || !flush()) return false;
-      mutate(() => action(getDraft()));
-      return true;
+      try { return mutate(() => action(getDraft())) !== false; }
+      catch (error) { notify(error.message || '修改無法套用。'); return false; }
     }
     function editable(node, key, details, ownedNode) {
       if (records.has(key) || node.closest('[hidden],[data-site-editor-deleted]')) return;
@@ -246,7 +258,7 @@
       const to = targetId ? ids.indexOf(targetId) : from + direction;
       if (from < 0 || to < 0 || to >= ids.length || from === to) return;
       ids.splice(from, 1); ids.splice(to, 0, item.id);
-      commit(draft => orderDraft(draft, item.parent, ids));
+      if (!commit(draft => orderDraft(draft, item.parent, ids))) return;
       reselect(item.id, true); notify('已調整同一容器內的順序。');
     }
     function reselect(id, focus = false) {
@@ -257,17 +269,52 @@
         if (focus) (node.querySelector('[contenteditable="true"]') || node).focus({ preventScroll: true });
       }
     }
-    function removeSelected(confirmMedia = false) {
+    function removeSelected() {
       const item = selectedNow();
-      if (!item?.deletable || !item.parent || composing) return;
-      if (confirmMedia && !global.confirm('刪除此媒體？此動作只修改草稿，不會刪除儲存空間檔案。')) return;
+      if (!item?.deletable || !item.parent || composing) return false;
       const ids = siblingIds(item.parent).filter(id => id !== item.id);
       if (!commit(draft => {
         if (item.added) draft.blocks = draft.blocks.filter(block => block.id !== item.id);
         else draft.patches[item.id] = { ...draft.patches[item.id], deleted: true };
         orderDraft(draft, item.parent, ids);
-      })) return;
+      })) return false;
       select(null); if (ids.length) reselect(ids[0], true);
+      return true;
+    }
+    function emptyComponent(item) {
+      if (!item?.deletable || !item.parent
+        || item.element.querySelector('img,audio,video,iframe,canvas,svg,input,button,select,textarea,form,'
+          + '[aria-live],[role="status"],[data-managed-news],[data-site-editor-protected]')) return false;
+      const walker = doc.createTreeWalker(item.element, global.NodeFilter.SHOW_TEXT);
+      let text;
+      while ((text = walker.nextNode())) {
+        if (!text.nodeValue.replace(/[\s\u200b]/g, '')
+          || text.parentElement.closest('[hidden],[data-site-editor-deleted],[aria-hidden="true"],.material-icons')) continue;
+        let ancestor = text.parentElement, visible = true;
+        while (ancestor && item.element.contains(ancestor)) {
+          const style = global.getComputedStyle(ancestor);
+          if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') { visible = false; break; }
+          ancestor = ancestor.parentElement;
+        }
+        if (visible) return false;
+      }
+      return true;
+    }
+    function emptyDeletionTarget(item) {
+      if (!emptyComponent(item)) return null;
+      const isCard = node => node.tagName === 'ARTICLE'
+        || (node.tagName === 'DIV' && node.matches('.card,.detail-card,.info-card,.service-card,.news-card'));
+      if (item.added || isCard(item.element)) return item;
+      let ancestor = item.element.parentElement;
+      while (ancestor && ancestor !== root && !/^(MAIN|SECTION)$/.test(ancestor.tagName)) {
+        if (isCard(ancestor)) {
+          const entry = Array.from(baseline.nodes).find(([, value]) => value.element === ancestor);
+          const card = entry && { ...entry[1], id: entry[0], added: false };
+          return emptyComponent(card) ? card : item;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      return item;
     }
     function insert(type, url = '') {
       const item = selectedNow();
@@ -278,15 +325,16 @@
           parent = ancestor.parent; ancestor = baseline.nodes.get(parent);
         }
       }
-      if (!baseline.parents.has(parent)) { notify('此位置不能新增區塊。'); return; }
+      if (!baseline.parents.has(parent)) { notify('此位置不能新增區塊。'); return false; }
       const id = `block-${global.crypto.randomUUID()}`, ids = siblingIds(parent);
       const index = item && ids.includes(item.id) ? ids.indexOf(item.id) + 1 : ids.length;
       ids.splice(index, 0, id);
       const body = type === 'table' ? '欄位 1\t欄位 2\n內容\t內容' : '';
       const block = { id, parent, before: ids[index + 1] || '', type, title: '', body, url, label: '' };
-      if (!commit(draft => { draft.blocks.push(block); orderDraft(draft, parent, ids); })) return;
+      if (!commit(draft => { draft.blocks.push(block); orderDraft(draft, parent, ids); })) return false;
       menu.hidden = true; reselect(id, true);
       if (SOURCE_TYPES.has(type)) sourceEditor();
+      return true;
     }
     function savedSelection() {
       const selection = global.getSelection();
@@ -316,11 +364,20 @@
     }
     function updateSelection() {
       if (!enabled() || composing) return;
-      const selection = global.getSelection(), record = recordFor(selection?.anchorNode);
-      if (!selection || selection.isCollapsed || !record || record !== recordFor(selection.focusNode)
-        || record.field === 'title') { toolbar.hidden = true; return; }
-      savedSelection(); toolbar.hidden = false;
-      position(toolbar, selection.getRangeAt(0).getBoundingClientRect());
+      const selection = global.getSelection(), anchored = recordFor(selection?.anchorNode);
+      const record = anchored || recordFor(doc.activeElement);
+      if (!record || (anchored && anchored !== recordFor(selection.focusNode)) || record.field === 'title') {
+        toolbar.hidden = true; return;
+      }
+      let rect;
+      if (anchored && selection.rangeCount) {
+        savedSelection(); rect = selection.getRangeAt(0).getBoundingClientRect();
+      } else {
+        range = doc.createRange(); range.selectNodeContents(record.element); range.collapse(true);
+      }
+      toolbar.hidden = false;
+      toolbar.querySelector('select').value = record.style || 'p';
+      position(toolbar, rect && (rect.width || rect.height) ? rect : record.element.getBoundingClientRect());
     }
     function closeDialog() {
       dialog?.remove(); dialog = null; sourceDraft = null; composing = false;
@@ -351,10 +408,14 @@
       if (block.type === 'code') pane.append(language);
       const preview = element('div'); preview.setAttribute('aria-label', '預覽'); pane.append(preview);
       sourceDraft = { id: block.id, body: block.body, language: block.language || '', dirty: false };
-      function renderPreview() {
+      function renderPreview(event) {
         if (sourceDraft) {
           sourceDraft.body = input.value; sourceDraft.language = language.value;
           sourceDraft.dirty = input.value !== block.body || language.value !== (block.language || '');
+        }
+        if (event?.target === input && !composing && !event.isComposing
+          && ['deleteContentBackward', 'deleteContentForward'].includes(event.inputType) && !input.value && !block.title) {
+          if (removeSelected()) closeDialog(); return;
         }
         preview.replaceChildren();
         if (rich()?.render) {
@@ -366,7 +427,7 @@
       input.addEventListener('keydown', event => {
         if (['Backspace', 'Delete'].includes(event.key) && !event.isComposing && !composing
           && !input.value && !block.title) {
-          event.preventDefault(); removeSelected(); closeDialog(); return;
+          event.preventDefault(); if (removeSelected()) closeDialog(); return;
         }
         if (event.key !== 'Tab' || event.shiftKey || block.type !== 'table') return;
         event.preventDefault(); input.setRangeText('\t', input.selectionStart, input.selectionEnd, 'end'); renderPreview();
@@ -427,16 +488,17 @@
       button(pane, 'check', '套用媒體網址', () => {
         const url = global.SiteEditorModel.safeURL(input.value.trim());
         if (!url || !/^(https?:\/\/|\/(?!\/))/i.test(url)) { notify('媒體須使用 https、http 或站內公開網址。'); return; }
-        if (existing) commit(draft => {
-          const target = draft.blocks.find(value => value.id === existing.id); if (target) target.url = url;
-        });
-        else insert(kind, url);
+        if (existing) {
+          if (!commit(draft => {
+            const target = draft.blocks.find(value => value.id === existing.id); if (target) target.url = url;
+          })) return;
+        } else if (!insert(kind, url)) return;
         closeDialog();
       });
       input.focus();
     }
     function buildUI() {
-      ui = element('div', 'site-editor-inline-ui');
+      ui = element('div', 'site-editor-inline-root');
       toolbar = floating(element('div', 'site-editor-inline-ui site-editor-format-toolbar'));
       toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', '選取文字格式');
       for (const [command, icon, label, value] of [
@@ -520,7 +582,11 @@
         if (!enabled() || composing) return;
         const media = mediaTarget || /^(IMG|AUDIO|VIDEO)$/.test(item.element.tagName)
           || item.element.querySelector('img,audio,video') && !item.element.querySelector('[contenteditable="true"]');
-        if (media) { suppressClick = true; removeSelected(true); return; }
+        if (media) {
+          suppressClick = true; select(item);
+          tools.querySelector('[data-delete]').focus({ preventScroll: true });
+          notify('媒體已選取；按垃圾桶確認刪除，或按 Escape 取消。'); return;
+        }
         // Long-press inside text belongs to native selection; the component handle reorders it.
         if (event.target.closest('[contenteditable="true"]')) return;
         if (!item.movable || !item.parent) return;
@@ -572,9 +638,8 @@
       const item = selectedNow();
       if (!item?.deletable || !item.parent) return;
       // Empty text may contain browser-created <br> placeholders, but never erase media or nested widgets.
-      const empty = !item.element.textContent.replace(/[\s\u200b]/g, '')
-        && !item.element.querySelector('img,audio,video,iframe,canvas,svg,input,button,select,textarea,[data-site-editor-protected]');
-      if (empty) { event.preventDefault(); removeSelected(); }
+      const target = emptyDeletionTarget(item);
+      if (target) { event.preventDefault(); select(target); removeSelected(); }
     }
     function start() {
       if (running || !active() || !root?.querySelectorAll) return;
@@ -585,8 +650,18 @@
         if (suppressClick) { event.preventDefault(); suppressClick = false; return; }
         select(component(event.target));
       }, true);
-      listen(root, 'focusin', event => { if (enabled()) select(component(event.target)); });
-      listen(root, 'input', event => { const record = recordFor(event.target); if (enabled() && record) record.dirty = true; });
+      listen(root, 'focusin', event => {
+        if (enabled()) { select(component(event.target)); updateSelection(); }
+      });
+      listen(root, 'input', event => {
+        const record = recordFor(event.target); if (!enabled() || !record) return;
+        record.dirty = true;
+        if (!composing && !event.isComposing && ['deleteContentBackward', 'deleteContentForward'].includes(event.inputType)) {
+          const item = component(event.target);
+          const target = emptyDeletionTarget(item);
+          if (target) { select(target); removeSelected(); }
+        }
+      });
       listen(root, 'compositionstart', () => { composing = true; cancelHold(); toolbar.hidden = true; });
       listen(root, 'compositionend', event => {
         composing = false; const record = recordFor(event.target); if (record) record.dirty = true;
@@ -637,7 +712,6 @@
     }
     function stop() {
       if (!running) return;
-      flush();
       running = false; composing = false; cancelHold(); endDrag(true);
       listeners.splice(0).forEach(remove => remove());
       selected?.element.classList.remove('site-editor-selected'); selected = null;
