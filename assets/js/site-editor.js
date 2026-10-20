@@ -9,28 +9,49 @@
   let activeUserId = null, profileCheck = 0;
   let published = M.empty(), publishedNav = M.empty(), draft = null, navDraft = null;
   let pageRevision = 0, navRevision = 0, panel, trigger;
+  let inline, visual = false, restoring = false;
+  const undo = [], redo = [];
   const $ = id => document.getElementById(`site-editor-${id}`);
   const copy = value => JSON.parse(JSON.stringify(value));
-  function message(value) { if ($('status')) $('status').textContent = value; }
+  function message(value) {
+    if ($('status')) $('status').textContent = value;
+    if ($('mode-status')) $('mode-status').textContent = value;
+  }
+  function historyControls() {
+    if ($('undo')) $('undo').disabled = busy || !undo.length;
+    if ($('redo')) $('redo').disabled = busy || !redo.length;
+  }
+  function editing(value) {
+    visual = value;
+    document.body.classList.toggle('site-editor-editing', value);
+    if ($('mode-actions')) $('mode-actions').hidden = !value;
+    trigger?.setAttribute('aria-pressed', String(value));
+    if (!value) inline?.stop();
+    historyControls();
+  }
   function authorized(token) { return admin && token === generation; }
   function errorMessage(error) {
     return `編輯服務無法使用：${error?.message || '連線失敗'}。請管理員先執行 supabase/migrations/202610200001_site_editor.sql，確認管理員已核准並完成個資同意，再重新整理。原網站不受影響。`;
   }
   function showPublished() {
+    editing(false);
     applyOverlay(published, publishedNav);
     preview = false; document.body.classList.remove('site-editor-preview');
     if ($('preview-toolbar')) $('preview-toolbar').hidden = true;
   }
   function applyOverlay(content, navigation) {
+    inline?.stop();
     const nextOverlay = Boolean(Object.keys(content.patches).length || Object.keys(content.orders).length
       || content.blocks.length || navigation.navigation);
     if (overlayActive || nextOverlay) baseline.render(content, navigation);
     overlayActive = nextOverlay;
+    if (visual && !busy) inline?.start();
   }
   function revoke() {
     generation += 1; operation += 1; profileCheck += 1;
     activeUserId = null; admin = false; busy = false; dirty = false;
     draft = null; navDraft = null;
+    undo.length = 0; redo.length = 0;
     if (trigger) trigger.hidden = true;
     if (panel) {
       panel.hidden = true; trigger?.setAttribute('aria-expanded', 'false');
@@ -52,7 +73,7 @@
         read('site_editor_publications', '@navigation')
       ]);
       published = content.document || M.empty(); publishedNav = nav.document || M.empty();
-      if (!preview) showPublished();
+      if (!preview && !visual) showPublished();
     } catch (error) {
       // Missing migrations and network failures never blank or disable the static site.
       if (admin) message(errorMessage(error));
@@ -88,11 +109,16 @@
     panel.querySelectorAll('button,select,input,textarea').forEach(node => { node.disabled = value || !draft; });
     $('close').disabled = false;
     for (const id of ['reopen', 'preview-leave']) $(id).disabled = value;
+    for (const id of ['mode-save', 'settings']) if ($(id)) $(id).disabled = value || !draft;
+    if (value) inline?.stop();
+    else if (visual) inline?.start();
+    historyControls();
     if (!value && draft) nodeSelection();
     if (!value && preview && panel.hidden) $('reopen').focus();
   }
   async function run(action) {
     if (!admin || busy) return;
+    inline?.flush();
     const token = generation, currentOperation = ++operation;
     setBusy(true);
     try { await action(token); }
@@ -120,7 +146,7 @@
   function nodeSelection() {
     const id = selected('node'), target = baseline.nodes.get(id);
     $('node-info').textContent = target
-      ? `${target.label} — ${id}${draft.patches[id]?.deleted ? '（已刪除）' : ''}${target.deletable ? '' : '（含受保護工具，不可移動／刪除）'}` : '';
+      ? `${target.element.textContent.trim().slice(0, 65)}${draft.patches[id]?.deleted ? '（已刪除）' : ''}${target.deletable ? '' : '（互動工具，無法移動或刪除）'}` : '';
     $('node-delete').disabled = !target?.deletable;
     $('node-up').disabled = !target?.movable;
     $('node-down').disabled = !target?.movable;
@@ -152,26 +178,38 @@
       && /^(SECTION|ARTICLE|DIV|LI|A|H[1-6]|P|UL|OL)$/.test(item.element.tagName));
     fill('node', nodeEntries.map(([id, item]) => [id, `${'·'.repeat(Math.min(id.split('/').length, 8))} ${item.label} — ${item.element.textContent.trim().slice(0, 45)}`]), selected('node'));
     fill('parent', Array.from(baseline.parents).filter(([, item]) => /^(MAIN|SECTION|ARTICLE|DIV)$/.test(item.element.tagName))
-      .map(([id]) => [id, `${baseline.nodes.get(id).label} — ${id}`]), selected('parent') || baseline.root);
+      .map(([id, item]) => [id, item.element.querySelector('h1,h2,h3,h4')?.textContent.trim().slice(0, 55)
+        || item.element.textContent.trim().slice(0, 55) || '頁面內容']), selected('parent') || baseline.root);
     fill('block', draft.blocks.map(block => [block.id, block.title || '未命名區塊']), selected('block'), '新增區塊');
     textSelection(); linkSelection(); nodeSelection(); blockSelection(); refreshNav(selected('nav-item'));
   }
   function changed() {
     draft = M.normalize(draft); navDraft = M.normalize(navDraft); dirty = true;
-    if (preview) applyOverlay(draft, navDraft);
+    if (preview || visual) applyOverlay(draft, navDraft);
     message('草稿已修改，尚未儲存／發布。');
   }
   function mutate(action) {
     if (!admin || busy || !draft) return;
     const before = copy(draft), navBefore = copy(navDraft);
-    try { action(); changed(); }
+    try {
+      action();
+      draft = M.normalize(draft); navDraft = M.normalize(navDraft);
+      if (JSON.stringify([before, navBefore]) === JSON.stringify([draft, navDraft])) return;
+      if (!restoring) {
+        undo.push([before, navBefore]); if (undo.length > 100) undo.shift();
+        redo.length = 0;
+      }
+      changed(); historyControls();
+    }
     catch (error) { draft = before; navDraft = navBefore; message(error.message); }
   }
   async function open() {
     if (!admin) return;
     panel.hidden = false; trigger.setAttribute('aria-expanded', 'true');
     $('close').focus();
-    if (draft) { refresh(); return; }
+    if (draft) {
+      editing(true); applyOverlay(draft, navDraft); refresh(); return;
+    }
     await run(async token => {
       message('載入私人草稿…');
       const [content, nav] = await Promise.all([read('site_editor_drafts', page), read('site_editor_drafts', '@navigation')]);
@@ -179,7 +217,8 @@
       draft = content.document || copy(published); navDraft = nav.document || copy(publishedNav);
       if (!navDraft.navigation) navDraft.navigation = copy(baseline.baselineNavigation);
       pageRevision = content.revision; navRevision = nav.revision; dirty = false;
-      refresh(); message('私人草稿已載入；網站仍顯示已發布版本。');
+      editing(true); applyOverlay(draft, navDraft);
+      refresh(); message('私人草稿已載入。點文字編輯，長按元件調整順序；儲存後再發布。');
     });
   }
   async function save(token) {
@@ -193,7 +232,25 @@
     pageRevision = data.page_revision; navRevision = data.navigation_revision; dirty = false;
     message('私人草稿已儲存，尚未發布。'); return true;
   }
+  async function uploadMedia(file) {
+    if (!admin || !visual || busy || !activeUserId) throw new Error('請先進入管理員編輯模式');
+    const types = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif',
+      'audio/mpeg': 'mp3', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'video/mp4': 'mp4', 'video/webm': 'webm' };
+    const extension = types[file?.type];
+    if (!extension || !file.size || file.size > 10485760) throw new Error('請選擇 10 MB 以內的 PNG、JPEG、WebP、GIF、MP3、OGG、WAV、MP4 或 WebM 檔案');
+    if (!global.confirm('此檔案上傳後即為公開素材，即使尚未發布草稿也可經網址讀取。確認不含個資、健康資料，且有權使用？')) return null;
+    const token = generation;
+    const name = `${activeUserId}/${global.crypto.randomUUID()}.${extension}`;
+    const bucket = client.storage.from('site-editor-media');
+    const { error } = await bucket.upload(name, file, { contentType: file.type, upsert: false });
+    if (!authorized(token)) return null;
+    if (error) throw new Error(`上傳失敗：${error.message}。請確認已安裝 202610200003_site_editor_media.sql`);
+    const { data } = bucket.getPublicUrl(name);
+    if (!M.safeURL(data?.publicUrl)) throw new Error('素材網址無效');
+    return data.publicUrl;
+  }
   function close() {
+    inline?.flush();
     panel.hidden = true; trigger.setAttribute('aria-expanded', 'false');
     showPublished(); trigger.focus();
   }
@@ -207,6 +264,33 @@
     $('reopen').addEventListener('click', open);
     $('preview-leave').addEventListener('click', () => {
       showPublished(); message('已離開預覽；可重新開啟草稿。'); trigger.focus();
+    });
+    $('mode-save')?.addEventListener('click', () => run(save));
+    $('settings')?.addEventListener('click', () => {
+      panel.hidden = !panel.hidden;
+      trigger.setAttribute('aria-expanded', String(!panel.hidden));
+      if (!panel.hidden) $('close').focus();
+    });
+    for (const [id, source, destination] of [['undo', undo, redo], ['redo', redo, undo]]) {
+      $(id)?.addEventListener('click', () => {
+        if (!admin || busy || !draft) return;
+        inline?.flush();
+        const state = source.pop();
+        if (!state) return;
+        destination.push([copy(draft), copy(navDraft)]);
+        restoring = true;
+        try {
+          [draft, navDraft] = copy(state); changed(); refresh(); historyControls();
+        } finally { restoring = false; }
+      });
+    }
+    document.addEventListener('keydown', event => {
+      if (!visual || busy || !(event.ctrlKey || event.metaKey) || event.altKey
+        || !['z', 'y'].includes(event.key.toLowerCase())) return;
+      const target = event.target;
+      if (target.closest('input,textarea') && !target.closest('.site-editor-inline-ui')) return;
+      event.preventDefault();
+      $(event.shiftKey || event.key.toLowerCase() === 'y' ? 'redo' : 'undo')?.click();
     });
     panel.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
     $('page').value = document.body.dataset.siteEditorUrl;
@@ -222,6 +306,7 @@
     $('save').addEventListener('click', () => run(save));
     $('preview').addEventListener('click', () => run(async token => {
       if (!await save(token) || !authorized(token) || panel.hidden) return;
+      editing(false);
       preview = true; applyOverlay(draft, navDraft); document.body.classList.add('site-editor-preview');
       panel.hidden = true; trigger.setAttribute('aria-expanded', 'false');
       $('preview-toolbar').hidden = false; $('reopen').focus();
@@ -249,6 +334,7 @@
     $('text-apply').addEventListener('click', () => mutate(() => {
       const id = selected('text'); if (!baseline.texts.has(id)) return;
       draft.patches[id] = { ...draft.patches[id], text: $('text-value').value };
+      delete draft.patches[id].rich;
     }));
     $('link-apply').addEventListener('click', () => mutate(() => {
       const id = selected('link'); if (!baseline.links.has(id)) return;
@@ -281,7 +367,8 @@
       let id = selected('block');
       mutate(() => {
         if (!id) id = `block-${global.crypto.randomUUID()}`;
-        const block = { id, parent: selected('parent'), before: selected('before') };
+        const block = { ...draft.blocks.find(item => item.id === id), id, parent: selected('parent'), before: selected('before') };
+        if (block.body !== $('block-body').value) delete block.rich;
         for (const field of ['title', 'body', 'url', 'label']) block[field] = $('block-' + field).value;
         const index = draft.blocks.findIndex(item => item.id === id);
         if (index < 0) draft.blocks.push(block); else draft.blocks[index] = block;
@@ -315,6 +402,10 @@
   document.addEventListener('DOMContentLoaded', async () => {
     panel = document.getElementById('site-editor'); trigger = $('button'); client = global.questionnaireSupabase;
     if (!panel || !trigger || !client) return;
+    inline = global.SiteEditorInline?.create({
+      baseline, getDraft: () => draft, mutate,
+      active: () => Boolean(admin && visual && !busy && draft), notify: message, uploadMedia
+    });
     wire();
     const startGeneration = generation;
     client.auth.onAuthStateChange((event, session) => scheduleSession(session, event));

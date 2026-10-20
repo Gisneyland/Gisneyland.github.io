@@ -21,7 +21,7 @@
 
   <!-- Custom Style -->
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}?v=frontend-editor-20261020-1">
-  <link rel="stylesheet" href="{{ '/assets/css/site-editor.css' | relative_url }}?v=20261020-1">
+  <link rel="stylesheet" href="{{ '/assets/css/site-editor.css' | relative_url }}?v=20261020-2">
   
 </head>
 <body data-site-editor-page="{{ page.url | escape }}" data-site-editor-url="{{ page.url | relative_url | escape }}"{% if page.url == '/hiva/' %} class="questionnaire-page"{% endif %}>
@@ -40,9 +40,11 @@
     {% include site-editor.html %}
 
   <!-- Capture static editable nodes before any runtime translation/feed/widget changes. -->
-  <script src="{{ '/assets/js/site-editor-model.js' | relative_url }}?v=20261020-1"></script>
-  <script src="{{ '/assets/js/site-editor-dom.js' | relative_url }}?v=20261020-1"></script>
-  <script src="{{ '/assets/js/site-editor.js' | relative_url }}?v=20261020-1"></script>
+  <script src="{{ '/assets/js/site-editor-model.js' | relative_url }}?v=20261020-2"></script>
+  <script src="{{ '/assets/js/site-editor-rich.js' | relative_url }}?v=20261020-2"></script>
+  <script src="{{ '/assets/js/site-editor-dom.js' | relative_url }}?v=20261020-2"></script>
+  <script src="{{ '/assets/js/site-editor-inline.js' | relative_url }}?v=20261020-2"></script>
+  <script src="{{ '/assets/js/site-editor.js' | relative_url }}?v=20261020-2"></script>
 
   <!-- CDN JS -->
   <!-- Materialize JS -->

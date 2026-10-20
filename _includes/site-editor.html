@@ -1,26 +1,29 @@
 <aside id="site-editor" class="site-editor notranslate" translate="no" aria-label="網站編輯器" hidden>
-  <header><h2>網站編輯器</h2><button type="button" id="site-editor-close">關閉／離開預覽</button></header>
-  <p>僅管理員可用。只編輯公開資訊，勿輸入個資或健康資料。表單、行事曆、即時消息與互動工具受保護，請使用原有管理後台。</p>
+  <header><h2>編輯網站</h2><button type="button" id="site-editor-close" title="結束編輯，返回已發布網站" aria-label="結束編輯"><span class="material-icons" aria-hidden="true">close</span></button></header>
+  <p class="site-editor-hint">點文字編輯 · 長按元件排序 · ＋ 新增</p>
   <p id="site-editor-status" role="status" aria-live="polite"></p>
-  <label>前往其他頁面（先儲存目前草稿）
+  <label>切換頁面（自動儲存草稿）
     <select id="site-editor-page">
       {% assign editor_pages = site.pages | sort: 'url' %}
       {% for editor_page in editor_pages %}
       {% if editor_page.layout == 'default' and editor_page.url != '/admin/' %}
-      <option value="{{ editor_page.url | relative_url }}">{{ editor_page.title | escape }} — {{ editor_page.url }}</option>
+      <option value="{{ editor_page.url | relative_url }}">{{ editor_page.title | escape }}</option>
       {% endif %}
       {% endfor %}
     </select>
   </label>
   <div class="site-editor-actions">
-    <button type="button" id="site-editor-save">儲存草稿</button>
-    <button type="button" id="site-editor-preview">儲存並預覽</button>
-    <button type="button" id="site-editor-exit">離開預覽</button>
-    <button type="button" id="site-editor-publish">發布已儲存草稿</button>
-    <button type="button" id="site-editor-reset">草稿還原原始版面</button>
+    <button type="button" id="site-editor-save"><span class="material-icons" aria-hidden="true">save</span>儲存</button>
+    <button type="button" id="site-editor-preview"><span class="material-icons" aria-hidden="true">visibility</span>預覽</button>
+    <button type="button" id="site-editor-publish"><span class="material-icons" aria-hidden="true">publish</span>發布</button>
   </div>
-  <p>目前頁面與全站導覽一起原子發布。修改不會自動發布；預覽不影響訪客。原始碼改版後無法對應的舊項目會略過。</p>
-  <details open><summary>現有文字與連結</summary>
+  <details><summary><span class="material-icons" aria-hidden="true">info</span>隱私與發布</summary>
+    <p>只編輯公開資訊，勿輸入個資或健康資料。表單、行事曆與即時消息受保護，請使用原有後台。</p>
+    <p>儲存不會自動發布。發布會一起更新目前頁面與全站導覽；預覽只有管理員可見。</p>
+    <button type="button" id="site-editor-exit">返回已發布版面</button>
+    <button type="button" id="site-editor-reset">還原原始版面</button>
+  </details>
+  <details><summary><span class="material-icons" aria-hidden="true">text_fields</span>文字與連結清單</summary>
     <label>文字位置<select id="site-editor-text"></select></label>
     <label>文字內容<textarea id="site-editor-text-value" rows="4" maxlength="12000"></textarea></label>
     <button type="button" id="site-editor-text-apply">套用文字至草稿</button>
@@ -28,7 +31,7 @@
     <label>網址<input type="text" id="site-editor-link-value" maxlength="2048"></label>
     <button type="button" id="site-editor-link-apply">套用連結至草稿</button>
   </details>
-  <details><summary>現有區段、巢狀卡片與排序</summary>
+  <details><summary><span class="material-icons" aria-hidden="true">view_agenda</span>元件清單</summary>
     <label>版面項目<select id="site-editor-node"></select></label>
     <p id="site-editor-node-info"></p>
     <button type="button" id="site-editor-node-up">上移</button>
@@ -36,7 +39,7 @@
     <button type="button" id="site-editor-node-delete">刪除／恢復</button>
     <p>排序限同一父層。含互動工具的區段不能移動或刪除；純文字可清空，卡片與靜態區段可刪除／恢復。</p>
   </details>
-  <details><summary>新增內容區塊</summary>
+  <details><summary><span class="material-icons" aria-hidden="true">add_box</span>卡片位置與內容</summary>
     <label>區塊<select id="site-editor-block"><option value="">新增區塊</option></select></label>
     <label>放置位置<select id="site-editor-parent"></select></label>
     <label>插入於既有項目前（空白為容器末端）<select id="site-editor-before"></select></label>
@@ -49,7 +52,7 @@
     <button type="button" id="site-editor-block-down">下移</button>
     <button type="button" id="site-editor-block-delete">刪除區塊</button>
   </details>
-  <details><summary>全站主要／更多導覽</summary>
+  <details><summary><span class="material-icons" aria-hidden="true">menu</span>全站導覽</summary>
     <label>導覽區域<select id="site-editor-nav-group"><option value="main">主要導覽</option><option value="more">更多</option></select></label>
     <label>項目<select id="site-editor-nav-item"></select></label>
     <label>顯示文字<input type="text" id="site-editor-nav-label" maxlength="100"></label>
@@ -61,6 +64,7 @@
     <p>「更多」與「回到頂端」互動按鈕固定保留。</p>
   </details>
 </aside>
+<p id="site-editor-mode-status" class="site-editor-mode-status notranslate" translate="no" role="status" aria-live="polite"></p>
 <div id="site-editor-preview-toolbar" class="site-editor-preview-toolbar notranslate" translate="no" role="region" aria-label="草稿預覽工具" hidden>
   <span>管理員草稿預覽（未發布）</span>
   <button type="button" id="site-editor-reopen">重新開啟編輯器</button>
