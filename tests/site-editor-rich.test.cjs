@@ -84,6 +84,9 @@ test('browser: semantic runs, all block previews, literal hostile source and rev
     const dirty = document.createElement('div'), bad = document.createElement('a'), script = document.createElement('script');
     bad.setAttribute('href', 'javascript:alert(1)'); bad.textContent = 'plain'; script.textContent = 'alert(1)';
     dirty.append(bad, script); expect(JSON.stringify(R.readRuns(dirty)) === '[{"text":"plain"}]', 'untrusted DOM sanitized');
+    const multiline = document.createElement('div'), line = document.createElement('div');
+    multiline.append(document.createTextNode('one')); line.textContent = 'two'; multiline.append(line);
+    expect(R.readRuns(multiline).map(run => run.text).join('') === 'one\ntwo', 'contenteditable line boundaries retained');
     const doc = M.empty();
     doc.patches[textId] = { rich: runs, style: 'h2' };
     const widgetParentId = [...baseline.nodes].find(([, item]) => item.element.id === 'widgets')[0];

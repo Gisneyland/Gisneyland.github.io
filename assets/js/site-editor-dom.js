@@ -94,6 +94,8 @@
         element.removeAttribute('data-site-editor-deleted');
         for (const [name, value] of [['href', attrs.href], ['data-i18n', attrs.i18n], ['translate', attrs.translate],
           ['style', attrs.style], ['data-site-editor-style', attrs.format]]) {
+          // Flush pending CSSOM serialization before removing an originally absent style.
+          if (name === 'style') element.getAttribute(name);
           if (value === null) element.removeAttribute(name); else element.setAttribute(name, value);
         }
       }

@@ -17,7 +17,7 @@
     if (!M.STYLES.includes(style)) throw new Error('Unsupported text style');
     element.setAttribute('data-site-editor-style', style);
     element.style.whiteSpace = 'pre-wrap';
-    element.style.display = 'block';
+    element.style.display = ['ul', 'ol'].includes(style) ? 'list-item' : 'block';
     element.style.fontSize = ({ h1: '2em', h2: '1.5em', h3: '1.17em' })[style] || '1em';
     element.style.fontWeight = /^h[123]$/.test(style) ? 'bold' : 'normal';
     element.style.borderInlineStart = style === 'blockquote' ? '3px solid currentColor' : '';
@@ -45,9 +45,19 @@
   }
   function readRuns(element) {
     const result = [];
+    let total = 0;
+    function append(text, flags) {
+      if (!text) return;
+      total += text.length;
+      if (total > 12000) throw new Error('Rich text is too long');
+      const previous = result[result.length - 1];
+      if (previous && JSON.stringify({ ...previous, text: '' }) === JSON.stringify({ text: '', ...flags })) previous.text += text;
+      else result.push({ text, ...flags });
+      if (result.length > 500) throw new Error('Too many rich text runs');
+    }
     function visit(current, inherited, depth) {
       if (depth > 40) throw new Error('Rich text nesting is too deep');
-      if (current.nodeType === 3) { if (current.nodeValue) result.push({ text: current.nodeValue, ...inherited }); return; }
+      if (current.nodeType === 3) { append(current.nodeValue, inherited); return; }
       if (current.nodeType !== 1 && current.nodeType !== 11) return;
       if (current.nodeType === 1 && current.matches('script,style,iframe,object,svg,math,[data-site-editor-protected]')) return;
       const flags = { ...inherited }, tag = current.tagName;
@@ -65,8 +75,16 @@
           flags.color = '#' + rgb.slice(1).map(value => Number(value).toString(16).padStart(2, '0')).join('');
         }
       }
-      if (tag === 'BR') result.push({ text: '\n', ...flags });
-      else for (const child of current.childNodes) visit(child, flags, depth + 1);
+      if (tag === 'BR') append('\n', flags);
+      else {
+        let previousBlock = false;
+        for (const child of current.childNodes) {
+          const block = child.nodeType === 1 && /^(DIV|P|H[1-6]|BLOCKQUOTE|LI|UL|OL)$/.test(child.tagName);
+          if ((block || previousBlock) && result.length && !result[result.length - 1].text.endsWith('\n')) append('\n', flags);
+          visit(child, flags, depth + 1);
+          previousBlock = block;
+        }
+      }
     }
     visit(element, {}, 0);
     return M.runs(result);
@@ -126,7 +144,7 @@
           index += match[0].length; return namespaced(MATH, 'mtext', {}, match[1]);
         }
         if (command === 'left' || command === 'right') return atom(depth + 1);
-        if (!(command in symbols)) throw new Error('Unsupported LaTeX command');
+        if (!Object.hasOwn(symbols, command)) throw new Error('Unsupported LaTeX command');
         return namespaced(MATH, ['sin', 'cos', 'tan', 'log', 'ln'].includes(command) ? 'mi' : 'mo', {}, symbols[command]);
       }
       return namespaced(MATH, /\d/.test(character) ? 'mn' : /[a-zA-Z]/.test(character) ? 'mi' : 'mo', {}, character);
@@ -140,10 +158,12 @@
           index++; return row;
         }
         let base = atom(depth), sub = null, sup = null;
+        while (/\s/.test(input[index] || '') && index < input.length) index++;
         while (input[index] === '^' || input[index] === '_') {
           const script = input[index++];
           if (script === '_') { if (sub) throw new Error('Repeated subscript'); sub = atom(depth + 1); }
           else { if (sup) throw new Error('Repeated superscript'); sup = atom(depth + 1); }
+          while (/\s/.test(input[index] || '') && index < input.length) index++;
         }
         if (sub || sup) {
           const scripted = namespaced(MATH, sub && sup ? 'msubsup' : sub ? 'msub' : 'msup');
@@ -168,8 +188,9 @@
       if (header) headers[header[1]] = header[2]; else tune.push(line.replace(/%.*/, ''));
     }
     const music = tune.join(' ').replace(/"[^"]*"|![^!]*!|\{[^}]*\}/g, '');
-    const tokens = music.match(/(?:[_^=]{0,2}[A-Ga-g][,']*|z|x)\d*(?:\/\d*)?|[|:]+/g) || [];
-    if (!tokens.length || tokens.length > 256 || /[\[\]&]/.test(music)) throw new Error('Unsupported ABC score');
+    const pattern = /(?:[_^=]{0,2}[A-Ga-g][,']*|z|x)\d*(?:\/\d*)?|[|:]+/g;
+    const tokens = music.match(pattern) || [];
+    if (!tokens.length || tokens.length > 256 || music.replace(pattern, '').trim()) throw new Error('Unsupported ABC score');
     const width = 760, rows = Math.ceil(tokens.length / 24), score = svg(width, rows * 130 + 40, headers.T || 'ABC music');
     score.append(namespaced(SVG, 'text', { x: 12, y: 22, 'font-size': 18, fill: 'currentColor' }, headers.T || 'ABC'));
     for (let row = 0; row < rows; row++) {
@@ -183,6 +204,7 @@
         }
         if (/^[zx]/.test(token)) { score.append(namespaced(SVG, 'text', { x, y: top + 25, fill: 'currentColor' }, '𝄽')); return; }
         const match = token.match(/^([_^=]*)([A-Ga-g])([,']*)(.*)$/);
+        if (match[3].length > 3) throw new Error('ABC pitch outside preview range');
         const degree = 'CDEFGAB'.indexOf(match[2].toUpperCase()) + (match[2] === match[2].toLowerCase() ? 7 : 0)
           + Array.from(match[3]).reduce((sum, mark) => sum + (mark === "'" ? 7 : -7), 0);
         const y = top + 50 - degree * 5;

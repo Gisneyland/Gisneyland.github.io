@@ -31,7 +31,7 @@
   }
   function authorized(token) { return admin && token === generation; }
   function errorMessage(error) {
-    return `編輯服務無法使用：${error?.message || '連線失敗'}。請管理員先執行 supabase/migrations/202610200001_site_editor.sql，確認管理員已核准並完成個資同意，再重新整理。原網站不受影響。`;
+    return `編輯服務無法使用：${error?.message || '連線失敗'}。請確認已依序執行 supabase/migrations/202610200001_site_editor.sql、202610200002_site_editor_rich.sql、202610200003_site_editor_media.sql，且管理員已核准並完成個資同意。原網站不受影響。`;
   }
   function showPublished() {
     editing(false);
@@ -57,7 +57,7 @@
       panel.hidden = true; trigger?.setAttribute('aria-expanded', 'false');
       panel.querySelectorAll('input,textarea').forEach(node => { node.value = ''; });
       for (const id of ['text', 'link', 'node', 'parent', 'before', 'block', 'nav-item']) $(id).replaceChildren();
-      $('status').textContent = ''; $('node-info').textContent = '';
+      message(''); $('node-info').textContent = '';
     }
     showPublished();
   }
@@ -118,7 +118,7 @@
   }
   async function run(action) {
     if (!admin || busy) return;
-    inline?.flush();
+    if (inline?.flush() === false) return;
     const token = generation, currentOperation = ++operation;
     setBusy(true);
     try { await action(token); }
@@ -250,7 +250,7 @@
     return data.publicUrl;
   }
   function close() {
-    inline?.flush();
+    if (inline?.flush() === false) return;
     panel.hidden = true; trigger.setAttribute('aria-expanded', 'false');
     showPublished(); trigger.focus();
   }
@@ -260,7 +260,8 @@
     if (index >= 0 && next >= 0 && next < array.length) [array[index], array[next]] = [array[next], array[index]];
   }
   function wire() {
-    trigger.addEventListener('click', open); $('close').addEventListener('click', close);
+    trigger.addEventListener('click', () => { if (visual) close(); else open(); });
+    $('close').addEventListener('click', close);
     $('reopen').addEventListener('click', open);
     $('preview-leave').addEventListener('click', () => {
       showPublished(); message('已離開預覽；可重新開啟草稿。'); trigger.focus();
@@ -274,7 +275,7 @@
     for (const [id, source, destination] of [['undo', undo, redo], ['redo', redo, undo]]) {
       $(id)?.addEventListener('click', () => {
         if (!admin || busy || !draft) return;
-        inline?.flush();
+        if (inline?.flush() === false) return;
         const state = source.pop();
         if (!state) return;
         destination.push([copy(draft), copy(navDraft)]);
@@ -291,6 +292,9 @@
       if (target.closest('input,textarea') && !target.closest('.site-editor-inline-ui')) return;
       event.preventDefault();
       $(event.shiftKey || event.key.toLowerCase() === 'y' ? 'redo' : 'undo')?.click();
+    });
+    document.addEventListener('input', event => {
+      if (visual && event.target.closest('.site-editor-editable,.site-editor-inline-ui')) dirty = true;
     });
     panel.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
     $('page').value = document.body.dataset.siteEditorUrl;

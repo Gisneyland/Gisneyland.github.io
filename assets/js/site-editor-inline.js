@@ -122,12 +122,7 @@
       if (source?.body.length > 12000) { notify('內容過長。'); return false; }
       if (!changes.length && !source) return true;
       if (!active()) return false;
-      flushing = true;
-      try {
-        for (const { record } of changes) record.dirty = false;
-        if (source) sourceDraft.dirty = false;
-        mutate(() => {
-          const draft = getDraft();
+      const apply = draft => {
           if (source) {
             const block = draft.blocks.find(item => item.id === source.id);
             if (block) {
@@ -148,7 +143,16 @@
               draft.patches[record.id] = { ...draft.patches[record.id], ...value };
             }
           }
-        });
+      };
+      try {
+        const candidate = JSON.parse(JSON.stringify(getDraft()));
+        apply(candidate); global.SiteEditorModel.normalize(candidate);
+      } catch (error) { notify(error.message || '內容無法儲存。'); return false; }
+      flushing = true;
+      try {
+        for (const { record } of changes) record.dirty = false;
+        if (source) sourceDraft.dirty = false;
+        mutate(() => apply(getDraft()));
       } finally { flushing = false; }
       return true;
     }
@@ -183,10 +187,11 @@
       const rendered = new Map(Array.from(root.querySelectorAll('[data-site-editor-text]'))
         .map(node => [node.dataset.siteEditorText, node]));
       for (const [id, text] of baseline.texts) {
-        if (rendered.has(id)) {
+        if (rendered.has(id) && rendered.get(id).parentNode === text.element) {
           editable(rendered.get(id), id, { style: getDraft().patches[id]?.style });
         } else if (text.node.parentNode === text.element && root.contains(text.element)
           && !text.element.closest('[contenteditable],.material-icons,[aria-hidden="true"]')
+          && !(baseline.PROTECTED && text.element.closest(baseline.PROTECTED))
           && !text.element.closest('script,style,form,button,input,textarea,select,[data-site-editor-protected]')) {
           const wrapper = element('span'); wrapper.dataset.siteEditorText = id;
           text.node.replaceWith(wrapper); wrapper.append(text.node);
@@ -360,7 +365,7 @@
           && !input.value && !block.title) {
           event.preventDefault(); removeSelected(); closeDialog(); return;
         }
-        if (event.key !== 'Tab' || block.type !== 'table') return;
+        if (event.key !== 'Tab' || event.shiftKey || block.type !== 'table') return;
         event.preventDefault(); input.setRangeText('\t', input.selectionStart, input.selectionEnd, 'end'); renderPreview();
       });
       button(pane, 'check', '套用原始內容', () => {
@@ -382,7 +387,8 @@
       const library = element('select'); library.hidden = true; library.setAttribute('aria-label', '現有公開媒體網址');
       library.append(new global.Option('選擇網站現有媒體', ''));
       const urls = new Set();
-      for (const node of doc.querySelectorAll('img[src],audio[src],video[src],source[src]')) {
+      for (const node of root.querySelectorAll('img[src],audio[src],video[src],source[src]')) {
+        if (node.closest('form,[data-site-editor-protected]') || (baseline.PROTECTED && node.closest(baseline.PROTECTED))) continue;
         if (global.SiteEditorModel.safeURL(node.getAttribute('src'))) urls.add(node.getAttribute('src'));
       }
       for (const block of getDraft().blocks) if (MEDIA_TYPES.has(block.type) && block.url) urls.add(block.url);
@@ -458,6 +464,19 @@
       add.setAttribute('aria-haspopup', 'menu'); add.setAttribute('aria-expanded', 'false');
       button(tools, 'arrow_upward', '向前移動（Alt + ↑）', () => move(-1)).dataset.move = 'up';
       button(tools, 'arrow_downward', '向後移動（Alt + ↓）', () => move(1)).dataset.move = 'down';
+      const handle = button(tools, 'drag_indicator', '長按拖曳排序；或使用向前／向後按鈕', () => {});
+      handle.style.touchAction = 'none';
+      handle.addEventListener('pointerdown', event => {
+        const item = selectedNow();
+        if (!enabled() || composing || event.button !== 0 || !item?.movable || !item.parent) return;
+        event.preventDefault(); cancelHold();
+        const start = { x: event.clientX, y: event.clientY, id: event.pointerId };
+        hold = { ...start, timer: global.setTimeout(() => {
+          hold = null; if (!enabled()) return;
+          drag = { ...start, item }; item.element.classList.add('site-editor-dragging');
+          suppressClick = true;
+        }, 650) };
+      });
       button(tools, 'edit_note', '編輯原始內容／表格', sourceEditor).dataset.source = '';
       button(tools, 'photo_library', '更換媒體網址', () => mediaEditor()).dataset.media = '';
       button(tools, 'delete_outline', '刪除元件', () => {
@@ -569,7 +588,14 @@
       });
       listen(root, 'focusout', event => {
         if (composing || ui?.contains(event.relatedTarget) || recordFor(event.target) === recordFor(event.relatedTarget)) return;
-        if (recordFor(event.target)) flush();
+        if (recordFor(event.target)) {
+          const next = recordFor(event.relatedTarget), oldTarget = event.relatedTarget;
+          if (flush() && next && !oldTarget.isConnected) {
+            Promise.resolve().then(() => {
+              if (enabled() && !ui?.contains(doc.activeElement)) records.get(next.id)?.element.focus({ preventScroll: true });
+            });
+          }
+        }
       });
       listen(root, 'paste', event => {
         const record = recordFor(event.target); if (!enabled() || !record) return;

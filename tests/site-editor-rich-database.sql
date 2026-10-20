@@ -45,6 +45,17 @@ begin
     or public.site_editor_valid_document(jsonb_set(doc,'{patches}','{"text":{"style":null}}')) then
     raise exception 'Type or finite bounds check missing';
   end if;
+  insert into public.site_editor_drafts(page_key, document)
+    values ('/rich-validation/', jsonb_set(doc, '{blocks}', jsonb_build_array(block || '{"type":"math","body":"x^2"}'::jsonb)));
+  begin
+    insert into public.site_editor_drafts(page_key, document)
+      values ('/invalid-rich/', jsonb_set(doc, '{patches}', '{"a":{"rich":[{"text":"x","color":"red"}]}}'));
+    raise exception 'Table CHECK still uses a different validator';
+  exception when check_violation then null;
+  end;
+  if has_function_privilege('anon', 'public.site_editor_valid_runs(jsonb)', 'execute') then
+    raise exception 'Anonymous helper execution was granted';
+  end if;
 end;
 $$;
 rollback;

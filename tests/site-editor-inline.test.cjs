@@ -113,7 +113,7 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
     assert.equal(await evaluate(`(()=>{
       inline.stop();
       const okay=!document.querySelector('[contenteditable]') && !document.querySelector('.site-editor-inline-ui')
-        && document.querySelector('#mixed').firstChild===baseline.texts.get(textId('Lead ')).node
+        && document.querySelector('#mixed').lastChild===baseline.texts.get(textId(' tail')).node
         && originalStrong===document.querySelector('strong');
       inline.start(); return okay;
     })()`), true);
@@ -163,6 +163,51 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       return lazy&&draft.blocks.find(item=>item.id===block.id).body==='Added paragraph'
         && ids.indexOf(block.id)<ids.indexOf(nodeId('second'));
     })()`), true);
+  });
+  await t.test('long-press drag handle reorders added and original siblings in the same parent', async () => {
+    assert.equal(await evaluate(`(async()=>{
+      const node=document.querySelector('[data-site-editor-block="'+paragraphId+'"]');
+      node.click();
+      const handle=document.querySelector('[aria-label="長按拖曳排序；或使用向前／向後按鈕"]');
+      handle.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,button:0,pointerId:9,clientX:5,clientY:5}));
+      await new Promise(resolve=>setTimeout(resolve,720));
+      const target=document.querySelector('#empty'),rect=target.getBoundingClientRect();
+      document.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,cancelable:true,pointerId:9,clientX:rect.left+30,clientY:rect.top+12}));
+      document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:9}));
+      const block=draft.blocks.find(item=>item.id===paragraphId),order=draft.orders[block.parent];
+      return order.indexOf(paragraphId)>order.indexOf(nodeId('empty'))
+        && !document.querySelector('.site-editor-dragging');
+    })()`), true);
+  });
+  await t.test('rich formatting is serialized into structured text, never HTML', async () => {
+    assert.equal(await evaluate(`(()=>{
+      const node=document.querySelector('[data-site-editor-block="'+paragraphId+'"] [data-site-editor-field=body]');
+      node.focus();const selection=getSelection(),range=document.createRange();range.selectNodeContents(node);
+      selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
+      clickLabel('粗體');
+      inline.flush();
+      const block=draft.blocks.find(item=>item.id===paragraphId);
+      return block.body==='Added paragraph'&&block.rich.some(run=>run.bold&&run.text==='Added paragraph')
+        && !JSON.stringify(block).includes('<b>');
+    })()`), true);
+  });
+  await t.test('native line breaks, highlight and color survive flush', async () => {
+    assert.deepEqual(await evaluate(`(()=>{
+      const node=document.querySelector('[data-site-editor-block="'+paragraphId+'"] [data-site-editor-field=body]');
+      node.focus();node.replaceChildren();
+      const one=document.createElement('div');one.textContent='First';
+      const two=document.createElement('div');two.textContent='Second';node.append(one,two);
+      node.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertParagraph'}));
+      const selection=getSelection(),range=document.createRange();range.selectNodeContents(one);
+      selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
+      clickLabel('螢光標記');
+      const color=document.querySelector('[aria-label="文字顏色"]');color.value='#ff0000';
+      color.dispatchEvent(new Event('input',{bubbles:true}));
+      inline.flush();
+      const block=draft.blocks.find(item=>item.id===paragraphId);
+      return {body:block.body,highlight:block.rich.some(run=>run.text==='First'&&run.highlight),
+        color:block.rich.some(run=>run.text==='First'&&run.color==='#ff0000')};
+    })()`), { body: 'First\nSecond', highlight: true, color: true });
   });
   await t.test('source/table edits preview and flush before save; empty source blocks delete', async () => {
     assert.equal(await evaluate(`(()=>{

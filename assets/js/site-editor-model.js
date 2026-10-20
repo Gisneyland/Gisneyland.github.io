@@ -107,7 +107,7 @@
       if (ids.has(block.id)) throw new Error('區塊識別碼重複');
       ids.add(block.id);
       const safe = { id: block.id, parent: block.parent, title: text(block.title, 300),
-        body: text(block.body), url: block.url ? link(block.url) : '', label: text(block.label, 300) };
+        body: text(block.body), url: text(block.url, 2048) ? link(block.url) : '', label: text(block.label, 300) };
       if ('before' in block) safe.before = block.before === '' ? '' : key(block.before);
       if ('type' in block) {
         if (!BLOCK_TYPES.includes(block.type)) throw new Error('區塊類型錯誤');
