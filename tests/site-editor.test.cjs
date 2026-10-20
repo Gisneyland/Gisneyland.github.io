@@ -394,6 +394,64 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
     await evaluate(`rpcError=null;document.getElementById('site-editor-page').dispatchEvent(new Event('change'))`);
     await wait(`location.pathname==='/about/'&&location.search==='?site-editor=1'&&document.querySelector('h1 [contenteditable]')`);
   });
+  await t.test('navigation label edits preserve optional icon, logo and alternative text fields', async () => {
+    await send('Page.navigate', { url: `${origin}/?mode=nav-visual` });
+    await wait(`window.fixtureMode==='nav-visual' && document.getElementById('site-editor-button')?.hidden===false`);
+    await evaluate(`{
+      const documentValue=SiteEditorModel.empty();
+      documentValue.navigation={main:[{id:'main-0',label:'Home',url:'/',icon:'home',src:'/logo.png',alt:'Navigation logo'}],more:[]};
+      saved['@navigation']={document:documentValue,revision:1};
+      document.getElementById('site-editor-button').click();
+    }`);
+    await wait(`document.querySelector('h1 [contenteditable]')`);
+    await evaluate(`document.querySelector('.bottom-nav a:not([hidden])').click();
+      document.getElementById('site-editor-nav-label').value='Renamed home';
+      document.getElementById('site-editor-nav-url').value='/contact/';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('site-editor-save').click()`);
+    await wait(`saved['@navigation'].revision===2&&!document.getElementById('site-editor-save').disabled`);
+    assert.deepEqual(await evaluate(`saved['@navigation'].document.navigation.main[0]`), {
+      id:'main-0',label:'Renamed home',url:'/contact/',icon:'home',src:'/logo.png',alt:'Navigation logo'
+    });
+    assert.equal(await evaluate(`document.getElementById('site-editor-nav-icon').value==='home'
+      &&document.getElementById('site-editor-nav-src').value==='/logo.png'
+      &&document.getElementById('site-editor-nav-alt').value==='Navigation logo'`), true);
+    await evaluate(`document.getElementById('site-editor-nav-icon').value='<svg>';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))`);
+    assert.equal(await evaluate(`document.querySelector('.bottom-nav a:not([hidden]) .material-icons').textContent==='home'
+      &&!document.querySelector('.bottom-nav svg')`), true);
+    await evaluate(`document.getElementById('site-editor-nav-icon').value='favorite';
+      document.getElementById('site-editor-nav-src').value='javascript:alert(1)';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))`);
+    assert.equal(await evaluate(`document.querySelector('.bottom-nav a:not([hidden]) img').getAttribute('src')==='/logo.png'`), true);
+    await evaluate(`document.getElementById('site-editor-nav-src').value='/updated-logo.png';
+      document.getElementById('site-editor-nav-alt').value='Updated navigation logo';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('site-editor-save').click()`);
+    await wait(`saved['@navigation'].revision===3&&!document.getElementById('site-editor-save').disabled`);
+    assert.deepEqual(await evaluate(`saved['@navigation'].document.navigation.main[0]`), {
+      id:'main-0',label:'Renamed home',url:'/contact/',icon:'favorite',src:'/updated-logo.png',alt:'Updated navigation logo'
+    });
+    await evaluate(`for(const field of ['icon','src','alt'])document.getElementById('site-editor-nav-'+field).value='';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))`);
+    assert.equal(await evaluate(`Array.from(document.querySelectorAll('.bottom-nav a:not([hidden]) img,.bottom-nav a:not([hidden]) .material-icons')).every(node=>node.hidden)`), true);
+    await evaluate(`document.getElementById('site-editor-undo').click()`);
+    assert.equal(await evaluate(`document.getElementById('site-editor-nav-icon').value==='favorite'
+      &&document.getElementById('site-editor-nav-src').value==='/updated-logo.png'
+      &&document.querySelector('.bottom-nav a:not([hidden]) img').getAttribute('alt')==='Updated navigation logo'`), true);
+    await evaluate(`document.getElementById('site-editor-redo').click();
+      document.getElementById('site-editor-nav-add').click();
+      document.getElementById('site-editor-nav-label').value='Plain new link';
+      document.getElementById('site-editor-nav-url').value='/plain/';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('site-editor-save').click()`);
+    await wait(`saved['@navigation'].revision===4&&!document.getElementById('site-editor-save').disabled`);
+    assert.equal(await evaluate(`(()=>{
+      const [cleared,added]=saved['@navigation'].document.navigation.main;
+      return cleared.icon===''&&cleared.src===''&&cleared.alt===''
+        &&!('icon' in added)&&!('src' in added)&&!('alt' in added);
+    })()`), true);
+  });
   await t.test('reset refreshes published page and global navigation, is private, undoable and race-safe', async () => {
     await send('Page.navigate', { url: `${origin}/?mode=reset` });
     await wait(`window.fixtureMode==='reset' && document.getElementById('site-editor-button')?.hidden===false`);

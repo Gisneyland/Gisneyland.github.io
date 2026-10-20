@@ -145,6 +145,7 @@
     if (!root || !$('nav')) return;
     const bottom = Math.max(8, Math.min(global.innerHeight - 180, global.innerHeight - root.getBoundingClientRect().top + 8));
     $('nav').style.bottom = `${bottom}px`; $('nav-toggle').style.bottom = `${bottom}px`;
+    $('nav').style.maxHeight = `${Math.min(global.innerHeight * .55, global.innerHeight - bottom - 8)}px`;
   }
   function hideNavigation() {
     navOpen = false;
@@ -185,16 +186,22 @@
       document.getElementById('navigation-more-button')?.setAttribute('aria-expanded', String(!more.hidden));
     }
     const item = navDraft.navigation[group].find(entry => entry.id === id);
-    $('nav-label').value = item?.label || ''; $('nav-url').value = item?.url || '';
+    navigationFields(item);
     $('nav').hidden = false; $('nav-toggle').setAttribute('aria-expanded', 'true');
     refreshNavigation();
     if (id !== null) $('nav-label').focus();
+  }
+  function navigationFields(item) {
+    const original = baseline.baselineNavigation[navGroup].find(entry => entry.id === item?.id);
+    for (const field of ['label', 'url', 'icon', 'src', 'alt']) {
+      $('nav-' + field).value = item?.[field] ?? (item ? original?.[field] : '') ?? '';
+    }
   }
   function refresh() {
     if (navId !== null) {
       const item = navDraft?.navigation[navGroup].find(entry => entry.id === navId);
       if (navId && !item) navId = null;
-      $('nav-label').value = item?.label || ''; $('nav-url').value = item?.url || '';
+      navigationFields(item);
     }
     refreshNavigation();
   }
@@ -390,7 +397,11 @@
       if (mutate(() => {
         if (!id) id = `nav-${global.crypto.randomUUID()}`;
         const list = navDraft.navigation[navGroup], index = list.findIndex(entry => entry.id === id);
-        const item = { id, label: $('nav-label').value, url: $('nav-url').value };
+        const item = { ...list[index], id, label: $('nav-label').value, url: $('nav-url').value };
+        for (const field of ['icon', 'src', 'alt']) {
+          const value = field === 'alt' ? $('nav-' + field).value : $('nav-' + field).value.trim();
+          if (index >= 0 || value) item[field] = value;
+        }
         if (index < 0) list.push(item); else list[index] = item;
       })) { navId = id; refreshNavigation(); }
     });
@@ -405,7 +416,7 @@
       if (!global.confirm('從全站導覽草稿刪除此項目？可復原；不會刪除實體頁面。')) return;
       if (mutate(() => {
         navDraft.navigation[navGroup] = navDraft.navigation[navGroup].filter(item => item.id !== navId);
-      })) { navId = null; $('nav-label').value = ''; $('nav-url').value = ''; refreshNavigation(); }
+      })) { navId = null; navigationFields(); refreshNavigation(); }
     });
     $('nav').addEventListener('keydown', event => {
       if (event.key === 'Escape') { hideNavigation(); $('nav-toggle').focus(); }

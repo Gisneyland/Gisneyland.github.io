@@ -1928,6 +1928,7 @@ html[data-theme="dark"] .admin-body .content-switch-track::after { background: v
   --fc-page-bg-color: var(--surface);
   --fc-neutral-bg-color: var(--surface-muted);
   --fc-neutral-text-color: var(--text-muted);
+  --fc-list-event-hover-bg-color: var(--surface-muted);
   --fc-today-bg-color: var(--accent-soft);
   --fc-button-bg-color: var(--button-bg);
   --fc-button-text-color: var(--button-text);
