@@ -111,3 +111,23 @@ values ('YOUR_AUTH_USER_UUID', 'YOUR_ASSIGNED_SCREENER_NUMBER');
 測試：`node --test tests/calendar-model.test.cjs tests/environment-feeds.test.cjs`。SQL 的實際套用與線上權限仍需在 Supabase 驗證；本機瀏覽器寫入測試使用記憶體替身，未修改真實活動或營業資料。
 
 所有單元測試可執行 `node --test tests/*.test.cjs`。按鈕與後台初始化的瀏覽器回歸測試使用 Node.js 22+ 與本機 Chromium：先執行 `bundle exec jekyll build`，再執行 `CHROMIUM_BIN=/usr/bin/chromium node --test tests/*.test.cjs`（請依環境調整 Chromium 路徑）。未設定 `CHROMIUM_BIN` 時會略過瀏覽器測試。測試使用替身帳號並封鎖外部服務，不會存取或修改正式 Supabase 資料。
+
+## 前台網站編輯器（管理員）
+
+**部署必要步驟：**先套用 `schema.sql` 與既有工作人員 migrations，再在 Supabase SQL Editor 執行 [202610200001_site_editor.sql](supabase/migrations/202610200001_site_editor.sql)。這次新增功能以 migration 部署，單獨重跑 `schema.sql` 不會安裝編輯器資料表或 RPC。不需要新套件或 service-role 瀏覽器金鑰。
+
+在任一公開頁面使用右上角工作人員登入。只有 `admin_profiles` 中 `account_role = administrator`、`approval_status = approved` 且已記錄 `privacy_consent_at` 的帳號，會看到登入圖示旁的編輯按鈕；一般篩檢員即使有內容管理權限也不可使用。管理後台 `/admin/` 不可透過此工具修改。
+
+- 「現有文字與連結」可修改既有標題、內文、混合段落中的文字節點與連結；清空文字即移除該文字。使用位置清單選取項目，保留原本巢狀標記與互動。
+- 「現有區段、巢狀卡片與排序」提供同父層上／下移、刪除／恢復；首頁及各公開頁面原有區段與巢狀卡片皆可選取，不只支援新增內容。
+- 「新增內容區塊」可在既有區段或卡片容器新增、更新、排序、刪除純文字標題、內文與選填連結；新增區塊放在指定容器末端，區塊排序決定同容器新增項目的先後。既有欄數、色彩與樣式仍由網站 CSS 決定，此工具不提供任意 HTML/CSS/JavaScript。
+- 「全站主要／更多導覽」支援兩區導覽項目新增、修改、排序、刪除；「更多」與回頂端按鈕保留。既有導覽連結保留原節點、圖示及響應式樣式。
+- **儲存草稿 → 儲存並預覽 → 離開預覽／關閉 → 重新開啟 → 發布已儲存草稿**。預覽先儲存私人草稿，僅目前管理員瀏覽器可見，不會向訪客讀取草稿。關閉會恢復已發布版面；草稿仍可重開。頁面選單先儲存目前頁面及導覽草稿，再前往另一頁繼續編輯。發布一次只原子更新「目前頁面＋全站導覽」，其他頁面草稿需分別發布。
+- 多人同時編輯以版本號防止覆寫；收到版本衝突請重新整理，重新檢查其他管理員的最新草稿。未按「套用」的欄位不屬於草稿；已套用未儲存的修改在離頁時提示。
+- 「草稿還原原始版面」只還原目前頁面（導覽不變），仍須儲存與發布。原始碼結構改版後，無法對應的舊路徑／內容指紋會略過，請重新檢查並編輯；本工具不建立新網址或刪除實體 GitHub Pages 頁面。
+
+**保護範圍：**問卷與表單、輸入控制、行事曆、動態消息列表、即時狀態、工具按鈕不會擷取為編輯內容；包含這些工具的區段不能刪除。整個區段排序僅移動原 DOM 節點，保留事件、表單值與動態資料；新聞／活動請使用既有後台。編輯器只保存結構化文字與允許的連結（站內 `/`、`#`、`?`、HTTP(S)、mailto、tel），不保存 DOM HTML、登入資訊、使用者回答或健康資料。**勿在公開內容草稿輸入任何個資／健康資料**，發布內容會公開。
+
+`site_editor_drafts` 只有核准並同意個資告知的管理員可讀；`site_editor_publications` 才可匿名讀取。資料表不授予瀏覽器直接寫入，儲存與發布 RPC 均再次檢查管理員資格、驗證結構、使用固定 `search_path`，並在交易中更新頁面與導覽。草稿不存於 localStorage/sessionStorage；登出立即清除編輯介面及記憶體中的草稿，忽略過期請求並恢復已發布版面。尚未安裝 migration／連線失敗時，靜態網站正常顯示，管理員開啟編輯器會收到 migration 提示。
+
+測試：`CHROMIUM_BIN=/usr/bin/chromium node --test tests/site-editor.test.cjs`（Node 22+；包含本機替身服務的 Chromium 流程，不接觸正式 Supabase）。SQL 交易、角色與 RLS 測試位於 `tests/site-editor-database.sql`，**只能在拋棄式測試資料庫**執行，需安裝 migration、提供 `auth.uid()`，並準備註解所述的管理員／篩檢員／未同意管理員 fixture；測試會 rollback。

@@ -21,9 +21,10 @@
 
   <!-- Custom Style -->
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}?v=staff-otp-20261019-2">
+  <link rel="stylesheet" href="{{ '/assets/css/site-editor.css' | relative_url }}?v=20261020-1">
   
 </head>
-<body{% if page.url == '/hiva/' %} class="questionnaire-page"{% endif %}>
+<body data-site-editor-page="{{ page.url | escape }}" data-site-editor-url="{{ page.url | relative_url | escape }}"{% if page.url == '/hiva/' %} class="questionnaire-page"{% endif %}>
 
   <a class="skip-link" href="#main-content">跳到主要內容</a>
 
@@ -36,6 +37,12 @@
 
   <!-- 底部導覽列 -->
     {% include navbar.html %}
+    {% include site-editor.html %}
+
+  <!-- Capture static editable nodes before any runtime translation/feed/widget changes. -->
+  <script src="{{ '/assets/js/site-editor-model.js' | relative_url }}?v=20261020-1"></script>
+  <script src="{{ '/assets/js/site-editor-dom.js' | relative_url }}?v=20261020-1"></script>
+  <script src="{{ '/assets/js/site-editor.js' | relative_url }}?v=20261020-1"></script>
 
   <!-- CDN JS -->
   <!-- Materialize JS -->

@@ -195,6 +195,20 @@ test('site initialization and permission-gated admin interactions', {
     assert.deepEqual(errors, []);
   });
 
+  await t.test('news occupies the main service slot and services moves into more on mobile', async () => {
+    await open('/', 'anonymous');
+    assert.deepEqual(await evaluate('[...document.querySelectorAll(".bottom-nav > a")].map(link => new URL(link.href).pathname)'), [
+      '/', '/news/', '/activity/', '/services/'
+    ]);
+    await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 812, deviceScaleFactor: 1, mobile: true });
+    await click('#navigation-more-button');
+    assert.equal(await evaluate('getComputedStyle(document.querySelector(".desktop-services-link")).display'), 'none');
+    assert.equal(await evaluate('new URL(document.querySelector(".navigation-more-mobile-link").href).pathname'), '/services/');
+    assert.notEqual(await evaluate('getComputedStyle(document.querySelector(".navigation-more-mobile-link")).display'), 'none');
+    await send('Emulation.clearDeviceMetricsOverride');
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('questionnaire restores bound screener, interpretation, referral and photo controls', async () => {
     await open('/hiva/', 'administrator');
     await waitFor('document.getElementById("screener").dataset.bindingReady === "true"');
