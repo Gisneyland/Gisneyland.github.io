@@ -1,0 +1,68 @@
+<aside id="site-editor" class="site-editor notranslate" translate="no" aria-label="網站編輯器" hidden>
+  <header><h2>網站編輯器</h2><button type="button" id="site-editor-close">關閉／離開預覽</button></header>
+  <p>僅管理員可用。只編輯公開資訊，勿輸入個資或健康資料。表單、行事曆、即時消息與互動工具受保護，請使用原有管理後台。</p>
+  <p id="site-editor-status" role="status" aria-live="polite"></p>
+  <label>前往其他頁面（先儲存目前草稿）
+    <select id="site-editor-page">
+      {% assign editor_pages = site.pages | sort: 'url' %}
+      {% for editor_page in editor_pages %}
+      {% if editor_page.layout == 'default' and editor_page.url != '/admin/' %}
+      <option value="{{ editor_page.url | relative_url }}">{{ editor_page.title | escape }} — {{ editor_page.url }}</option>
+      {% endif %}
+      {% endfor %}
+    </select>
+  </label>
+  <div class="site-editor-actions">
+    <button type="button" id="site-editor-save">儲存草稿</button>
+    <button type="button" id="site-editor-preview">儲存並預覽</button>
+    <button type="button" id="site-editor-exit">離開預覽</button>
+    <button type="button" id="site-editor-publish">發布已儲存草稿</button>
+    <button type="button" id="site-editor-reset">草稿還原原始版面</button>
+  </div>
+  <p>目前頁面與全站導覽一起原子發布。修改不會自動發布；預覽不影響訪客。原始碼改版後無法對應的舊項目會略過。</p>
+  <details open><summary>現有文字與連結</summary>
+    <label>文字位置<select id="site-editor-text"></select></label>
+    <label>文字內容<textarea id="site-editor-text-value" rows="4" maxlength="12000"></textarea></label>
+    <button type="button" id="site-editor-text-apply">套用文字至草稿</button>
+    <label>連結位置<select id="site-editor-link"></select></label>
+    <label>網址<input type="text" id="site-editor-link-value" maxlength="2048"></label>
+    <button type="button" id="site-editor-link-apply">套用連結至草稿</button>
+  </details>
+  <details><summary>現有區段、巢狀卡片與排序</summary>
+    <label>版面項目<select id="site-editor-node"></select></label>
+    <p id="site-editor-node-info"></p>
+    <button type="button" id="site-editor-node-up">上移</button>
+    <button type="button" id="site-editor-node-down">下移</button>
+    <button type="button" id="site-editor-node-delete">刪除／恢復</button>
+    <p>排序限同一父層。含互動工具的區段不能移動或刪除；純文字可清空，卡片與靜態區段可刪除／恢復。</p>
+  </details>
+  <details><summary>新增內容區塊</summary>
+    <label>區塊<select id="site-editor-block"><option value="">新增區塊</option></select></label>
+    <label>放置位置<select id="site-editor-parent"></select></label>
+    <label>插入於既有項目前（空白為容器末端）<select id="site-editor-before"></select></label>
+    <label>標題<input type="text" id="site-editor-block-title" maxlength="300"></label>
+    <label>內文<textarea id="site-editor-block-body" rows="5" maxlength="12000"></textarea></label>
+    <label>連結（選填）<input type="text" id="site-editor-block-url" maxlength="2048"></label>
+    <label>連結文字<input type="text" id="site-editor-block-label" maxlength="300"></label>
+    <button type="button" id="site-editor-block-apply">新增／更新區塊</button>
+    <button type="button" id="site-editor-block-up">上移</button>
+    <button type="button" id="site-editor-block-down">下移</button>
+    <button type="button" id="site-editor-block-delete">刪除區塊</button>
+  </details>
+  <details><summary>全站主要／更多導覽</summary>
+    <label>導覽區域<select id="site-editor-nav-group"><option value="main">主要導覽</option><option value="more">更多</option></select></label>
+    <label>項目<select id="site-editor-nav-item"></select></label>
+    <label>顯示文字<input type="text" id="site-editor-nav-label" maxlength="100"></label>
+    <label>網址<input type="text" id="site-editor-nav-url" maxlength="2048"></label>
+    <button type="button" id="site-editor-nav-apply">新增／更新</button>
+    <button type="button" id="site-editor-nav-up">上移</button>
+    <button type="button" id="site-editor-nav-down">下移</button>
+    <button type="button" id="site-editor-nav-delete">刪除</button>
+    <p>「更多」與「回到頂端」互動按鈕固定保留。</p>
+  </details>
+</aside>
+<div id="site-editor-preview-toolbar" class="site-editor-preview-toolbar notranslate" translate="no" role="region" aria-label="草稿預覽工具" hidden>
+  <span>管理員草稿預覽（未發布）</span>
+  <button type="button" id="site-editor-reopen">重新開啟編輯器</button>
+  <button type="button" id="site-editor-preview-leave">離開預覽</button>
+</div>

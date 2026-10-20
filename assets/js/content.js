@@ -34,7 +34,14 @@ async function loadManagedNews() {
     const records = await fetchPublishedContent('news');
     feeds.forEach(feed => renderNewsFeed(feed, records));
   } catch (error) {
-    console.warn('無法載入上架新聞，保留靜態備援內容。', error);
+    feeds.forEach(feed => {
+      feed.replaceChildren();
+      const status = document.createElement('p');
+      status.className = 'content-feed-empty';
+      status.textContent = '目前無法載入最新消息，請稍後再試。';
+      feed.append(status);
+    });
+    console.warn('無法載入上架新聞。', error);
   }
 }
 

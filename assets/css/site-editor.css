@@ -1,0 +1,39 @@
+#site-editor[hidden], #site-editor-button[hidden] { display: none !important; }
+#site-editor-preview-toolbar[hidden] { display: none !important; }
+#main-content [data-site-editor-deleted], .site-navigation a[data-site-editor-deleted] { display: none !important; }
+.site-editor {
+  position: fixed; z-index: 10050; inset: 0 0 0 auto; width: min(470px, 100vw);
+  overflow-y: auto; padding: 18px; background: #fff; color: #172b3a;
+  box-shadow: -4px 0 20px #0004; font: 15px/1.6 sans-serif;
+}
+.site-editor header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.site-editor h2 { font-size: 1.4rem; margin: 0; }
+.site-editor p { font-size: .9rem; }
+.site-editor label { display: block; color: inherit; font-size: .95rem; margin: 10px 0; }
+.site-editor select { display: block; width: 100%; height: auto; min-height: 38px; color: #172b3a; background: #fff; }
+.site-editor textarea, .site-editor input[type="text"] {
+  display: block; box-sizing: border-box; width: 100%; min-height: 38px;
+  height: auto; padding: 7px; border: 1px solid #788b99; border-radius: 4px;
+  color: #172b3a; background: #fff; font: inherit;
+}
+.site-editor textarea { min-height: 100px; resize: vertical; }
+.site-editor button {
+  padding: 7px 10px; margin: 3px; border: 1px solid #617888; border-radius: 5px;
+  background: #edf4fa; color: #172b3a; cursor: pointer; font: inherit;
+}
+.site-editor button:disabled { opacity: .5; cursor: wait; }
+.site-editor button:focus-visible, .site-editor select:focus-visible { outline: 3px solid #206da0; }
+.site-editor details { border-top: 1px solid #ccd8df; padding: 10px 0; }
+.site-editor summary { cursor: pointer; font-weight: bold; }
+#site-editor-status { background: #edf4fa; padding: 10px; white-space: pre-line; }
+.site-editor-content-block p { white-space: pre-wrap; }
+.site-editor-preview-toolbar {
+  position: fixed; top: 0; left: 0; z-index: 10049; max-width: 100vw; box-sizing: border-box;
+  display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+  background: #8b3600; color: #fff; padding: 8px; font: 14px/1.5 sans-serif;
+}
+.site-editor-preview-toolbar button {
+  border: 1px solid #fff; border-radius: 4px; padding: 6px 9px; cursor: pointer;
+  background: #fff; color: #652600; font: inherit;
+}
+body.site-editor-preview #main-content { outline: 3px dashed #b95400; outline-offset: -3px; }

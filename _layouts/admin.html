@@ -5,10 +5,11 @@
   <title>{{ page.title }} | {{ site.title }}</title>
   <meta name="description" content="GisneyLand 管理後台">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="{{ '/assets/images/favicon.ico' | relative_url }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
-  <link rel="stylesheet" href="{{ '/assets/css/admin.css' | relative_url }}?v=screening-plan-dialog-20261020-1">
+  <link rel="stylesheet" href="{{ '/assets/css/admin.css' | relative_url }}?v=admin-navigation-20261020-1">
 </head>
 <body class="admin-body">
   <a class="skip-link" href="#main-content">跳到主要內容</a>
@@ -27,9 +28,10 @@
   <script src="{{ '/assets/js/admin-environment.js' | relative_url }}?v=content-workspace-20261018-1"></script>
   <script src="{{ '/assets/js/calendar-model.js' | relative_url }}?v=scheduling-20261018-2"></script>
   <script src="{{ '/assets/js/admin-calendar-ui.js' | relative_url }}?v=scheduling-20261018-2"></script>
-  <script src="{{ '/assets/js/admin-event-place.js' | relative_url }}?v=scheduling-20261018-2"></script>
+  <script src="{{ '/assets/js/admin-place-search.js' | relative_url }}?v=place-search-20261020-1"></script>
+  <script src="{{ '/assets/js/admin-event-place.js' | relative_url }}?v=place-search-20261020-1"></script>
   <script src="{{ '/assets/js/admin-opening-hours.js' | relative_url }}?v=scheduling-20261018-2"></script>
   <script src="{{ '/assets/js/admin-content.js' | relative_url }}?v=scheduling-20261018-2"></script>
-  <script src="{{ '/assets/js/admin.js' | relative_url }}?v=initialization-fix-20261020-1"></script>
+  <script src="{{ '/assets/js/admin.js' | relative_url }}?v=place-search-20261020-1"></script>
 </body>
 </html>

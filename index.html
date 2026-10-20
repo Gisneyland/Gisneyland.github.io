@@ -111,16 +111,8 @@ description: GisneyLand 風城部屋是新竹在地 LGBTQ+ 社群服務與活動
       <h2>最新消息</h2>
       <a href="{{ '/news/' | relative_url }}">看全部紀錄</a>
     </div>
-    <div class="news-grid" data-managed-news data-card-class="news-card">
-      {% for item in site.data.news limit:4 %}
-      <article class="news-card">
-        <span class="news-tag">{{ item.tag }}</span>
-        <p class="news-category">{{ item.category }}</p>
-          <h3>{{ item.title }}</h3>
-        <p>{{ item.summary }}</p>
-        <a href="{{ item.url | relative_url }}">了解更多<span aria-hidden="true"> →</span></a>
-      </article>
-      {% endfor %}
+    <div class="news-grid" data-managed-news data-card-class="news-card" aria-live="polite">
+      <p class="content-feed-empty">最新消息載入中。</p>
     </div>
   </div>
 </section>
