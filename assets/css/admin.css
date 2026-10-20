@@ -1143,7 +1143,7 @@
   font-size: 1rem;
 }
 
-.screening-plan-info-dialog {
+.screening-plan-info-dialog[open] {
   display: grid;
   gap: 0.9rem;
 }
