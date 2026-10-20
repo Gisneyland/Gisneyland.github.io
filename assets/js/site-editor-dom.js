@@ -25,7 +25,7 @@
       const id = element.id ? `id:${element.id}` : path;
       const stable = `${id}:${M.fingerprint(`${element.tagName}.${element.className}:${element.textContent}:${element.getAttribute('href') || ''}`)}`;
       const containsWidget = Boolean(element.querySelector(PROTECTED));
-      nodes.set(stable, { element, parent: null, deletable: !containsWidget,
+      nodes.set(stable, { element, parent: null, deletable: !containsWidget, movable: !containsWidget,
         label: `${element.tagName.toLowerCase()} ${element.id || String(element.className).split(' ')[0] || ''}` });
       remember(element);
       const children = Array.from(element.children);
@@ -48,7 +48,7 @@
         const childId = walk(child, `${path}/${index}`);
         if (childId) {
           nodes.get(childId).parent = stable;
-          parents.get(stable).ids.push(childId);
+          if (nodes.get(childId).movable) parents.get(stable).ids.push(childId);
         }
       });
       return stable;
@@ -58,7 +58,7 @@
       navRoots.main = navigation.querySelector('.bottom-nav');
       navRoots.more = navigation.querySelector('#navigation-more-menu');
       for (const group of ['main', 'more']) {
-        navOriginal[group] = Array.from(navRoots[group]?.children || []);
+        navOriginal[group] = Array.from(navRoots[group]?.childNodes || []);
         navOriginal[group].filter(node => node.tagName === 'A').forEach((node, index) => {
           const label = Array.from(node.childNodes).filter(child => child.nodeType === 3
             || (child.nodeType === 1 && !child.matches('.material-icons,[aria-hidden="true"]')))
@@ -108,6 +108,7 @@
     }
     function render(documentValue, navValue) {
       const doc = M.normalize(documentValue);
+      const navDocument = M.normalize(navValue || M.empty());
       restore();
       for (const [id, patch] of Object.entries(doc.patches)) {
         const target = texts.get(id);
@@ -159,9 +160,15 @@
           const link = document.createElement('a'); link.textContent = block.label || '了解更多';
           link.href = block.url; article.append(link);
         }
-        parent.element.append(article); added.push(article);
+        const before = nodes.get(block.before);
+        if (before?.movable && before.parent === block.parent && before.element.parentElement === parent.element) {
+          parent.element.insertBefore(article, before.element);
+        } else {
+          parent.element.append(article);
+        }
+        added.push(article);
       }
-      const nav = navValue?.navigation;
+      const nav = navDocument.navigation;
       if (nav) for (const group of ['main', 'more']) {
         navChanged = true;
         const container = navRoots[group];

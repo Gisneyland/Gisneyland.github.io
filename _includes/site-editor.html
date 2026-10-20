@@ -34,11 +34,12 @@
     <button type="button" id="site-editor-node-up">上移</button>
     <button type="button" id="site-editor-node-down">下移</button>
     <button type="button" id="site-editor-node-delete">刪除／恢復</button>
-    <p>排序限同一父層。含互動工具的區段不能刪除；純文字可清空，卡片與靜態區段可刪除／恢復。</p>
+    <p>排序限同一父層。含互動工具的區段不能移動或刪除；純文字可清空，卡片與靜態區段可刪除／恢復。</p>
   </details>
   <details><summary>新增內容區塊</summary>
     <label>區塊<select id="site-editor-block"><option value="">新增區塊</option></select></label>
     <label>放置位置<select id="site-editor-parent"></select></label>
+    <label>插入於既有項目前（空白為容器末端）<select id="site-editor-before"></select></label>
     <label>標題<input type="text" id="site-editor-block-title" maxlength="300"></label>
     <label>內文<textarea id="site-editor-block-body" rows="5" maxlength="12000"></textarea></label>
     <label>連結（選填）<input type="text" id="site-editor-block-url" maxlength="2048"></label>
@@ -60,3 +61,8 @@
     <p>「更多」與「回到頂端」互動按鈕固定保留。</p>
   </details>
 </aside>
+<div id="site-editor-preview-toolbar" class="site-editor-preview-toolbar notranslate" translate="no" role="region" aria-label="草稿預覽工具" hidden>
+  <span>管理員草稿預覽（未發布）</span>
+  <button type="button" id="site-editor-reopen">重新開啟編輯器</button>
+  <button type="button" id="site-editor-preview-leave">離開預覽</button>
+</div>

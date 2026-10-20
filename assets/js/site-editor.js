@@ -5,7 +5,8 @@
   const enabled = page && !/^\/admin(?:\/|$)/.test(page);
   const baseline = global.SiteEditorDOM.capture(enabled ? document.getElementById('main-content') : null,
     document.querySelector('.site-navigation'));
-  let client, admin = false, generation = 0, operation = 0, busy = false, dirty = false, preview = false;
+  let client, admin = false, generation = 0, operation = 0, busy = false, dirty = false, preview = false, overlayActive = false;
+  let activeUserId = null, profileCheck = 0;
   let published = M.empty(), publishedNav = M.empty(), draft = null, navDraft = null;
   let pageRevision = 0, navRevision = 0, panel, trigger;
   const $ = id => document.getElementById(`site-editor-${id}`);
@@ -16,17 +17,25 @@
     return `編輯服務無法使用：${error?.message || '連線失敗'}。請管理員先執行 supabase/migrations/202610200001_site_editor.sql，確認管理員已核准並完成個資同意，再重新整理。原網站不受影響。`;
   }
   function showPublished() {
-    baseline.render(published, publishedNav);
+    applyOverlay(published, publishedNav);
     preview = false; document.body.classList.remove('site-editor-preview');
+    if ($('preview-toolbar')) $('preview-toolbar').hidden = true;
+  }
+  function applyOverlay(content, navigation) {
+    const nextOverlay = Boolean(Object.keys(content.patches).length || Object.keys(content.orders).length
+      || content.blocks.length || navigation.navigation);
+    if (overlayActive || nextOverlay) baseline.render(content, navigation);
+    overlayActive = nextOverlay;
   }
   function revoke() {
-    generation += 1; operation += 1; admin = false; busy = false; dirty = false;
+    generation += 1; operation += 1; profileCheck += 1;
+    activeUserId = null; admin = false; busy = false; dirty = false;
     draft = null; navDraft = null;
     if (trigger) trigger.hidden = true;
     if (panel) {
       panel.hidden = true; trigger?.setAttribute('aria-expanded', 'false');
       panel.querySelectorAll('input,textarea').forEach(node => { node.value = ''; });
-      for (const id of ['text', 'link', 'node', 'parent', 'block', 'nav-item']) $(id).replaceChildren();
+      for (const id of ['text', 'link', 'node', 'parent', 'before', 'block', 'nav-item']) $(id).replaceChildren();
       $('status').textContent = ''; $('node-info').textContent = '';
     }
     showPublished();
@@ -49,23 +58,38 @@
       if (admin) message(errorMessage(error));
     }
   }
-  async function checkSession(session) {
-    revoke();
-    const token = generation;
-    if (!session?.user || !enabled) return;
+  async function checkSession(session, token, check, preserve) {
     try {
       const { data, error } = await client.from('admin_profiles')
         .select('account_role,approval_status,privacy_consent_at').eq('user_id', session.user.id).maybeSingle();
-      if (token !== generation || error || !M.administrator(data)) return;
+      if (token !== generation || check !== profileCheck || activeUserId !== session.user.id) return;
+      if (error || !M.administrator(data)) { revoke(); return; }
       admin = true; trigger.hidden = false;
-      if (new URLSearchParams(location.search).get('site-editor') === '1') open();
-    } catch { /* Authentication or profile lookup failure must deny editing. */ }
+      if (!preserve && new URLSearchParams(location.search).get('site-editor') === '1') open();
+    } catch {
+      if (token === generation && check === profileCheck) revoke();
+    }
+  }
+  function scheduleSession(session, event) {
+    const userId = event === 'SIGNED_OUT' ? null : session?.user?.id || null;
+    const preserve = Boolean(userId && userId === activeUserId && admin);
+    if (!preserve) revoke();
+    activeUserId = userId;
+    const token = generation, check = ++profileCheck;
+    if (!userId || !enabled) return;
+    // Same-user refreshes retain drafts while the server-authoritative profile is rechecked.
+    // Defer Supabase queries until its auth callback has released the auth lock.
+    global.setTimeout(() => {
+      if (token === generation && check === profileCheck) checkSession(session, token, check, preserve);
+    }, 0);
   }
   function setBusy(value) {
     busy = value;
     panel.querySelectorAll('button,select,input,textarea').forEach(node => { node.disabled = value || !draft; });
     $('close').disabled = false;
+    for (const id of ['reopen', 'preview-leave']) $(id).disabled = value;
     if (!value && draft) nodeSelection();
+    if (!value && preview && panel.hidden) $('reopen').focus();
   }
   async function run(action) {
     if (!admin || busy) return;
@@ -96,13 +120,21 @@
   function nodeSelection() {
     const id = selected('node'), target = baseline.nodes.get(id);
     $('node-info').textContent = target
-      ? `${target.label} — ${id}${draft.patches[id]?.deleted ? '（已刪除）' : ''}${target.deletable ? '' : '（含受保護工具，不可刪除）'}` : '';
+      ? `${target.label} — ${id}${draft.patches[id]?.deleted ? '（已刪除）' : ''}${target.deletable ? '' : '（含受保護工具，不可移動／刪除）'}` : '';
     $('node-delete').disabled = !target?.deletable;
+    $('node-up').disabled = !target?.movable;
+    $('node-down').disabled = !target?.movable;
   }
   function blockSelection() {
     const block = draft.blocks.find(item => item.id === selected('block'));
     for (const field of ['title', 'body', 'url', 'label']) $('block-' + field).value = block?.[field] || '';
     $('parent').value = block?.parent || baseline.root;
+    beforeSelection(block?.before || '');
+  }
+  function beforeSelection(value = '') {
+    const parentId = selected('parent');
+    fill('before', Array.from(baseline.nodes).filter(([, node]) => node.parent === parentId && node.movable)
+      .map(([id, node]) => [id, `${node.label} — ${node.element.textContent.trim().slice(0, 55)}`]), value, '容器末端');
   }
   function navSelection() {
     const item = navDraft.navigation[selected('nav-group')].find(entry => entry.id === selected('nav-item'));
@@ -126,7 +158,7 @@
   }
   function changed() {
     draft = M.normalize(draft); navDraft = M.normalize(navDraft); dirty = true;
-    if (preview) baseline.render(draft, navDraft);
+    if (preview) applyOverlay(draft, navDraft);
     message('草稿已修改，尚未儲存／發布。');
   }
   function mutate(action) {
@@ -172,11 +204,15 @@
   }
   function wire() {
     trigger.addEventListener('click', open); $('close').addEventListener('click', close);
+    $('reopen').addEventListener('click', open);
+    $('preview-leave').addEventListener('click', () => {
+      showPublished(); message('已離開預覽；可重新開啟草稿。'); trigger.focus();
+    });
     panel.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
     $('page').value = document.body.dataset.siteEditorUrl;
     $('page').addEventListener('change', () => run(async token => {
       const target = selected('page');
-      if (!/^\/(?!\/)[a-zA-Z0-9_./-]*$/.test(target)) throw new Error('請選擇站內公開頁面');
+      if (!M.publicPage(target)) throw new Error('請選擇站內公開頁面');
       const destination = new URL(location.origin);
       destination.pathname = target;
       destination.searchParams.set('site-editor', '1');
@@ -185,8 +221,10 @@
     }));
     $('save').addEventListener('click', () => run(save));
     $('preview').addEventListener('click', () => run(async token => {
-      if (!await save(token) || !authorized(token)) return;
-      preview = true; baseline.render(draft, navDraft); document.body.classList.add('site-editor-preview');
+      if (!await save(token) || !authorized(token) || panel.hidden) return;
+      preview = true; applyOverlay(draft, navDraft); document.body.classList.add('site-editor-preview');
+      panel.hidden = true; trigger.setAttribute('aria-expanded', 'false');
+      $('preview-toolbar').hidden = false; $('reopen').focus();
       message('管理員草稿預覽中；訪客仍看到已發布版本。');
     }));
     $('exit').addEventListener('click', () => { showPublished(); message('已離開預覽；可重新開啟草稿。'); });
@@ -219,7 +257,7 @@
     for (const [name, direction] of [['up', -1], ['down', 1]]) {
       $('node-' + name).addEventListener('click', () => mutate(() => {
         const id = selected('node'), parent = baseline.nodes.get(id)?.parent;
-        if (!parent) return;
+        if (!parent || !baseline.nodes.get(id).movable) return;
         const order = draft.orders[parent] || [...baseline.parents.get(parent).ids];
         move(order, id, direction); draft.orders[parent] = order;
       }));
@@ -238,11 +276,12 @@
       }); nodeSelection();
     });
     $('block').addEventListener('change', blockSelection);
+    $('parent').addEventListener('change', () => beforeSelection());
     $('block-apply').addEventListener('click', () => {
       let id = selected('block');
       mutate(() => {
         if (!id) id = `block-${global.crypto.randomUUID()}`;
-        const block = { id, parent: selected('parent') };
+        const block = { id, parent: selected('parent'), before: selected('before') };
         for (const field of ['title', 'body', 'url', 'label']) block[field] = $('block-' + field).value;
         const index = draft.blocks.findIndex(item => item.id === id);
         if (index < 0) draft.blocks.push(block); else draft.blocks[index] = block;
@@ -278,16 +317,11 @@
     if (!panel || !trigger || !client) return;
     wire();
     const startGeneration = generation;
-    // Do not query Supabase inside the auth callback: defer until its auth lock is released.
-    client.auth.onAuthStateChange((_event, session) => {
-      revoke();
-      const token = generation;
-      global.setTimeout(() => { if (token === generation) checkSession(session); }, 0);
-    });
+    client.auth.onAuthStateChange((event, session) => scheduleSession(session, event));
     loadPublished();
     try {
       const { data, error } = await client.auth.getSession();
-      if (!error && startGeneration === generation) checkSession(data?.session);
+      if (!error && startGeneration === generation) scheduleSession(data?.session);
     } catch { revoke(); }
   });
 })(globalThis);

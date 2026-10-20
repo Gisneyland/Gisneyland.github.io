@@ -12,6 +12,12 @@ begin
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
   if not public.is_site_editor_administrator() then raise exception 'Approved administrator denied'; end if;
   if public.site_editor_valid_document(doc || '{"html":"<script>"}') then raise exception 'Raw HTML accepted'; end if;
+  if not public.site_editor_valid_document(jsonb_set(doc, '{blocks}', '[{"id":"new","parent":"main","before":"main/0:abc","title":"First","body":"Body","url":"","label":""}]')) then
+    raise exception 'Structured block insertion target rejected';
+  end if;
+  if public.site_editor_valid_document(jsonb_set(doc, '{blocks}', '[{"id":"new","parent":"main","before":{},"title":"First","body":"Body","url":"","label":""}]')) then
+    raise exception 'Malformed insertion target accepted';
+  end if;
   if public.site_editor_safe_url('javascript:alert(1)') or public.site_editor_safe_url('//example.org') then raise exception 'Unsafe URL accepted'; end if;
   if not public.site_editor_safe_url('/news/') then raise exception 'Safe URL rejected'; end if;
   revisions := public.save_site_editor_drafts('/', doc, nav, 0, 0);
@@ -31,13 +37,19 @@ begin
   end;
   perform public.publish_site_editor('/', 1, 1);
   if (select count(*) from public.site_editor_publications) <> 2 then raise exception 'Publish was not atomic'; end if;
+  if public.site_editor_valid_page('/a/../404.html') or public.site_editor_valid_page('/admin/') then
+    raise exception 'Unsafe page alias accepted';
+  end if;
+  revisions := public.save_site_editor_drafts('/404.html', doc, nav, 0, 1);
+  perform public.publish_site_editor('/404.html', 1, 2);
+  if (select count(*) from public.site_editor_publications) <> 3 then raise exception 'Existing HTML route publication failed'; end if;
 end;
 $$;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
 do $$ begin
-  if (select count(*) from public.site_editor_drafts) <> 2 then raise exception 'Admin draft read denied'; end if;
+  if (select count(*) from public.site_editor_drafts) <> 3 then raise exception 'Admin draft read denied'; end if;
 end $$;
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', true);
@@ -64,7 +76,7 @@ end $$;
 
 set local role anon;
 do $$ begin
-  if (select count(*) from public.site_editor_publications) <> 2 then raise exception 'Anonymous publications denied'; end if;
+  if (select count(*) from public.site_editor_publications) <> 3 then raise exception 'Anonymous publications denied'; end if;
   begin
     perform 1 from public.site_editor_drafts;
     raise exception 'Anonymous draft permission granted';

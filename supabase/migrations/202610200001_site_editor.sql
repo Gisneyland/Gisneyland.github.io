@@ -22,6 +22,13 @@ as $$
     and value !~* '^https?://[^/]*@';
 $$;
 
+create or replace function public.site_editor_valid_page(value text)
+returns boolean language sql immutable set search_path = pg_catalog
+as $$
+  select value is not null and value ~ '^/([a-zA-Z0-9_.-]+/)*[a-zA-Z0-9_.-]*$'
+    and value !~ '(^|/)[.]{1,2}(/|$)' and value !~ '^/admin(/|$)';
+$$;
+
 create or replace function public.site_editor_valid_document(value jsonb)
 returns boolean language plpgsql immutable set search_path = pg_catalog, public
 as $$
@@ -68,7 +75,7 @@ begin
   seen := array[]::text[];
   for item in select * from jsonb_array_elements(value->'blocks') loop
     if jsonb_typeof(item) <> 'object'
-      or item - array['id','parent','title','body','url','label'] <> '{}'::jsonb
+      or item - array['id','parent','before','title','body','url','label'] <> '{}'::jsonb
       or not (item ?& array['id','parent','title','body','url','label'])
       or jsonb_typeof(item->'id') <> 'string' or item->>'id' !~ '^[a-zA-Z0-9_./:#-]{1,240}$'
       or item->>'id' = any(seen)
@@ -78,6 +85,9 @@ begin
       or jsonb_typeof(item->'label') <> 'string' or length(item->>'label') > 300
       or jsonb_typeof(item->'url') <> 'string'
       or (item->>'url' <> '' and not public.site_editor_safe_url(item->>'url')) then return false; end if;
+    if item ? 'before' and (jsonb_typeof(item->'before') <> 'string'
+      or (item->>'before' <> '' and item->>'before' !~ '^[a-zA-Z0-9_./:#-]{1,240}$')
+      or item->>'before' in ('__proto__','constructor','prototype')) then return false; end if;
     seen := array_append(seen, item->>'id');
   end loop;
   if value->'navigation' <> 'null'::jsonb then
@@ -105,7 +115,7 @@ end;
 $$;
 
 create table if not exists public.site_editor_drafts (
-  page_key text primary key check (page_key = '@navigation' or (page_key ~ '^/[a-zA-Z0-9_/-]*$' and page_key !~ '^/admin(/|$)')),
+  page_key text primary key,
   document jsonb not null check (public.site_editor_valid_document(document)),
   revision bigint not null default 1 check (revision > 0),
   updated_at timestamptz not null default now()
@@ -116,6 +126,12 @@ create table if not exists public.site_editor_publications (
   revision bigint not null check (revision > 0),
   published_at timestamptz not null default now()
 );
+alter table public.site_editor_drafts drop constraint if exists site_editor_drafts_page_key_check;
+alter table public.site_editor_drafts add constraint site_editor_drafts_page_key_check
+  check (page_key = '@navigation' or public.site_editor_valid_page(page_key));
+alter table public.site_editor_publications drop constraint if exists site_editor_publications_page_key_check;
+alter table public.site_editor_publications add constraint site_editor_publications_page_key_check
+  check (page_key = '@navigation' or public.site_editor_valid_page(page_key));
 alter table public.site_editor_drafts enable row level security;
 alter table public.site_editor_publications enable row level security;
 revoke all on public.site_editor_drafts from public, anon, authenticated;
@@ -139,7 +155,7 @@ declare
   navigation_version bigint;
 begin
   if not public.is_site_editor_administrator() then raise exception 'Administrator approval and privacy consent required' using errcode = '42501'; end if;
-  if target_page is null or target_page !~ '^/[a-zA-Z0-9_/-]*$' or target_page ~ '^/admin(/|$)'
+  if not public.site_editor_valid_page(target_page)
     or not public.site_editor_valid_document(page_document)
     or not public.site_editor_valid_document(navigation_document)
     or page_document->'navigation' <> 'null'::jsonb
@@ -174,7 +190,7 @@ declare
   nav_row public.site_editor_drafts;
 begin
   if not public.is_site_editor_administrator() then raise exception 'Administrator approval and privacy consent required' using errcode = '42501'; end if;
-  if target_page is null or target_page !~ '^/[a-zA-Z0-9_/-]*$' or target_page ~ '^/admin(/|$)' then raise exception 'Invalid page'; end if;
+  if not public.site_editor_valid_page(target_page) then raise exception 'Invalid page'; end if;
   perform pg_advisory_xact_lock(726140020);
   select * into page_row from public.site_editor_drafts where page_key = target_page;
   select * into nav_row from public.site_editor_drafts where page_key = '@navigation';
@@ -190,8 +206,10 @@ end;
 $$;
 
 revoke all on function public.site_editor_safe_url(text) from public, anon;
+revoke all on function public.site_editor_valid_page(text) from public, anon;
 revoke all on function public.site_editor_valid_document(jsonb) from public, anon;
 grant execute on function public.site_editor_safe_url(text), public.site_editor_valid_document(jsonb) to authenticated;
+grant execute on function public.site_editor_valid_page(text) to authenticated;
 revoke all on function public.save_site_editor_drafts(text,jsonb,jsonb,bigint,bigint) from public, anon;
 revoke all on function public.publish_site_editor(text,bigint,bigint) from public, anon;
 grant execute on function public.save_site_editor_drafts(text,jsonb,jsonb,bigint,bigint) to authenticated;

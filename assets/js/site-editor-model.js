@@ -18,6 +18,11 @@
     return null;
   }
   function empty() { return { version: 1, patches: {}, orders: {}, blocks: [], navigation: null }; }
+  function publicPage(value) {
+    return typeof value === 'string' && /^\/(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]*$/.test(value)
+      && !value.split('/').some(part => part === '.' || part === '..')
+      && !/^\/admin(?:\/|$)/.test(value);
+  }
   function plain(value) { return value && typeof value === 'object' && !Array.isArray(value); }
   function keys(value, allowed) {
     if (!plain(value) || Object.keys(value).some(key => !allowed.includes(key))) throw new Error('不支援的內容格式');
@@ -60,12 +65,14 @@
     if (!Array.isArray(value.blocks) || value.blocks.length > 200) throw new Error('新增區塊過多');
     const ids = new Set();
     result.blocks = value.blocks.map(block => {
-      keys(block, ['id', 'parent', 'title', 'body', 'url', 'label']);
+      keys(block, ['id', 'parent', 'before', 'title', 'body', 'url', 'label']);
       key(block.id); key(block.parent);
       if (ids.has(block.id)) throw new Error('區塊識別碼重複');
       ids.add(block.id);
-      return { id: block.id, parent: block.parent, title: text(block.title, 300),
+      const safe = { id: block.id, parent: block.parent, title: text(block.title, 300),
         body: text(block.body), url: block.url ? link(block.url) : '', label: text(block.label, 300) };
+      if ('before' in block) safe.before = block.before === '' ? '' : key(block.before);
+      return safe;
     });
     if (value.navigation !== null) {
       keys(value.navigation, ['main', 'more']);
@@ -90,5 +97,5 @@
     for (let i = 0; i < value.length; i += 1) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
     return (hash >>> 0).toString(36);
   }
-  global.SiteEditorModel = Object.freeze({ administrator, safeURL, empty, normalize, fingerprint });
+  global.SiteEditorModel = Object.freeze({ administrator, safeURL, publicPage, empty, normalize, fingerprint });
 })(globalThis);
