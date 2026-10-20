@@ -456,7 +456,7 @@ permalink: /admin/
             <span class="material-icons notranslate" translate="no" aria-hidden="true">info</span>
           </button>
         </div>
-        <p class="admin-muted screening-plan-hint">每筆安排各自設定週期、時段與地點。</p>
+        <p class="admin-muted screening-plan-hint">每筆安排各自設定週期、時段與地點。沒有固定排程或休假時，可刪除全部安排後儲存。</p>
         <form id="screening-plan-form" class="screening-plan-form">
           <div id="screening-plan-rules" class="screening-plan-rules"></div>
           <button id="add-screening-plan-rule" class="admin-button secondary" type="button" disabled>
@@ -466,7 +466,7 @@ permalink: /admin/
           <template id="screening-plan-rule-template">
             <fieldset class="screening-plan-rule">
               <div class="screening-plan-rule-heading">
-                <h3><span class="screening-plan-rule-number"></span><input class="screening-plan-rule-name" type="text" maxlength="40" placeholder="自訂名稱（選填）" aria-label="安排名稱"></h3>
+                <h3><input class="screening-plan-rule-name" type="text" maxlength="40" placeholder="自訂名稱（選填）" aria-label="安排名稱"></h3>
                 <button class="admin-button secondary icon-only screening-plan-rule-move-up" type="button" aria-label="將此安排上移" title="上移">
                   <span class="material-icons notranslate" translate="no" aria-hidden="true">arrow_upward</span>
                 </button>
@@ -570,7 +570,7 @@ permalink: /admin/
         <ul>
           <li>每筆安排都有自己的週期、時間與地點；不同場地請分開新增。</li>
           <li>問卷只會在日期與時段符合、且地點沒有歧義時預填；仍可自行修改。</li>
-          <li>自訂地址會送至 Photon 定位；座標會送至 Open-Meteo 查詢天氣。</li>
+          <li>自訂地址與地圖選點會送至 Photon 定位，無結果或無法連線時改用 OpenStreetMap Nominatim；座標會送至 Open-Meteo 查詢天氣。</li>
           <li>災害資訊來自 USGS 地震資料與 GDACS／海嘯公告；來源無法連線時會標示「風險未知」，請查看官方公告。</li>
         </ul>
         <button class="admin-button secondary" type="button" data-close-screening-plan-info>知道了</button>

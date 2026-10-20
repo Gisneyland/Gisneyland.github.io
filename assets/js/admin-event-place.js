@@ -29,8 +29,7 @@ class SiteEventPlace {
   dirty() { this.form.dispatchEvent(new Event('input', { bubbles: true })); }
 
   label(feature) {
-    const fields = feature.properties || {};
-    return [...new Set([fields.name, fields.housenumber, fields.street, fields.city, fields.county, fields.country].filter(Boolean))].join('、').slice(0, 180);
+    return window.AdminPlaceSearch.label(feature);
   }
 
   reset() {
@@ -83,17 +82,14 @@ class SiteEventPlace {
     this.reverseRequest?.abort();
     const request = new AbortController();
     this.reverseRequest = request;
-    const timeout = window.setTimeout(() => request.abort(), 10000);
     try {
-      const response = await fetch(`https://photon.komoot.io/reverse?${new URLSearchParams({ lat: String(latitude), lon: String(longitude) })}`, { signal: request.signal });
-      if (!response.ok) throw new Error('Reverse lookup unavailable');
-      const payload = await response.json();
+      const features = await window.AdminPlaceSearch.reverse(latitude, longitude, { signal: request.signal });
       if (revision !== this.positionRevision || this.input.value !== previousLabel) return;
-      if (payload.features?.[0]) this.input.value = this.label(payload.features[0]);
+      if (features[0]) this.input.value = this.label(features[0]);
       this.dirty();
     } catch {
       if (revision === this.positionRevision) this.status.textContent = '地址查詢未完成，已更新地圖座標。';
-    } finally { window.clearTimeout(timeout); }
+    }
   }
 
   read() {
@@ -108,20 +104,18 @@ class SiteEventPlace {
     this.request?.abort();
     const request = new AbortController();
     this.request = request;
-    const timeout = window.setTimeout(() => request.abort(), 12000);
+    this.results.hidden = true;
     this.status.textContent = '搜尋地點中…';
     try {
-      const response = await fetch(`https://photon.komoot.io/api/?${new URLSearchParams({ q: query, limit: '6' })}`, { signal: request.signal });
-      if (!response.ok) throw new Error('Search unavailable');
-      const payload = await response.json();
-      if (this.request !== request) return;
-      this.features = (payload.features || []).filter(feature => feature.geometry?.type === 'Point');
+      const features = await window.AdminPlaceSearch.search(query, { signal: request.signal });
+      if (this.request !== request || request.signal.aborted) return;
+      this.features = features;
       this.results.replaceChildren(new Option('選擇地點', ''));
       this.features.forEach((feature, index) => this.results.add(new Option(this.label(feature), String(index))));
       this.results.hidden = !this.features.length;
       this.status.textContent = this.features.length ? '請選擇地點。' : '沒有結果，可在地圖點選位置。';
     } catch {
-      if (this.request === request) this.status.textContent = '搜尋失敗，可在地圖點選或輸入經緯度。';
-    } finally { window.clearTimeout(timeout); }
+      if (this.request === request && !request.signal.aborted) this.status.textContent = '搜尋失敗，可在地圖點選或輸入經緯度。';
+    }
   }
 }

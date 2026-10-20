@@ -99,7 +99,10 @@ test('site initialization and permission-gated admin interactions', {
       account_role: mode === 'reader' ? 'screener' : 'administrator', permissions: ['questionnaire.read'],
       privacy_consent_at: '2026-10-01', screener_number: 'TEST'
     };
-    const user = { id: profile.user_id, email: 'test@example.test', user_metadata: {} };
+    const user = {
+      id: profile.user_id, email: 'test@example.test',
+      user_metadata: JSON.parse(sessionStorage.getItem('fixture-metadata-' + mode) || '{}')
+    };
     function query(table) {
       const result = {};
       for (const method of ['select', 'eq', 'order', 'range', 'limit', 'is', 'not']) result[method] = () => result;
@@ -110,7 +113,12 @@ test('site initialization and permission-gated admin interactions', {
     window.supabase = { createClient: () => ({
       auth: {
         getSession: async () => ({ data: { session: mode === 'anonymous' ? null : { user } }, error: null }),
-        onAuthStateChange() {}
+        onAuthStateChange() {},
+        updateUser: async ({ data }) => {
+          user.user_metadata = { ...user.user_metadata, ...data };
+          sessionStorage.setItem('fixture-metadata-' + mode, JSON.stringify(user.user_metadata));
+          return { data: { user }, error: null };
+        }
       },
       from: query,
       functions: { invoke: async () => ({ error: new Error('Offline fixture') }) }
@@ -172,6 +180,7 @@ test('site initialization and permission-gated admin interactions', {
     await click('#admin-tab-settings');
     await click('#add-screening-plan-rule');
     assert.equal(await evaluate('document.getElementById("screening-plan-rules").children.length'), 2);
+    assert.equal(await evaluate('document.querySelector(".screening-plan-rule-number")'), null);
     await click('.screening-plan-rule-collapse');
     assert.match(await evaluate('document.querySelector(".screening-plan-rule-summary").textContent'), /每週/);
     await click('#admin-tab-content');
@@ -179,6 +188,77 @@ test('site initialization and permission-gated admin interactions', {
     assert.equal(await evaluate('document.getElementById("site-content-editor").open'), true);
     await click('#close-site-content-editor');
     assert.equal(await evaluate('document.getElementById("site-content-editor").open'), false);
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('screener can delete the last rule, save an empty schedule and add rules again after reload', async () => {
+    await open('/admin/', 'reader');
+    await waitFor('!document.getElementById("admin-dashboard").hidden');
+    await click('#admin-tab-settings');
+    assert.equal(await evaluate('document.querySelectorAll(".screening-plan-rule").length'), 1);
+    await click('.screening-plan-rule-remove');
+    assert.equal(await evaluate('document.querySelectorAll(".screening-plan-rule").length'), 0);
+    await click('#save-screening-plan');
+    await waitFor('document.getElementById("screening-plan-status").textContent.includes("沒有固定篩檢排程")');
+    assert.deepEqual(await evaluate('JSON.parse(sessionStorage.getItem("fixture-metadata-reader")).screening_preferences'), {
+      version: 2, rules: []
+    });
+    await open('/admin/', 'reader');
+    await waitFor('!document.getElementById("admin-dashboard").hidden');
+    await click('#admin-tab-settings');
+    assert.equal(await evaluate('document.querySelectorAll(".screening-plan-rule").length'), 0);
+    assert.match(await evaluate('document.getElementById("screening-plan-next").textContent'), /尚未設定有效排程/);
+    await click('#add-screening-plan-rule');
+    assert.equal(await evaluate('document.querySelectorAll(".screening-plan-rule").length'), 1);
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('screening and event searches use fallback results and save selected coordinates', async () => {
+    await open('/admin/', 'administrator');
+    await waitFor('!document.getElementById("admin-tab-content").hidden');
+    await evaluate(`(() => {
+      const originalFetch = window.fetch;
+      window.placeSearchCalls = [];
+      window.fetch = async (url, options) => {
+        const parsed = new URL(url);
+        if (!['photon.komoot.io', 'nominatim.openstreetmap.org'].includes(parsed.hostname)) return originalFetch(url, options);
+        window.placeSearchCalls.push(url);
+        if (parsed.hostname === 'photon.komoot.io') return { ok: false };
+        return { ok: true, json: async () => [{ lat: '24.8', lon: '120.97', name: '測試地點', display_name: '測試地點，新竹市' }] };
+      };
+    })()`);
+    await click('#admin-tab-settings');
+    await evaluate(`(() => {
+      const input = document.querySelector('.screening-plan-rule-place');
+      input.value = '測試地點';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    })()`);
+    await waitFor('document.querySelector(".screening-plan-place-option")?.textContent === "測試地點，新竹市"');
+    await click('.screening-plan-place-option');
+    await click('.screening-plan-rule-weekly input[value="1"]');
+    await click('#save-screening-plan');
+    await waitFor('document.getElementById("screening-plan-status").textContent.includes("已儲存 1 筆")');
+    assert.deepEqual(await evaluate('JSON.parse(sessionStorage.getItem("fixture-metadata-administrator")).screening_preferences.rules[0].place.coordinates'), [120.97, 24.8]);
+    await click('#admin-tab-content');
+    await click('#new-site-content-button');
+    await evaluate(`(() => {
+      const type = document.getElementById('site-content-type');
+      type.value = 'event';
+      type.dispatchEvent(new Event('change'));
+      document.getElementById('site-content-location').value = '測試地點';
+    })()`);
+    await click('#event-location-search');
+    await waitFor('!document.getElementById("event-location-results").hidden');
+    await evaluate(`(() => {
+      const select = document.getElementById('event-location-results');
+      select.value = '0';
+      select.dispatchEvent(new Event('change'));
+    })()`);
+    assert.equal(await evaluate('document.getElementById("site-content-location").value'), '測試地點，新竹市');
+    assert.equal(await evaluate('document.getElementById("event-location-latitude").value'), '24.800000');
+    assert.equal(await evaluate('document.getElementById("event-location-longitude").value'), '120.970000');
+    assert.equal(await evaluate('window.placeSearchCalls.length'), 4);
     assert.deepEqual(errors, []);
   });
 

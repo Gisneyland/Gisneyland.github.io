@@ -236,14 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
     screeningPlanPlaces = [];
   }
   const screeningPlanRuleStates = new WeakMap();
-  const photonPlaceLabel = feature => {
-    const properties = feature.properties || {};
-    return [properties.name, properties.housenumber, properties.street, properties.district,
-      properties.city, properties.county, properties.state]
-      .map(value => String(value || '').trim())
-      .filter((value, index, values) => value && values.indexOf(value) === index)
-      .join('、');
-  };
+  const placeLabel = window.AdminPlaceSearch.label;
   function createScreeningPlanRule(rule = {}) {
     const fragment = screeningPlanRuleTemplate.content.cloneNode(true);
     const row = fragment.querySelector('.screening-plan-rule');
@@ -348,12 +341,13 @@ document.addEventListener('DOMContentLoaded', () => {
       options.hidden = places.length === 0;
       placeInput.setAttribute('aria-expanded', String(places.length > 0));
     };
-    const localOptions = () => {
+    const matchingLocalPlaces = () => {
       const query = placeInput.value.trim().toLocaleLowerCase().replace(/[\s、,，.-]/g, '');
-      showOptions(screeningPlanPlaces.filter(place => !query
+      return screeningPlanPlaces.filter(place => !query
         || [place.name, place.label, ...place.aliases].some(value =>
-          value.toLocaleLowerCase().replace(/[\s、,，.-]/g, '').includes(query))));
+          value.toLocaleLowerCase().replace(/[\s、,，.-]/g, '').includes(query)));
     };
+    const localOptions = () => showOptions(matchingLocalPlaces());
     const ensureMap = () => {
       if (!window.L) {
         placeStatus.textContent = 'Leaflet 地圖無法載入，仍可輸入地址後儲存。';
@@ -388,6 +382,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } else state.marker.setLatLng([latitude, longitude]);
     };
     const setPlace = place => {
+      state.revision += 1;
+      state.searchRequest?.abort();
+      state.reverseRequest?.abort();
       state.place = { ...place, coordinates: place.coordinates.map(Number) };
       placeInput.value = place.label;
       closeOptions();
@@ -410,13 +407,9 @@ document.addEventListener('DOMContentLoaded', () => {
       placeStatus.hidden = false;
       const request = new AbortController();
       state.reverseRequest = request;
-      const timeout = window.setTimeout(() => request.abort(), 10000);
       try {
-        const params = new URLSearchParams({ lat: String(latitude), lon: String(longitude), lang: 'zh' });
-        const response = await fetch(`https://photon.komoot.io/reverse?${params}`, { signal: request.signal });
-        if (!response.ok) throw new Error('Reverse lookup unavailable');
-        const feature = (await response.json()).features?.[0];
-        const label = feature && photonPlaceLabel(feature);
+        const [feature] = await window.AdminPlaceSearch.reverse(latitude, longitude, { signal: request.signal });
+        const label = feature && placeLabel(feature);
         if (revision !== state.revision) return;
         if (label) {
           state.place = { name: feature.properties?.name || label, label, coordinates };
@@ -426,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderRuleSummary();
       } catch {
         if (revision === state.revision) placeStatus.textContent = `地址查詢未完成，已保留座標：${coordinateLabel}`;
-      } finally { window.clearTimeout(timeout); }
+      }
     };
     const searchPlace = async () => {
       const query = placeInput.value.trim();
@@ -437,25 +430,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       state.searchRequest?.abort();
+      closeOptions();
       const request = new AbortController();
       state.searchRequest = request;
-      const timeout = window.setTimeout(() => request.abort(), 12000);
       searchButton.disabled = true;
       placeStatus.textContent = '正在搜尋地點…';
       placeStatus.hidden = false;
+      const localPlaces = matchingLocalPlaces();
       try {
-        const params = new URLSearchParams({ q: query, limit: '6', countrycodes: 'tw', lang: 'zh' });
-        const response = await fetch(`https://photon.komoot.io/api/?${params}`, { signal: request.signal });
-        if (!response.ok) throw new Error('Place search unavailable');
-        const payload = await response.json();
-        if (state.searchRequest !== request) return;
-        const places = (payload.features || []).filter(feature => feature.geometry?.type === 'Point')
+        const features = await window.AdminPlaceSearch.search(query, { signal: request.signal });
+        if (state.searchRequest !== request || request.signal.aborted) return;
+        const remotePlaces = features
           .map(feature => ({
             name: feature.properties?.name || query,
-            label: photonPlaceLabel(feature) || query,
+            label: placeLabel(feature) || query,
             coordinates: feature.geometry.coordinates.map(Number)
           }))
           .filter(place => place.coordinates.length === 2 && place.coordinates.every(Number.isFinite));
+        const places = [...localPlaces, ...remotePlaces].filter((place, index, all) =>
+          all.findIndex(other => other.label === place.label) === index);
         ensureMap();
         showOptions(places);
         placeStatus.textContent = places.length
@@ -463,12 +456,14 @@ document.addEventListener('DOMContentLoaded', () => {
           : '找不到搜尋結果，可直接在地圖上點選位置。';
         if (!places.length) closeOptions();
       } catch {
-        if (state.searchRequest === request) {
+        if (state.searchRequest === request && !request.signal.aborted) {
           ensureMap();
-          placeStatus.textContent = '搜尋服務暫時無法使用，可在地圖上點選位置。';
+          showOptions(localPlaces);
+          placeStatus.textContent = localPlaces.length
+            ? '線上搜尋暫時無法使用，可選擇常用地點或在地圖上點選位置。'
+            : '搜尋服務暫時無法使用，可在地圖上點選位置。';
         }
       } finally {
-        window.clearTimeout(timeout);
         if (state.searchRequest === request) searchButton.disabled = !screeningPlanEditable;
       }
     };
@@ -507,6 +502,9 @@ document.addEventListener('DOMContentLoaded', () => {
     placeInput.addEventListener('input', () => {
       state.revision += 1;
       state.place = null;
+      state.searchRequest?.abort();
+      state.searchRequest = null;
+      searchButton.disabled = !screeningPlanEditable;
       state.reverseRequest?.abort();
       localOptions();
       renderRuleSummary();
@@ -519,6 +517,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (event.key === 'ArrowDown' && !options.hidden) {
         event.preventDefault();
         options.querySelector('button')?.focus();
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        searchPlace();
       } else if (event.key === 'Escape') closeOptions();
     });
     options.addEventListener('keydown', event => {
@@ -581,7 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function updateScreeningPlanRuleNumbers() {
     [...screeningPlanRulesContainer.children].forEach((row, index) => {
-      row.querySelector('.screening-plan-rule-number').textContent = `安排 ${index + 1}`;
       row.querySelector('.screening-plan-rule-name').placeholder = '自訂名稱（選填）';
       row.querySelector('.screening-plan-rule-name').setAttribute('aria-label', `安排 ${index + 1} 名稱`);
       row.querySelector('.screening-plan-rule-move-up').disabled = !screeningPlanEditable || index === 0;
@@ -1140,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     screeningPlanRulesContainer.replaceChildren();
     savedScreeningPreferences = { version: 2, rules };
     screeningPlanEditable = canEdit;
-    if (rules.length) rules.forEach(rule => createScreeningPlanRule(rule));
+    if (Array.isArray(stored.rules) || rules.length) rules.forEach(rule => createScreeningPlanRule(rule));
     else createScreeningPlanRule();
     setScreeningPlanDisabled(!canEdit);
     screeningPlanOutlookKey = '';
@@ -1203,10 +1203,6 @@ document.addEventListener('DOMContentLoaded', () => {
     event.preventDefault();
     if (!activeUser || !screeningPlanForm.reportValidity()) return;
     const rows = [...screeningPlanRulesContainer.querySelectorAll('.screening-plan-rule')];
-    if (!rows.length) {
-      showStatus(screeningPlanStatus, '請至少新增一筆篩檢安排。', true);
-      return;
-    }
 
     setButtonBusy(saveScreeningPlanButton, true, '儲存中');
     try {
@@ -1285,7 +1281,9 @@ document.addEventListener('DOMContentLoaded', () => {
       savedScreeningPreferences = preferences;
       screeningOutlookKey = '';
       renderNextScreeningSlot(preferences);
-      showStatus(screeningPlanStatus, `已儲存 ${rules.length} 筆篩檢安排。符合日期與時段時，問卷會預填對應地點。`);
+      showStatus(screeningPlanStatus, rules.length
+        ? `已儲存 ${rules.length} 筆篩檢安排。符合日期與時段時，問卷會預填對應地點。`
+        : '已儲存：目前沒有固定篩檢排程（未安排或休假）。問卷不會預填排程地點。');
       refreshScreeningPlanOutlook(true);
     } catch {
       showStatus(screeningPlanStatus, '目前無法連線儲存，請稍後再試。', true);
@@ -1303,20 +1301,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedPlace = screeningPlanPlaces.find(place => place.label === query || place.name === query);
     if (savedPlace) return savedPlace;
     try {
-      const params = new URLSearchParams({ q: query, limit: '1', lat: '23.7', lon: '120.9', lang: 'zh' });
-      const response = await fetch(`https://photon.komoot.io/api/?${params}`, {
-        signal: AbortSignal.timeout(12000)
-      });
-      if (!response.ok) return null;
-      const feature = (await response.json()).features?.[0];
+      const [feature] = await window.AdminPlaceSearch.search(query);
       const coordinates = feature?.geometry?.coordinates?.map(Number);
       if (!Array.isArray(coordinates) || coordinates.length !== 2 || !coordinates.every(Number.isFinite)) return null;
       const properties = feature.properties || {};
-      const label = [properties.name, properties.housenumber, properties.street, properties.district,
-        properties.city, properties.county, properties.state]
-        .map(value => String(value || '').trim())
-        .filter((value, index, values) => value && values.indexOf(value) === index)
-        .join('、') || query;
+      const label = placeLabel(feature) || query;
       return { name: properties.name || query, label, coordinates };
     } catch {
       return null;
