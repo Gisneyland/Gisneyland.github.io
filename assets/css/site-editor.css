@@ -44,6 +44,10 @@
 }
 body.site-editor-preview #main-content { outline: 3px dashed #b95400; outline-offset: -3px; }
 .site-editor-mode-actions { display: inline-flex; align-items: center; gap: 3px; }
+.site-editor-mode-actions .utility-button, #site-editor-button {
+  box-sizing: border-box; width: 2.35rem; height: 2.35rem; min-width: 2.35rem; min-height: 2.35rem;
+  padding: 0; justify-content: center;
+}
 .site-editor-mode-actions[hidden], .site-editor-inline-ui[hidden] { display: none !important; }
 .site-editor-mode-actions button:disabled { opacity: .4; cursor: default; }
 .site-editor-mode-actions button:focus-visible, .site-editor-inline-ui :focus-visible { outline: 3px solid #2177aa; outline-offset: 2px; }
@@ -91,6 +95,5 @@ body.site-editor-editing .site-editor-mode-status:not(:empty) {
 @media (max-width: 600px) {
   .site-editor { right: 8px; bottom: 80px; width: min(320px, calc(100vw - 16px)); max-height: 45vh; }
   .site-editor-mode-actions { gap: 0; }
-  .site-editor-mode-actions .utility-button { width: 32px; min-width: 32px; padding: 3px; }
   body.site-editor-editing .site-editor-mode-status { bottom: 68px; font-size: 12px; max-width: calc(100vw - 24px); }
 }
