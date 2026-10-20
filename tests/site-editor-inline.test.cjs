@@ -23,6 +23,13 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       <form id="widget"><input value="keep"><button type="button">Widget</button></form>
       <div id="static-div-card" class="detail-card"><h3></h3><p>Only body</p></div>
     </section><section id="other"><p id="foreign">Different parent</p></section>
+      <div id="visuals"><span id="static-icon" class="material-icons" aria-hidden="true">home</span>
+        <picture><source srcset="/original-wide.png"><img id="static-logo" src="/original.png" srcset="/original-2x.png 2x" alt="Original"></picture>
+        <a id="static-button" class="btn" href="/original"><span class="material-icons">call</span>Contact</a>
+        <button type="button" id="functional">Runtime action</button>
+        <button type="button" id="static-native" data-site-editor-static="true">Static</button>
+        <a id="functional-link" href="#widget" aria-controls="widget">Toggle widget</a>
+      </div>
     <section id="empty-layout"><p id="layout-copy">Layout text</p></section></main>
     <script src="/assets/js/site-editor-model.js"></script>
     <script src="/assets/js/site-editor-rich.js"></script>
@@ -192,7 +199,7 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
     assert.deepEqual(await evaluate(`(()=>{
       document.querySelector('#second').click();clickLabel('在此元件後新增區塊');
       return Array.from(document.querySelector('[role=menu]').querySelectorAll('button')).map(node=>node.getAttribute('aria-label'));
-    })()`), ['文字', '卡片', '圖片', '音訊', '影片', '表格', '程式碼', '數學', '樂譜', '流程圖', 'Markdown']);
+    })()`), ['文字', '卡片', '圖片', '音訊', '影片', '按鈕', '圖示／符號', '標誌圖片', '表格', '程式碼', '數學', '樂譜', '流程圖', 'Markdown']);
     assert.equal(await evaluate(`(()=>{
       clickLabel('文字',document.querySelector('[role=menu]'));
       const block=draft.blocks.at(-1),node=document.querySelector('[data-site-editor-block="'+block.id+'"] [data-site-editor-field=body]');
@@ -376,6 +383,90 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       const node=document.querySelector('[data-site-editor-block="'+block.id+'"] [contenteditable]');
       node.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Backspace'}));
       return !draft.blocks.some(item=>item.id===block.id);
+    })()`), true);
+  });
+  await t.test('static icon, responsive logo and styled button properties are reversible without replacing nodes or handlers', async () => {
+    assert.equal(await evaluate(`(()=>{
+      window.staticIcon=document.querySelector('#static-icon');window.iconText=staticIcon.firstChild;
+      window.staticLogo=document.querySelector('#static-logo');window.staticButton=document.querySelector('#static-button');
+      window.staticClicks=0;staticButton.addEventListener('click',()=>staticClicks++);
+      const edit=(node,values)=>{
+        node.click();clickLabel('編輯元件屬性');
+        const pane=document.querySelector('[role=dialog]');
+        for(const [name,value] of Object.entries(values))pane.querySelector('[aria-label="'+name+'"]').value=value;
+        clickLabel('套用元件屬性',pane);
+      };
+      edit(staticIcon,{'Material 圖示名稱':'favorite'});
+      const iconOkay=staticIcon.textContent==='favorite'&&!staticIcon.querySelector('[contenteditable]');
+      edit(staticLogo,{'圖片網址':'https://cdn.example.org/logo.png','替代文字':'Safe logo'});
+      const imageOkay=staticLogo.src==='https://cdn.example.org/logo.png'&&staticLogo.alt==='Safe logo'
+        &&!staticLogo.hasAttribute('srcset')&&!staticLogo.parentElement.querySelector('source').hasAttribute('srcset');
+      edit(staticButton,{'連結網址':'/updated','按鈕樣式':'outline'});
+      const buttonOkay=staticButton.getAttribute('href')==='/updated'&&staticButton.classList.contains('site-editor-variant-outline')
+        &&staticButton.querySelector('.material-icons').textContent==='call';
+      inline.stop();baseline.restore();
+      const restored=staticIcon.firstChild===iconText&&staticIcon.textContent==='home'&&staticLogo.alt==='Original'
+        &&staticLogo.getAttribute('srcset')==='/original-2x.png 2x'
+        &&staticLogo.parentElement.querySelector('source').getAttribute('srcset')==='/original-wide.png'
+        &&staticButton.getAttribute('class')==='btn'&&staticButton.getAttribute('href')==='/original';
+      redraw();
+      return iconOkay&&imageOkay&&buttonOkay&&restored&&document.querySelector('#static-logo')===staticLogo
+        &&document.querySelector('#static-button')===staticButton&&staticClicks===1;
+    })()`), true);
+  });
+  await t.test('visual property validation rejects executable payloads and functional buttons stay protected', async () => {
+    assert.equal(await evaluate(`(()=>{
+      const protectedIDs=[...baseline.nodes.values()].map(value=>value.element.id);
+      const safe=!protectedIDs.includes('functional')&&!protectedIDs.includes('functional-link')
+        &&!baseline.nodes.get(nodeId('visuals')).deletable
+        &&protectedIDs.includes('static-native');
+      document.querySelector('#static-icon').click();clickLabel('編輯元件屬性');
+      const pane=document.querySelector('[role=dialog]');pane.querySelector('[aria-label="Material 圖示名稱"]').value='<svg onload=alert(1)>';
+      const count=changes;clickLabel('套用元件屬性',pane);
+      const rejected=changes===count&&pane.isConnected&&!document.querySelector('#static-icon svg');
+      clickLabel('關閉',pane);
+      return safe&&rejected;
+    })()`), true);
+  });
+  await t.test('buttons, icons and logos support insertion, properties, ordering and deletion', async () => {
+    assert.equal(await evaluate(`(()=>{
+      for(const [label,kind] of [['按鈕','button'],['圖示／符號','icon'],['標誌圖片','logo']]){
+        add(label);
+        let pane=document.querySelector('[role=dialog]');
+        if(kind==='logo'){
+          pane.querySelector('[aria-label="公開媒體網址"]').value='/logo-new.png';clickLabel('套用媒體網址',pane);
+        }else{
+          pane.querySelector('[aria-label="'+(kind==='button'?'按鈕文字':'圖示說明')+'"]').value='Accessible visual';
+          const glyph=pane.querySelector('[aria-label="'+(kind==='button'?'Material 圖示名稱（可留空）':'Material 圖示名稱')+'"]');
+          glyph.value='favorite';
+          if(kind==='button'){pane.querySelector('[aria-label="連結網址"]').value='/action';pane.querySelector('[aria-label="按鈕樣式"]').value='secondary';}
+          clickLabel('套用元件屬性',pane);
+        }
+        const block=draft.blocks.find(value=>value.type===kind);
+        if(!block)return false;
+        const node=document.querySelector('[data-site-editor-block="'+block.id+'"]');
+        const okay=kind==='button'?node.querySelector('a.site-editor-variant-secondary[href="/action"]')
+          :kind==='icon'?node.querySelector('.site-editor-icon[aria-label="Accessible visual"]')
+          :node.querySelector('img.site-editor-logo[src="/logo-new.png"]');
+        if(!okay)return false;
+        node.click();clickLabel('向前移動（Alt + ↑）');
+        if(!draft.orders[block.parent].includes(block.id))return false;
+        clickLabel('刪除元件');
+        if(draft.blocks.some(value=>value.id===block.id))return false;
+      }
+      return true;
+    })()`), true);
+  });
+  await t.test('existing static visual deletion hides original nodes and restores without touching functional controls', async () => {
+    assert.equal(await evaluate(`(()=>{
+      const targets=['static-icon','static-logo','static-button','static-native'];
+      const originals=targets.map(id=>document.getElementById(id));
+      const runtime=document.getElementById('functional');let actions=0;runtime.addEventListener('click',()=>actions++);
+      for(const node of originals){node.click();clickLabel('刪除元件');if(!node.hidden||!draft.patches[nodeId(node.id)]?.deleted)return false;}
+      runtime.click();
+      inline.stop();baseline.restore();
+      const okay=originals.every(node=>!node.hidden&&document.getElementById(node.id)===node)&&actions===1;
+      redraw();return okay&&!runtime.hidden&&!runtime.closest('[hidden]');
     })()`), true);
   });
   await t.test('stop is teardown only and never implicitly flushes dirty text', async () => {

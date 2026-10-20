@@ -31,12 +31,13 @@
     if ($('nav-toggle')) $('nav-toggle').hidden = !value;
     if (!value) hideNavigation();
     trigger?.setAttribute('aria-pressed', String(value));
+    trigger?.setAttribute('aria-expanded', String(value));
     if (!value) inline?.stop();
     historyControls();
   }
   function authorized(token) { return admin && token === generation; }
   function errorMessage(error) {
-    return `編輯服務無法使用：${error?.message || '連線失敗'}。請確認已依序執行 supabase/migrations/202610200001_site_editor.sql、202610200002_site_editor_rich.sql、202610200003_site_editor_media.sql，且管理員已核准並完成個資同意。原網站不受影響。`;
+    return `編輯服務無法使用：${error?.message || '連線失敗'}。請確認已依序執行 supabase/migrations/202610200001_site_editor.sql、202610200002_site_editor_rich.sql、202610200003_site_editor_media.sql、202610200004_site_editor_components.sql，且管理員已核准並完成個資同意。原網站不受影響。`;
   }
   function showPublished() {
     editing(false);
@@ -61,6 +62,7 @@
     if (panel) {
       panel.hidden = true; trigger?.setAttribute('aria-expanded', 'false');
       panel.querySelectorAll('input,textarea').forEach(node => { node.value = ''; });
+      $('nav').querySelectorAll('input').forEach(node => { node.value = ''; });
       navId = null; $('nav-form').hidden = true; $('nav-hint').textContent = '';
       message('');
     }
@@ -83,7 +85,7 @@
       if (!preview && !visual) showPublished();
     } catch (error) {
       // Missing migrations and network failures never blank or disable the static site.
-      if (admin) message(errorMessage(error));
+      if (request === publicationRequest && admin) message(errorMessage(error));
     }
   }
   async function checkSession(session, token, check, preserve) {
@@ -139,9 +141,9 @@
     return document.querySelector(group === 'main' ? '.site-navigation .bottom-nav' : '#navigation-more-menu');
   }
   function positionNavigation() {
-    const root = navRoot('main');
+    const root = navRoot(navOpen && navGroup === 'more' ? 'more' : 'main');
     if (!root || !$('nav')) return;
-    const bottom = Math.max(8, global.innerHeight - root.getBoundingClientRect().top + 8);
+    const bottom = Math.max(8, Math.min(global.innerHeight - 180, global.innerHeight - root.getBoundingClientRect().top + 8));
     $('nav').style.bottom = `${bottom}px`; $('nav-toggle').style.bottom = `${bottom}px`;
   }
   function hideNavigation() {
@@ -188,7 +190,14 @@
     refreshNavigation();
     if (id !== null) $('nav-label').focus();
   }
-  function refresh() { refreshNavigation(); }
+  function refresh() {
+    if (navId !== null) {
+      const item = navDraft?.navigation[navGroup].find(entry => entry.id === navId);
+      if (navId && !item) navId = null;
+      $('nav-label').value = item?.label || ''; $('nav-url').value = item?.url || '';
+    }
+    refreshNavigation();
+  }
   function changed() {
     draft = M.normalize(draft); navDraft = M.normalize(navDraft); dirty = true;
     if (preview || visual) applyOverlay(draft, navDraft);
@@ -267,6 +276,8 @@
     if (index >= 0 && next >= 0 && next < array.length) [array[index], array[next]] = [array[next], array[index]];
   }
   function wire() {
+    const navigation = document.querySelector('.site-navigation');
+    if (navigation) navigation.append($('nav'), $('nav-toggle'));
     trigger.addEventListener('click', () => { if (visual) close(); else open(); });
     $('close').addEventListener('click', close);
     $('reopen').addEventListener('click', open);
@@ -326,80 +337,81 @@
         expected_page_revision: pageRevision, expected_navigation_revision: navRevision });
       if (error) throw error;
       if (!authorized(token)) return;
+      publicationRequest += 1;
       published = copy(draft); publishedNav = copy(navDraft); showPublished(); message('已發布目前頁面與全站導覽。');
     }));
-    $('reset').addEventListener('click', () => {
-      if (global.confirm('將目前頁面草稿還原為原始版面？導覽不變；儲存、發布後才對訪客生效。')) {
-        mutate(() => { draft = M.empty(); }); refresh();
+    $('reset').addEventListener('click', () => run(async token => {
+      if (!draft || !global.confirm('將目前頁面與全站導覽的私人草稿還原為「目前已發布版本」？可復原；只有儲存並發布後才會影響訪客。')) return;
+      const request = ++publicationRequest;
+      message('重新讀取目前已發布版本與草稿版本…');
+      const userId = activeUserId;
+      const [content, nav, currentPage, currentNav, profile] = await Promise.all([
+        read('site_editor_publications', page), read('site_editor_publications', '@navigation'),
+        read('site_editor_drafts', page), read('site_editor_drafts', '@navigation'),
+        client.from('admin_profiles').select('account_role,approval_status,privacy_consent_at').eq('user_id', userId).maybeSingle()
+      ]);
+      if (!authorized(token) || request !== publicationRequest || activeUserId !== userId) return;
+      if (profile.error) throw profile.error;
+      if (!M.administrator(profile.data)) { revoke(); return; }
+      if (currentPage.revision !== pageRevision || currentNav.revision !== navRevision) {
+        throw new Error('草稿版本衝突，未還原。請重新整理並檢查其他管理員的最新草稿');
       }
+      published = content.document || M.empty(); publishedNav = nav.document || M.empty();
+      mutate(() => {
+        draft = copy(published); navDraft = copy(publishedNav);
+        if (!navDraft.navigation) navDraft.navigation = copy(baseline.baselineNavigation);
+      }, true);
+      navId = null; refresh();
+      message('已還原目前已發布的頁面與全站導覽至私人草稿；可復原，尚未儲存／發布。');
+    }));
+    $('nav-toggle').addEventListener('click', () => {
+      if (navOpen) hideNavigation(); else selectNavigation(navGroup);
     });
-    $('text').addEventListener('change', textSelection);
-    $('link').addEventListener('change', linkSelection);
-    $('node').addEventListener('change', nodeSelection);
-    $('text-apply').addEventListener('click', () => mutate(() => {
-      const id = selected('text'); if (!baseline.texts.has(id)) return;
-      draft.patches[id] = { ...draft.patches[id], text: $('text-value').value };
-      delete draft.patches[id].rich;
-    }));
-    $('link-apply').addEventListener('click', () => mutate(() => {
-      const id = selected('link'); if (!baseline.links.has(id)) return;
-      draft.patches[id] = { ...draft.patches[id], href: $('link-value').value };
-    }));
+    $('nav-close').addEventListener('click', hideNavigation);
+    for (const group of ['main', 'more']) $('nav-' + group).addEventListener('click', () => selectNavigation(group));
+    $('nav-add').addEventListener('click', () => selectNavigation(navGroup, ''));
+    navigation?.addEventListener('click', event => {
+      if (!admin || !visual) return;
+      const anchor = event.target.closest('a');
+      if (!anchor) return;
+      const group = anchor.parentElement === navRoot('main') ? 'main'
+        : anchor.parentElement === navRoot('more') ? 'more' : null;
+      if (!group) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (busy) return;
+      const anchors = Array.from(navRoot(group).querySelectorAll(':scope > a')).filter(node => !node.hidden);
+      const item = navDraft?.navigation[group][anchors.indexOf(anchor)];
+      if (item) selectNavigation(group, item.id);
+    }, true);
+    $('nav-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (inline?.flush() === false || navId === null) return;
+      let id = navId;
+      if (mutate(() => {
+        if (!id) id = `nav-${global.crypto.randomUUID()}`;
+        const list = navDraft.navigation[navGroup], index = list.findIndex(entry => entry.id === id);
+        const item = { id, label: $('nav-label').value, url: $('nav-url').value };
+        if (index < 0) list.push(item); else list[index] = item;
+      })) { navId = id; refreshNavigation(); }
+    });
     for (const [name, direction] of [['up', -1], ['down', 1]]) {
-      $('node-' + name).addEventListener('click', () => mutate(() => {
-        const id = selected('node'), parent = baseline.nodes.get(id)?.parent;
-        if (!parent || !baseline.nodes.get(id).movable) return;
-        const order = draft.orders[parent] || [...baseline.parents.get(parent).ids];
-        move(order, id, direction); draft.orders[parent] = order;
-      }));
-      $('block-' + name).addEventListener('click', () => {
-        mutate(() => move(draft.blocks, selected('block'), direction)); refresh();
-      });
       $('nav-' + name).addEventListener('click', () => {
-        const id = selected('nav-item');
-        mutate(() => move(navDraft.navigation[selected('nav-group')], id, direction)); refreshNav(id);
+        if (inline?.flush() === false) return;
+        mutate(() => move(navDraft.navigation[navGroup], navId, direction));
       });
     }
-    $('node-delete').addEventListener('click', () => {
-      mutate(() => {
-        const id = selected('node'); if (!baseline.nodes.get(id)?.deletable) return;
-        draft.patches[id] = { ...draft.patches[id], deleted: !draft.patches[id]?.deleted };
-      }); nodeSelection();
-    });
-    $('block').addEventListener('change', blockSelection);
-    $('parent').addEventListener('change', () => beforeSelection());
-    $('block-apply').addEventListener('click', () => {
-      let id = selected('block');
-      mutate(() => {
-        if (!id) id = `block-${global.crypto.randomUUID()}`;
-        const block = { ...draft.blocks.find(item => item.id === id), id, parent: selected('parent'), before: selected('before') };
-        if (block.body !== $('block-body').value) delete block.rich;
-        for (const field of ['title', 'body', 'url', 'label']) block[field] = $('block-' + field).value;
-        const index = draft.blocks.findIndex(item => item.id === id);
-        if (index < 0) draft.blocks.push(block); else draft.blocks[index] = block;
-      });
-      refresh(); $('block').value = id; blockSelection();
-    });
-    $('block-delete').addEventListener('click', () => { mutate(() => {
-      draft.blocks = draft.blocks.filter(item => item.id !== selected('block'));
-    }); refresh(); });
-    $('nav-group').addEventListener('change', () => refreshNav(''));
-    $('nav-item').addEventListener('change', navSelection);
-    $('nav-apply').addEventListener('click', () => {
-      let id = selected('nav-item');
-      mutate(() => {
-        if (!id) id = `nav-${global.crypto.randomUUID()}`;
-        const list = navDraft.navigation[selected('nav-group')];
-        const item = { id, label: $('nav-label').value, url: $('nav-url').value };
-        const index = list.findIndex(entry => entry.id === id);
-        if (index < 0) list.push(item); else list[index] = item;
-      }); refreshNav(id);
-    });
     $('nav-delete').addEventListener('click', () => {
-      mutate(() => {
-        navDraft.navigation[selected('nav-group')] = navDraft.navigation[selected('nav-group')].filter(item => item.id !== selected('nav-item'));
-      }); refreshNav('');
+      if (inline?.flush() === false) return;
+      if (!global.confirm('從全站導覽草稿刪除此項目？可復原；不會刪除實體頁面。')) return;
+      if (mutate(() => {
+        navDraft.navigation[navGroup] = navDraft.navigation[navGroup].filter(item => item.id !== navId);
+      })) { navId = null; $('nav-label').value = ''; $('nav-url').value = ''; refreshNavigation(); }
     });
+    $('nav').addEventListener('keydown', event => {
+      if (event.key === 'Escape') { hideNavigation(); $('nav-toggle').focus(); }
+    });
+    global.addEventListener('resize', positionNavigation);
+    global.addEventListener('scroll', positionNavigation, { passive: true });
     global.addEventListener('beforeunload', event => {
       if (admin && dirty) { event.preventDefault(); event.returnValue = ''; }
     });

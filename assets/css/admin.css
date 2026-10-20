@@ -1930,6 +1930,7 @@ html[data-theme="dark"] .admin-body .content-switch-track::after { background: v
   --fc-neutral-text-color: var(--text-muted);
   --fc-today-bg-color: var(--accent-soft);
   --fc-button-bg-color: var(--button-bg);
+  --fc-button-text-color: var(--button-text);
   --fc-button-border-color: var(--button-bg);
   --fc-button-hover-bg-color: var(--button-hover);
   --fc-button-hover-border-color: var(--button-hover);

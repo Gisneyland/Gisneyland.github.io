@@ -1,11 +1,13 @@
 (function (global) {
   'use strict';
   const SOURCE_TYPES = new Set(['table', 'code', 'math', 'music', 'mermaid', 'markdown']);
-  const MEDIA_TYPES = new Set(['image', 'audio', 'video']);
+  const MEDIA_TYPES = new Set(['image', 'audio', 'video', 'logo']);
+  const VISUAL_TYPES = new Set(['button', 'icon', 'logo', 'image']);
   const STYLES = ['p', 'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol'];
   const TYPES = [
     ['paragraph', 'notes', '文字'], ['card', 'view_agenda', '卡片'],
     ['image', 'image', '圖片'], ['audio', 'audiotrack', '音訊'], ['video', 'videocam', '影片'],
+    ['button', 'smart_button', '按鈕'], ['icon', 'emoji_symbols', '圖示／符號'], ['logo', 'branding_watermark', '標誌圖片'],
     ['table', 'table_chart', '表格'], ['code', 'code', '程式碼'], ['math', 'functions', '數學'],
     ['music', 'music_note', '樂譜'], ['mermaid', 'account_tree', '流程圖'], ['markdown', 'description', 'Markdown']
   ];
@@ -59,7 +61,8 @@
       let current = target.nodeType === 1 ? target : target.parentElement;
       while (current && root.contains(current)) {
         for (const [id, item] of baseline.nodes) {
-          if (item.element === current && /^(MAIN|SECTION|DIV|ARTICLE|P|H[1-6]|BLOCKQUOTE|UL|OL|LI|FIGURE|IMG|AUDIO|VIDEO|PRE|TABLE)$/.test(current.tagName)) {
+          if (item.element === current && (baseline.components?.has(id)
+            || /^(MAIN|SECTION|DIV|ARTICLE|P|H[1-6]|BLOCKQUOTE|UL|OL|LI|FIGURE|IMG|AUDIO|VIDEO|PRE|TABLE)$/.test(current.tagName))) {
             return { ...item, id, added: false };
           }
         }
@@ -88,6 +91,7 @@
       const block = item.added && getDraft().blocks.find(value => value.id === item.id);
       tools.querySelector('[data-source]').hidden = !block || !SOURCE_TYPES.has(block.type);
       tools.querySelector('[data-media]').hidden = !block || !MEDIA_TYPES.has(block.type);
+      tools.querySelector('[data-properties]').hidden = item.added ? !block || !VISUAL_TYPES.has(block.type) : !baseline.components?.has(item.id);
     }
     function recordFor(node) {
       if (!node) return null;
@@ -207,7 +211,7 @@
         } else if (text.node.parentNode === text.element && root.contains(text.element)
           && !text.element.closest('[contenteditable],.material-icons,[aria-hidden="true"]')
           && !(baseline.PROTECTED && text.element.closest(baseline.PROTECTED))
-          && !text.element.closest('script,style,form,button,input,textarea,select,[data-site-editor-protected]')) {
+          && !text.element.closest('script,style,form,button:not([data-site-editor-static="true"]),input,textarea,select,[data-site-editor-protected]')) {
           const wrapper = element('span'); wrapper.dataset.siteEditorText = id;
           wrapper.textContent = text.node.nodeValue; text.node.replaceWith(wrapper);
           editable(wrapper, id, { style: getDraft().patches[id]?.style }, text.node);
@@ -225,7 +229,8 @@
         cleanups.push(() => { if (oldTab === null) node.removeAttribute('tabindex'); else node.setAttribute('tabindex', oldTab); });
       }
       for (const item of baseline.nodes.values()) {
-        if (!/^(IMG|VIDEO|AUDIO|TABLE|PRE)$/.test(item.element.tagName)) continue;
+        if (!/^(IMG|VIDEO|AUDIO|TABLE|PRE)$/.test(item.element.tagName)
+          && !Array.from(baseline.components?.values() || []).some(visual => visual.element === item.element)) continue;
         const node = item.element, oldTab = node.getAttribute('tabindex'); node.setAttribute('tabindex', '0');
         cleanups.push(() => { if (oldTab === null) node.removeAttribute('tabindex'); else node.setAttribute('tabindex', oldTab); });
       }
@@ -334,6 +339,7 @@
       if (!commit(draft => { draft.blocks.push(block); orderDraft(draft, parent, ids); })) return false;
       menu.hidden = true; reselect(id, true);
       if (SOURCE_TYPES.has(type)) sourceEditor();
+      else if (VISUAL_TYPES.has(type) && !MEDIA_TYPES.has(type)) componentEditor();
       return true;
     }
     function savedSelection() {
@@ -461,7 +467,7 @@
       pane.append(library);
       button(pane, 'photo_library', '開啟媒體庫網址', () => { library.hidden = false; library.focus(); });
       const file = element('input'); file.type = 'file'; file.hidden = true;
-      file.accept = kind === 'image' ? 'image/png,image/jpeg,image/webp,image/gif'
+      file.accept = ['image', 'logo'].includes(kind) ? 'image/png,image/jpeg,image/webp,image/gif'
         : kind === 'audio' ? 'audio/mpeg,audio/ogg,audio/wav' : 'video/mp4,video/webm';
       file.setAttribute('aria-label', '選擇本機媒體'); pane.append(file);
       const upload = button(pane, 'upload_file', uploadMedia ? '上傳本機媒體（上傳後即公開）'
@@ -496,6 +502,66 @@
         closeDialog();
       });
       input.focus();
+    }
+    function componentEditor() {
+      if (!flush()) return;
+      const item = selectedNow();
+      if (!item) return;
+      const block = item.added && getDraft().blocks.find(value => value.id === item.id);
+      const visual = !item.added && baseline.components?.get(item.id);
+      const kind = block?.type || visual?.type;
+      if (!VISUAL_TYPES.has(kind)) return;
+      const patch = getDraft().patches[item.id] || {};
+      const linked = !block && kind !== 'button' && visual?.element.closest('a[href]');
+      const linkedEntry = linked && Array.from(baseline.links).find(([, value]) => value.element === linked);
+      const pane = makeDialog('元件屬性');
+      const fields = {};
+      function field(name, title, value, options) {
+        const label = element('label', '', title);
+        const input = element(options ? 'select' : 'input');
+        if (options) for (const option of options) input.append(new global.Option(option, option));
+        else input.maxLength = name === 'url' || name === 'src' || name === 'href' ? 2048 : name === 'icon' ? 64 : 300;
+        input.value = value; input.setAttribute('aria-label', title);
+        label.append(input); pane.append(label); fields[name] = input;
+      }
+      if (['image', 'logo'].includes(kind)) {
+        field(block ? 'url' : 'src', '圖片網址', block ? block.url : patch.src ?? visual.element.getAttribute('src') ?? '');
+        field('alt', '替代文字', block ? block.alt ?? block.title : patch.alt ?? visual.element.getAttribute('alt') ?? '');
+      }
+      if (kind === 'icon') field('icon', 'Material 圖示名稱', block ? block.icon || 'star' : patch.icon ?? visual.element.textContent.trim());
+      if (linkedEntry) field('href', '連結網址', getDraft().patches[linkedEntry[0]]?.href ?? linked.getAttribute('href'));
+      if (block && (kind === 'icon' || kind === 'button')) field('label', kind === 'icon' ? '圖示說明' : '按鈕文字', block.label);
+      if (kind === 'button') {
+        if (block || visual.element.tagName === 'A') field(block ? 'url' : 'href', '連結網址', block ? block.url : patch.href ?? visual.element.getAttribute('href') ?? '');
+        if (block) field('icon', 'Material 圖示名稱（可留空）', block.icon || '');
+        field('variant', '按鈕樣式', (block || patch).variant || 'primary', global.SiteEditorModel.VARIANTS);
+      }
+      pane.append(element('p', '', '僅支援安全網址、Material 圖示名稱與預設按鈕樣式；不接受 HTML、SVG 或任意 CSS。功能按鈕、表單與動態工具由程式管理，不能移除。'));
+      button(pane, 'check', '套用元件屬性', () => {
+        const values = Object.fromEntries(Object.entries(fields).map(([name, input]) => [name, input.value]));
+        function apply(draft) {
+          if (block) {
+            const target = draft.blocks.find(value => value.id === item.id);
+            if (!target) return;
+            Object.assign(target, values);
+            if (kind === 'button' && !values.icon) delete target.icon;
+          } else {
+            const own = { ...values };
+            if (linkedEntry) {
+              draft.patches[linkedEntry[0]] = { ...draft.patches[linkedEntry[0]], href: own.href };
+              delete own.href;
+            }
+            draft.patches[item.id] = { ...draft.patches[item.id], ...own };
+          }
+        }
+        try {
+          const candidate = JSON.parse(JSON.stringify(getDraft())); apply(candidate);
+          global.SiteEditorModel.normalize(candidate);
+        } catch (error) { notify(error.message); return; }
+        if (!commit(apply)) return;
+        closeDialog(); reselect(item.id, true);
+      });
+      pane.querySelector('input,select')?.focus();
     }
     function buildUI() {
       ui = element('div', 'site-editor-inline-root');
@@ -544,6 +610,7 @@
       });
       button(tools, 'edit_note', '編輯原始內容／表格', sourceEditor).dataset.source = '';
       button(tools, 'photo_library', '更換媒體網址', () => mediaEditor()).dataset.media = '';
+      button(tools, 'tune', '編輯元件屬性', componentEditor).dataset.properties = '';
       button(tools, 'delete_outline', '刪除元件', () => {
         if (global.confirm('刪除此元件？尚未儲存或發布。')) removeSelected();
       }).dataset.delete = '';

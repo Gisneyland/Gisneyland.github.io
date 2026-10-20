@@ -149,11 +149,18 @@
       for (const group of ['main', 'more']) {
         if (!Array.isArray(value.navigation[group]) || value.navigation[group].length > 30) throw new Error('導覽項目過多');
         result.navigation[group] = value.navigation[group].map(item => {
-          keys(item, ['id', 'label', 'url']);
+          keys(item, ['id', 'label', 'url', 'icon', 'src', 'alt']);
           key(item.id);
           if (navIds.has(item.id)) throw new Error('導覽識別碼重複');
           navIds.add(item.id);
-          return { id: item.id, label: text(item.label, 100), url: link(item.url) };
+          const safe = { id: item.id, label: text(item.label, 100), url: link(item.url) };
+          if ('icon' in item) safe.icon = item.icon === '' ? '' : icon(item.icon);
+          if ('src' in item) {
+            if (item.src !== '' && !safeMediaURL(item.src)) throw new Error('導覽圖片網址僅限站內路徑或 HTTP(S)');
+            safe.src = item.src;
+          }
+          if ('alt' in item) safe.alt = text(item.alt, 300);
+          return safe;
         });
       }
     }

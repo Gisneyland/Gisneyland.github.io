@@ -1,5 +1,6 @@
 #site-editor[hidden], #site-editor-button[hidden] { display: none !important; }
 #site-editor-preview-toolbar[hidden] { display: none !important; }
+#site-editor-nav[hidden], #site-editor-nav-toggle[hidden], #site-editor-nav-form[hidden] { display: none !important; }
 #main-content [data-site-editor-deleted], .site-navigation a[data-site-editor-deleted] { display: none !important; }
 .site-editor {
   position: fixed; z-index: 10050; inset: auto 16px 85px auto; width: min(340px, calc(100vw - 32px));
@@ -88,9 +89,58 @@ body.site-editor-editing .site-editor-mode-status:not(:empty) {
 .site-editor-content-block pre { overflow-x: auto; padding: 16px; background: #f1f5f9; color: #172b3a; border-radius: 8px; white-space: pre-wrap; }
 .site-editor-content-block table { display: block; overflow-x: auto; width: 100%; border-collapse: collapse; }
 .site-editor-content-block td, .site-editor-content-block th { padding: 8px; border: 1px solid #b0c3cf; }
+.site-editor-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  box-sizing: border-box; max-width: 100%; min-height: 44px; height: auto; padding: 10px 16px;
+  border: 1px solid transparent; border-radius: 6px; font: inherit; line-height: 1.4;
+  text-decoration: none; text-transform: none; white-space: normal; cursor: pointer;
+}
+.site-editor-button.site-editor-variant-primary {
+  color: var(--button-text, #fff) !important; background: var(--button-bg, #206da0) !important;
+  border-color: var(--button-bg, #206da0);
+}
+.site-editor-button.site-editor-variant-secondary {
+  color: var(--text, #172b3a) !important; background: var(--surface-muted, #edf4fa) !important;
+  border-color: var(--border, #9cafbd);
+}
+.site-editor-button.site-editor-variant-outline {
+  color: var(--accent-strong, #206da0) !important; background: transparent !important;
+  border-color: var(--accent-strong, #206da0);
+}
+.site-editor-button.site-editor-variant-text {
+  color: var(--accent-strong, #206da0) !important; background: transparent !important;
+  border-color: transparent; box-shadow: none;
+}
+.site-editor-button:hover { text-decoration: underline; }
+.site-editor-button:focus-visible { outline: 3px solid var(--accent-strong, #206da0); outline-offset: 3px; }
+.site-editor-button .material-icons { font-size: 1.25em; }
+.site-editor-icon { font-size: 2rem; vertical-align: middle; }
+.site-editor-logo, .site-editor-content-block .site-editor-logo {
+  display: inline-block; max-width: min(240px, 100%); max-height: 120px; height: auto; object-fit: contain;
+}
+.site-editor.site-editor-command-bar {
+  inset: 64px 12px auto auto; width: min(440px, calc(100vw - 24px)); max-height: 36vh;
+  padding: 8px; overflow-y: auto;
+}
+.site-editor-command-bar select { min-height: 32px; }
+.site-editor-command-bar .site-editor-actions { flex-wrap: wrap; gap: 1px; }
+.site-editor-command-bar .site-editor-actions button { flex: 0 1 auto; padding: 5px 7px; margin: 2px; }
+.site-editor-command-bar .site-editor-hint { font-size: 12px; margin: 3px; }
+.site-editor-command-bar #site-editor-status { margin: 3px; padding: 3px; font-size: 12px; }
+.site-editor-nav { position: fixed; left: 50%; transform: translateX(-50%); width: min(360px, calc(100vw - 16px)); max-height: 55vh; overflow-y: auto; }
+.site-editor-nav-toggle { position: fixed; right: 12px; cursor: pointer; }
+.site-editor-nav-actions { display: flex; flex-wrap: wrap; align-items: center; }
+.site-editor-nav p { font-size: 13px; margin: 4px; }
+.site-editor-nav label { display: block; margin: 4px; }
+.site-editor-nav-selected { outline: 3px solid #2478b0 !important; outline-offset: -3px; }
+body.site-editor-editing .site-navigation a { cursor: pointer; }
+body.site-editor-editing .site-navigation { z-index: 10055; }
+body.site-editor-editing .bottom-nav > .desktop-services-link,
+body.site-editor-editing .navigation-more-menu > .navigation-more-mobile-link { display: flex; }
 @media (max-width: 600px) {
   .site-editor { right: 8px; bottom: 80px; width: min(320px, calc(100vw - 16px)); max-height: 45vh; }
   .site-editor-mode-actions { gap: 0; }
   .site-editor-mode-actions .utility-button { width: 32px; min-width: 32px; padding: 3px; }
   body.site-editor-editing .site-editor-mode-status { bottom: 68px; font-size: 12px; max-width: calc(100vw - 24px); }
+  .site-editor.site-editor-command-bar { top: 64px; right: 8px; width: calc(100vw - 16px); }
 }

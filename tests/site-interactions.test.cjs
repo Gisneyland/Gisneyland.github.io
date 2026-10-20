@@ -106,7 +106,7 @@ test('site initialization and permission-gated admin interactions', {
     function query(table) {
       const result = {};
       for (const method of ['select', 'eq', 'order', 'range', 'limit', 'is', 'not']) result[method] = () => result;
-      result.maybeSingle = async () => ({ data: profile, error: null });
+      result.maybeSingle = async () => ({ data: table.startsWith('site_editor_') ? null : profile, error: null });
       result.then = resolve => resolve({ data: table === 'admin_profiles' ? [profile] : [], error: null });
       return result;
     }
@@ -206,6 +206,67 @@ test('site initialization and permission-gated admin interactions', {
     assert.equal(await evaluate('new URL(document.querySelector(".navigation-more-mobile-link").href).pathname'), '/services/');
     assert.notEqual(await evaluate('getComputedStyle(document.querySelector(".navigation-more-mobile-link")).display'), 'none');
     await send('Emulation.clearDeviceMetricsOverride');
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('visual navigation editing stays open with production navbar interactions', async () => {
+    await open('/', 'administrator');
+    await waitFor('document.getElementById("site-editor-button").hidden === false');
+    await click('#site-editor-button');
+    await waitFor('document.body.classList.contains("site-editor-editing")');
+    assert.equal(await evaluate(`!document.getElementById('site-editor-settings')
+      &&!document.getElementById('site-editor-text')&&!document.getElementById('site-editor-node')
+      &&document.querySelector('.site-navigation').contains(document.getElementById('site-editor-nav'))`), true);
+    await click('#site-editor-nav-toggle');
+    await click('#site-editor-nav-more');
+    await click('#site-editor-nav-add');
+    assert.equal(await hidden('navigation-more-menu'), false);
+    await evaluate(`document.getElementById('site-editor-nav-label').value='Visual more link';
+      document.getElementById('site-editor-nav-url').value='/contact/'`);
+    await click('#site-editor-nav-apply');
+    assert.equal(await hidden('navigation-more-menu'), false);
+    assert.equal(await evaluate(`Array.from(document.querySelectorAll('#navigation-more-menu > a')).some(a=>a.textContent==='Visual more link')`), true);
+    await click('#navigation-more-menu > a');
+    assert.equal(await evaluate(`location.pathname==='/'&&!document.getElementById('site-editor-nav-form').hidden
+      &&!document.getElementById('navigation-more-menu').hidden`), true);
+    await click('#site-editor-nav-close');
+    assert.equal(await hidden('site-editor-nav'), true);
+    assert.equal(await hidden('navigation-more-menu'), true);
+    await click('#site-editor-close');
+    assert.equal(await evaluate(`!document.body.classList.contains('site-editor-editing')
+      &&document.getElementById('site-editor').hidden&&document.getElementById('site-editor-nav-toggle').hidden`), true);
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('visual button variants override legacy styles and icons and logos have bounded sizing', async () => {
+    await open('/', 'anonymous');
+    const styles = await evaluate(`(() => {
+      const container=document.createElement('div');container.className='site-editor-content-block';
+      document.getElementById('main-content').append(container);
+      const values={};
+      for(const variant of ['primary','secondary','outline','text']){
+        const node=document.createElement('a');node.className='btn site-editor-button site-editor-variant-'+variant;
+        node.href='/';node.textContent=variant;container.append(node);
+        const style=getComputedStyle(node);values[variant]={background:style.backgroundColor,color:style.color,
+          display:style.display,minHeight:style.minHeight,border:style.borderTopColor};
+      }
+      const icon=document.createElement('span');icon.className='material-icons site-editor-icon';icon.textContent='star';container.append(icon);
+      const logo=document.createElement('img');logo.className='site-editor-logo';container.append(logo);
+      values.iconSize=getComputedStyle(icon).fontSize;values.logoHeight=getComputedStyle(logo).maxHeight;
+      container.remove();return values;
+    })()`);
+    for (const variant of ['primary', 'secondary', 'outline', 'text']) {
+      assert.equal(styles[variant].display, 'inline-flex');
+      assert.equal(styles[variant].minHeight, '44px');
+    }
+    assert.notEqual(styles.primary.background, styles.secondary.background);
+    assert.notEqual(styles.primary.color, styles.secondary.color);
+    assert.equal(styles.outline.background, 'rgba(0, 0, 0, 0)');
+    assert.equal(styles.outline.border, styles.outline.color);
+    assert.equal(styles.text.background, 'rgba(0, 0, 0, 0)');
+    assert.equal(styles.text.border, 'rgba(0, 0, 0, 0)');
+    assert.ok(parseFloat(styles.iconSize) >= 30);
+    assert.equal(styles.logoHeight, '120px');
     assert.deepEqual(errors, []);
   });
 
