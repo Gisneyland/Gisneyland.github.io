@@ -108,3 +108,5 @@ values ('YOUR_AUTH_USER_UUID', 'YOUR_ASSIGNED_SCREENER_NUMBER');
 - 前台活動詳情及 ICS 共用活動時間、座標與營業例外；缺少政府日曆年份會提示假日可能不完整。
 
 測試：`node --test tests/calendar-model.test.cjs tests/environment-feeds.test.cjs`。SQL 的實際套用與線上權限仍需在 Supabase 驗證；本機瀏覽器寫入測試使用記憶體替身，未修改真實活動或營業資料。
+
+所有單元測試可執行 `node --test tests/*.test.cjs`。按鈕與後台初始化的瀏覽器回歸測試使用 Node.js 22+ 與本機 Chromium：先執行 `bundle exec jekyll build`，再執行 `CHROMIUM_BIN=/usr/bin/chromium node --test tests/*.test.cjs`（請依環境調整 Chromium 路徑）。未設定 `CHROMIUM_BIN` 時會略過瀏覽器測試。測試使用替身帳號並封鎖外部服務，不會存取或修改正式 Supabase 資料。

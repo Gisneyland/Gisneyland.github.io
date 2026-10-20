@@ -11,12 +11,8 @@ const maxScreeningPhotoBytes = 2_500_000;
 document.addEventListener('DOMContentLoaded', function() {
   initializeAmbientRainbow();
   initializeQuestionnaireFields();
-  // initializeStaffSessionIndicator - 暫時註解，等後台登入狀態正常化後再啟用
-  // const staffSessionReady = initializeStaffSessionIndicator();
-  
-  // 初始化更多/會員按鈕
-  initializeNavigationMoreButton();
-  
+  const staffSessionReady = initializeStaffSessionIndicator();
+
   initializeSiteNavigation();
 
   // 初始化 Materialize 元件
@@ -95,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const questionnaireForm = document.getElementById('questionnaire-form');
   if (questionnaireForm) {
     const screenerNumberReady = initializeScreenerNumber(questionnaireForm, staffSessionReady);
+    applyPreferredScreeningPlace(staffSessionReady);
     initializeQuestionnaire(questionnaireForm);
     initializeAnonymousConsult(questionnaireForm);
     questionnaireForm.addEventListener('submit', async function(event) {
@@ -356,12 +353,11 @@ function initializeQuestionnaireFields() {
   initializeLocationPickers(taiwanAdminLocations);
   initializeNationalityPicker();
   initializeScreeningDate();
-  
-  // 初始化篩檢地點選擇器（使用默認值）
-  const screeningPlaceSelect = document.getElementById('screening_place');
-  if (screeningPlaceSelect) {
-    screeningPlaceSelect.value = taiwanAdminLocations[0]; // 預設第一個城市
-  }
+  initializeScreeningPlace();
+  const resetReferralAddressPicker = initializeScreeningPlace('hiv_positive_address', 'hiv-positive-address', 'hiv-positive-address-locate-button');
+  const resetReferralContacts = initializeReferralContacts();
+  initializeScreeningInterpretation(resetReferralAddressPicker, resetReferralContacts);
+  initializeScreeningPhotos();
 }
 
 function initializeScreeningDate() {
@@ -2399,4 +2395,3 @@ function applyGoogleTranslation(language, attempts = 20, menuOpened = false) {
     window.setTimeout(() => applyGoogleTranslation(language, attempts - 1, menuOpened), 250);
   }
 }
-

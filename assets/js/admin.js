@@ -217,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let screeningOutlookPending = false;
   let screeningPlanEditable = false;
   let screeningPlanRuleSequence = 0;
+  const weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
   const pageSize = 25;
 
   let screeningPlanPlaces = [];
