@@ -30,6 +30,74 @@
   content: none;
 }
 
+html[data-theme="dark"] .admin-body {
+  --page-bg: #17202b;
+  --surface: #202c3a;
+  --surface-muted: #2b3949;
+  --text: #f4f1ea;
+  --text-muted: #c5ced8;
+  --border: #526274;
+  --accent: #f08baa;
+  --accent-strong: #ffc0d0;
+  --accent-soft: #553445;
+  --focus: #ffd166;
+  --button-bg: #84d1c5;
+  --button-text: #17202b;
+  --button-hover: #a8e5dc;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+html[data-theme="dark"] .admin-body :is(
+  .screening-plan-advice-item[data-tone="warning"],
+  .consultation-code-badge.is-pending,
+  .site-content-calendar .fc-event.solar-term-event
+) {
+  color: #ffe0a0;
+  background: #4a3920;
+  border-color: #a8864e;
+}
+
+html[data-theme="dark"] .admin-body :is(
+  .screening-plan-advice-item[data-tone="danger"],
+  .admin-status.error
+) {
+  color: #ffb8bf;
+  background: #502d38;
+}
+
+html[data-theme="dark"] .admin-body :is(
+  .consultation-code-badge.is-complete,
+  .calendar-stream-event.opening-hours-event,
+  .site-content-calendar.fc .fc-list-event.opening-hours-event
+) {
+  color: #b7e9c8;
+  background: #243e35;
+  border-color: #6fa47c;
+}
+
+html[data-theme="dark"] .admin-table tbody tr.is-consultation-pending { background: #3b3224; }
+html[data-theme="dark"] .admin-table tbody tr.is-consultation-pending:hover { background: #4a3d28; }
+html[data-theme="dark"] .admin-table tbody tr.is-consultation-complete { background: #24382f; }
+html[data-theme="dark"] .admin-table tbody tr.is-consultation-complete:hover { background: #2d463b; }
+
+html[data-theme="dark"] .admin-body :is(
+  .calendar-disaster-unavailable,
+  .environment-alert-summary.is-unavailable,
+  .site-content-calendar-outlook-term,
+  .admin-calendar-solar-term
+) { color: #ffd19a; }
+
+html[data-theme="dark"] .admin-body :is(.content-delete-button, .staff-consent-missing) { color: #ffb8bf; }
+html[data-theme="dark"] .admin-body .staff-consent-ok { color: #b7e9c8; }
+html[data-theme="dark"] .admin-body .map-range-controls input[aria-invalid="true"] { border-color: #ffb8bf; }
+html[data-theme="dark"] .admin-body .calendar-past-overlay { background: rgba(12, 20, 30, 0.35); }
+html[data-theme="dark"] .admin-body .site-content-calendar.fc .fc-timegrid-event.is-past {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+html[data-theme="dark"] .admin-body .content-switch-track::after { background: var(--surface); }
+
 .admin-main {
   width: min(1180px, 100%);
   overflow-x: clip;

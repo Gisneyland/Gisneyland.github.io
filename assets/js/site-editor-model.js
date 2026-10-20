@@ -2,7 +2,8 @@
   'use strict';
   const MAX_TEXT = 12000;
   const STYLES = Object.freeze(['p', 'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol']);
-  const BLOCK_TYPES = Object.freeze(['paragraph', 'card', 'image', 'audio', 'video', 'table', 'code', 'math', 'music', 'mermaid', 'markdown']);
+  const BLOCK_TYPES = Object.freeze(['paragraph', 'card', 'image', 'audio', 'video', 'table', 'code', 'math', 'music', 'mermaid', 'markdown', 'button', 'icon', 'logo']);
+  const VARIANTS = Object.freeze(['primary', 'secondary', 'outline', 'text']);
   function administrator(profile) {
     return Boolean(profile && profile.account_role === 'administrator'
       && profile.approval_status === 'approved' && profile.privacy_consent_at);
@@ -75,18 +76,33 @@
     if (!STYLES.includes(value)) throw new Error('區塊樣式錯誤');
     return value;
   }
+  function icon(value) {
+    if (typeof value !== 'string' || !/^[a-z][a-z0-9_]{0,63}$/.test(value)) throw new Error('圖示須為 Material 圖示名稱（小寫英數與底線）');
+    return value;
+  }
+  function variant(value) {
+    if (!VARIANTS.includes(value)) throw new Error('按鈕樣式錯誤');
+    return value;
+  }
   function normalize(value) {
     keys(value, ['version', 'patches', 'orders', 'blocks', 'navigation']);
     if (value.version !== 1) throw new Error('內容版本不相容');
     const result = empty();
     if (!plain(value.patches) || Object.keys(value.patches).length > 2500) throw new Error('內容修改過多');
     for (const [id, patch] of Object.entries(value.patches)) {
-      key(id); keys(patch, ['text', 'href', 'deleted', 'rich', 'style']);
+      key(id); keys(patch, ['text', 'href', 'deleted', 'rich', 'style', 'src', 'alt', 'icon', 'variant']);
       const safe = {};
       if ('text' in patch) safe.text = text(patch.text);
       if ('href' in patch) safe.href = link(patch.href);
       if ('rich' in patch) safe.rich = runs(patch.rich);
       if ('style' in patch) safe.style = style(patch.style);
+      if ('src' in patch) {
+        if (!safeMediaURL(patch.src)) throw new Error('圖片網址僅限站內路徑或 HTTP(S)');
+        safe.src = patch.src;
+      }
+      if ('alt' in patch) safe.alt = text(patch.alt, 300);
+      if ('icon' in patch) safe.icon = icon(patch.icon);
+      if ('variant' in patch) safe.variant = variant(patch.variant);
       if ('deleted' in patch) {
         if (typeof patch.deleted !== 'boolean') throw new Error('刪除標記錯誤');
         safe.deleted = patch.deleted;
@@ -102,7 +118,7 @@
     if (!Array.isArray(value.blocks) || value.blocks.length > 200) throw new Error('新增區塊過多');
     const ids = new Set();
     result.blocks = value.blocks.map(block => {
-      keys(block, ['id', 'parent', 'before', 'title', 'body', 'url', 'label', 'type', 'rich', 'style', 'language']);
+      keys(block, ['id', 'parent', 'before', 'title', 'body', 'url', 'label', 'type', 'rich', 'style', 'language', 'alt', 'icon', 'variant']);
       key(block.id); key(block.parent);
       if (ids.has(block.id)) throw new Error('區塊識別碼重複');
       ids.add(block.id);
@@ -116,7 +132,10 @@
       if ('rich' in block) safe.rich = runs(block.rich);
       if ('style' in block) safe.style = style(block.style);
       if ('language' in block) safe.language = text(block.language, 40);
-      if (['image', 'audio', 'video'].includes(block.type) && safe.url && !safeMediaURL(safe.url)) throw new Error('媒體網址僅限站內路徑或 HTTP(S)');
+      if ('alt' in block) safe.alt = text(block.alt, 300);
+      if ('icon' in block) safe.icon = icon(block.icon);
+      if ('variant' in block) safe.variant = variant(block.variant);
+      if (['image', 'audio', 'video', 'logo'].includes(block.type) && safe.url && !safeMediaURL(safe.url)) throw new Error('媒體網址僅限站內路徑或 HTTP(S)');
       if (block.type === 'table') {
         const rows = safe.body.split('\n');
         if (rows.length > 100 || rows.some(row => row.split('\t').length > 30)) throw new Error('表格最多 100 列、30 欄');
@@ -146,5 +165,5 @@
     for (let i = 0; i < value.length; i += 1) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
     return (hash >>> 0).toString(36);
   }
-  global.SiteEditorModel = Object.freeze({ administrator, safeURL, safeMediaURL, publicPage, empty, normalize, fingerprint, runs, STYLES, BLOCK_TYPES });
+  global.SiteEditorModel = Object.freeze({ administrator, safeURL, safeMediaURL, publicPage, empty, normalize, fingerprint, runs, icon, VARIANTS, STYLES, BLOCK_TYPES });
 })(globalThis);
