@@ -11,13 +11,15 @@
     const nodes = new Map(), texts = new Map(), links = new Map(), parents = new Map();
     const attributes = new Map(), added = [], navAdded = [], touched = new Set(), touchedTexts = new Set(), reordered = new Set();
     const replacedTextParents = new Map(), navEntries = new Map();
+    const textWrappers = new Map();
     let navChanged = false;
     const baselineNavigation = { main: [], more: [] }, navRoots = {};
     const navOriginal = {};
     function remember(element) {
       if (!attributes.has(element)) attributes.set(element, {
         hidden: element.hidden, href: element.getAttribute('href'),
-        i18n: element.getAttribute('data-i18n'), translate: element.getAttribute('translate')
+        i18n: element.getAttribute('data-i18n'), translate: element.getAttribute('translate'),
+        style: element.getAttribute('style'), format: element.getAttribute('data-site-editor-style')
       });
     }
     function walk(element, path) {
@@ -73,6 +75,8 @@
     function restore() {
       added.splice(0).forEach(node => node.remove());
       navAdded.splice(0).forEach(node => node.remove());
+      for (const [id, wrapper] of textWrappers) wrapper.replaceWith(texts.get(id).node);
+      textWrappers.clear();
       for (const id of reordered) {
         const { element, childNodes } = parents.get(id);
         childNodes.forEach(child => element.append(child));
@@ -88,7 +92,10 @@
         const attrs = attributes.get(element);
         element.hidden = attrs.hidden;
         element.removeAttribute('data-site-editor-deleted');
-        for (const [name, value] of [['href', attrs.href], ['data-i18n', attrs.i18n], ['translate', attrs.translate]]) {
+        for (const [name, value] of [['href', attrs.href], ['data-i18n', attrs.i18n], ['translate', attrs.translate],
+          ['style', attrs.style], ['data-site-editor-style', attrs.format]]) {
+          // Flush pending CSSOM serialization before removing an originally absent style.
+          if (name === 'style') element.getAttribute(name);
           if (value === null) element.removeAttribute(name); else element.setAttribute(name, value);
         }
       }
@@ -112,7 +119,7 @@
       restore();
       for (const [id, patch] of Object.entries(doc.patches)) {
         const target = texts.get(id);
-        if (target && 'text' in patch) {
+        if (target && ('text' in patch || 'rich' in patch || 'style' in patch)) {
           if (target.node.parentNode !== target.element) {
             const originalParent = Array.from(parents.values()).find(item => item.element === target.element);
             if (!originalParent || target.element.querySelector(PROTECTED)) continue;
@@ -120,7 +127,13 @@
             target.element.replaceChildren(...originalParent.childNodes);
           }
           touchedTexts.add(id);
-          target.node.nodeValue = patch.text;
+          const wrapper = document.createElement('span');
+          wrapper.setAttribute('data-site-editor-text', id);
+          if ('rich' in patch && global.SiteEditorRich) wrapper.append(global.SiteEditorRich.renderRuns(patch.rich));
+          else wrapper.textContent = 'rich' in patch ? patch.rich.map(run => run.text).join('') : ('text' in patch ? patch.text : target.original);
+          if (patch.style && global.SiteEditorRich) global.SiteEditorRich.applyStyle(wrapper, patch.style);
+          target.node.replaceWith(wrapper);
+          textWrappers.set(id, wrapper);
           // Original-language overrides should not be overwritten by runtime dictionaries.
           let ancestor = target.element;
           while (ancestor && main.contains(ancestor)) {
@@ -133,11 +146,16 @@
         if (links.has(id) && patch.href) {
           const element = links.get(id).element; touched.add(element); element.setAttribute('href', patch.href);
         }
+        if (nodes.has(id) && patch.style && global.SiteEditorRich) {
+          const element = nodes.get(id).element; touched.add(element);
+          global.SiteEditorRich.applyStyle(element, patch.style);
+        }
         if (nodes.has(id) && nodes.get(id).deletable && patch.deleted) {
           const element = nodes.get(id).element; touched.add(element); element.hidden = true;
           element.setAttribute('data-site-editor-deleted', '');
         }
       }
+      const wrappedNodes = new Map(Array.from(textWrappers, ([id, wrapper]) => [texts.get(id).node, wrapper]));
       for (const [parentId, order] of Object.entries(doc.orders)) {
         const parent = parents.get(parentId);
         if (!parent) continue;
@@ -146,19 +164,25 @@
         const ranked = order.filter(id => parent.ids.includes(id));
         const all = [...ranked, ...parent.ids.filter(id => !ranked.includes(id))].map(id => nodes.get(id).element);
         let slot = 0;
-        parent.childNodes.forEach(child => parent.element.append(parent.ids.some(id => nodes.get(id).element === child) ? all[slot++] : child));
+        parent.childNodes.forEach(child => parent.element.append(parent.ids.some(id => nodes.get(id).element === child) ? all[slot++] : wrappedNodes.get(child) || child));
       }
+      const newBlocks = new Map();
       for (const block of doc.blocks) {
         const parent = parents.get(block.parent);
         if (!parent || !['MAIN', 'DIV', 'SECTION', 'ARTICLE'].includes(parent.element.tagName)) continue;
-        const article = document.createElement('article');
+        const article = global.SiteEditorRich ? global.SiteEditorRich.render(block) : document.createElement('article');
+        article.setAttribute('data-site-editor-block', block.id);
         article.className = 'detail-card site-editor-content-block';
-        const heading = document.createElement('h3'); heading.textContent = block.title;
-        const body = document.createElement('p'); body.textContent = block.body;
-        article.append(heading, body);
-        if (block.url) {
-          const link = document.createElement('a'); link.textContent = block.label || '了解更多';
-          link.href = block.url; article.append(link);
+        if (!global.SiteEditorRich) {
+          const heading = document.createElement('h3'); heading.textContent = block.title;
+          const body = document.createElement('p'); body.textContent = block.body;
+          heading.setAttribute('data-site-editor-field', 'title');
+          body.setAttribute('data-site-editor-field', 'body');
+          article.append(heading, body);
+          if (block.url) {
+            const link = document.createElement('a'); link.textContent = block.label || '了解更多';
+            link.href = block.url; article.append(link);
+          }
         }
         const before = nodes.get(block.before);
         if (before?.movable && before.parent === block.parent && before.element.parentElement === parent.element) {
@@ -167,6 +191,38 @@
           parent.element.append(article);
         }
         added.push(article);
+        newBlocks.set(block.id, { block, article, parent });
+      }
+      // Added-block anchors may point forward in the document. Resolve their
+      // dependency first; cycles are ignored rather than moving original nodes.
+      const placed = new Set(), placing = new Set();
+      function placeAdded(id) {
+        if (placed.has(id)) return true;
+        if (placing.has(id)) return false;
+        const entry = newBlocks.get(id), before = newBlocks.get(entry.block.before);
+        if (!before || before.block.parent !== entry.block.parent) { placed.add(id); return true; }
+        placing.add(id);
+        const valid = placeAdded(before.block.id);
+        placing.delete(id); placed.add(id);
+        if (valid) entry.parent.element.insertBefore(entry.article, before.article);
+        return valid;
+      }
+      newBlocks.forEach((entry, id) => placeAdded(id));
+      for (const [parentId, order] of Object.entries(doc.orders)) {
+        const parent = parents.get(parentId);
+        if (!parent || !order.some(id => newBlocks.get(id)?.block.parent === parentId)) continue;
+        const blockIds = Array.from(newBlocks).filter(([, entry]) => entry.block.parent === parentId).map(([id]) => id);
+        const ranked = order.filter(id => parent.ids.includes(id) || blockIds.includes(id));
+        const all = [...ranked, ...parent.ids.filter(id => !ranked.includes(id)), ...blockIds.filter(id => !ranked.includes(id))];
+        // Original editable slots have already been ranked above. Only insert
+        // new articles around those slots; protected siblings are never moved.
+        all.forEach((id, index) => {
+          const entry = newBlocks.get(id);
+          if (!entry || entry.block.parent !== parentId) return;
+          const nextOriginal = all.slice(index + 1).find(next => parent.ids.includes(next));
+          const anchor = nextOriginal ? nodes.get(nextOriginal).element : null;
+          parent.element.insertBefore(entry.article, anchor);
+        });
       }
       const nav = navDocument.navigation;
       if (nav) for (const group of ['main', 'more']) {
