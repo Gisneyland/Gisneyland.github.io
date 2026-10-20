@@ -48,21 +48,32 @@
     });
   }
 
+  async function fetchJson(url, signal) {
+    const controller = new AbortController();
+    const abort = () => controller.abort(signal.reason);
+    signal?.addEventListener('abort', abort, { once: true });
+    const timer = setTimeout(() => controller.abort(), 6000);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw new Error('Place lookup unavailable');
+      return await response.json();
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+    }
+  }
+
   async function lookup(photonParams, nominatimParams, { signal } = {}) {
     let failed = false;
     for (const source of ['photon', 'nominatim']) {
       signal?.throwIfAborted();
       try {
         if (source === 'nominatim') await waitForNominatim(signal);
-        const timeout = AbortSignal.timeout(6000);
-        const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
         const reverse = photonParams.has('lat') && !photonParams.has('q');
         const url = source === 'photon'
           ? `https://photon.komoot.io/${reverse ? 'reverse' : 'api/'}?${photonParams}`
           : `https://nominatim.openstreetmap.org/${reverse ? 'reverse' : 'search'}?${nominatimParams}`;
-        const response = await fetch(url, { signal: requestSignal });
-        if (!response.ok) throw new Error('Place lookup unavailable');
-        const payload = await response.json();
+        const payload = await fetchJson(url, signal);
         const features = source === 'photon' ? validFeatures(payload?.features) : nominatimFeatures(payload);
         if (features.length) return features;
       } catch (error) {

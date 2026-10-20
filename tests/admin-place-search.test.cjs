@@ -9,7 +9,7 @@ const point = { type: 'Feature', geometry: { type: 'Point', coordinates: [120.97
 const json = payload => ({ ok: true, json: async () => payload });
 
 function setup(fetch, extras = {}) {
-  const context = vm.createContext({ fetch, URLSearchParams, AbortSignal, setTimeout, clearTimeout, ...extras });
+  const context = vm.createContext({ fetch, URLSearchParams, AbortSignal, AbortController, setTimeout, clearTimeout, ...extras });
   vm.runInContext(source, context);
   return context.AdminPlaceSearch;
 }
@@ -95,9 +95,14 @@ test('cancellation does not start fallback or publish stale results', async () =
 
 test('provider timeout falls back without cancelling the user request', async () => {
   const controller = new AbortController();
-  const search = setup(async url => {
-    if (new URL(url).hostname === 'photon.komoot.io') throw new DOMException('Timeout', 'TimeoutError');
+  const search = setup(async (url, { signal }) => {
+    if (new URL(url).hostname === 'photon.komoot.io') {
+      return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+    }
     return json([{ lat: '24.8', lon: '120.97', display_name: '新竹市' }]);
+  }, {
+    setTimeout: callback => setTimeout(callback, 0),
+    AbortSignal: {}
   });
   assert.equal((await search.search('新竹', { signal: controller.signal })).length, 1);
   assert.equal(controller.signal.aborted, false);
@@ -108,7 +113,11 @@ test('Nominatim fallback requests are spaced at least one second apart', async (
   const search = setup(async url => new URL(url).hostname === 'photon.komoot.io'
     ? json({ features: [] }) : json([]), {
     Date: { now: () => 1000 },
-    setTimeout: (callback, delay) => { delays.push(delay); return setTimeout(callback, 0); }
+    setTimeout: (callback, delay) => {
+      if (delay === 6000) return setTimeout(callback, delay);
+      delays.push(delay);
+      return setTimeout(callback, 0);
+    }
   });
   await search.search('新竹');
   await search.search('竹南');
