@@ -48,6 +48,15 @@ Edge Function 會使用 Supabase 自動提供的 `SUPABASE_SERVICE_ROLE_KEY`，�
 
 若尚未部署 Edge Function，設定檔中的函式名稱留空即可使用暫時直接寫入模式。此模式容易被機器人灌資料，只適合開發測試。
 
+### 問卷照片壓縮與私人儲存
+
+- 照片在瀏覽器本機轉為 JPEG、移除 EXIF／定位資訊，維持比例且不放大；長邊最多 1280 px，依品質與尺寸逐步壓縮，**每張不超過 500,000 bytes（500 KB）**，不是強制填滿固定檔案大小。請確認預覽仍可辨識試劑結果。原檔最多 25 MB；瀏覽器無法解碼的 HEIC 等格式請先轉成 JPEG／PNG。
+- 壓縮中不可送出；處理失敗需重新選圖或按「移除照片」。兩張照片合計最多約 1 MB，可降低行動網路流量及 Edge Function 請求大小。
+- 照片必須經 `submit-questionnaire` 上傳至 **私人** `screening-test-photos` bucket，不可改用公開的 `site-editor-media`。更新前端後，亦請重新部署此 Edge Function（指令同上），以套用所有照片先驗證再上傳的處理，避免第二張照片無效時留下第一張孤兒檔案。上傳不覆寫既有檔案，且設為不快取；資料庫寫入或上傳失敗時會嘗試清理已上傳照片。
+- 程式庫中的 bucket 設定為私人、上限 2,621,440 bytes，僅接受 JPEG／PNG／WebP；函式每張上限 2,500,000 bytes、multipart 上限 6,000,000 bytes。保留舊限制是為了相容尚未更新的頁面，不需為壓縮功能提高 bucket 上限或開放匿名寫入。既有照片不會自動重新壓縮。
+- **線上確認：**本次檢查依據版本庫設定，未連線查閱正式 Supabase。請在 Dashboard 的 Storage 確認 bucket 已存在、Public 關閉、大小及 MIME 限制符合上述設定，並確認工作人員 migrations 的讀取權限已套用；勿為此重跑會覆蓋權限的舊 schema。若 bucket 尚未建立，先依既有部署流程安裝 schema 與後續 migrations。壓縮不能修復缺少 bucket、函式未部署、RLS 或儲存空間配額問題。
+- 定期依組織保存期限清理問卷及對應物件；刪除資料表紀錄不會自動刪除 Storage 照片。應透過 Storage API 清理，不要直接刪除 `storage.objects` 中繼資料；清理失敗需由管理員追蹤，避免長期累積無主檔案。
+
 正式使用前設定 Resend 郵件：
 
 1. 在 Resend 驗證組織實際擁有的寄件網域，並依 Resend 提供的 DNS 記錄完成網域驗證。選用該網域下的寄件地址，例如 `no-reply@your-verified-domain`。

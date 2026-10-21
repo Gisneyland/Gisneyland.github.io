@@ -6,7 +6,9 @@ const taiwanAdminLocations = [
 let selectedPageLanguage = 'zh-TW';
 let googleMachineTranslationActive = false;
 const screeningPhotos = new Map();
-const maxScreeningPhotoBytes = 2_500_000;
+const screeningPhotoJobs = new Map();
+const screeningPhotoErrors = new Set();
+const maxScreeningPhotoBytes = 500_000;
 
 document.addEventListener('DOMContentLoaded', function() {
   initializeAmbientRainbow();
@@ -100,6 +102,12 @@ document.addEventListener('DOMContentLoaded', function() {
       await screenerNumberReady;
       if (!validateScreenerNumber(questionnaireForm)) return;
       if (!validateScreeningInterpretation(questionnaireForm)) return;
+      if (screeningPhotoJobs.size || screeningPhotoErrors.size) {
+        showFormStatus(status, screeningPhotoJobs.size
+          ? '照片仍在壓縮中，請稍候再送出。'
+          : '照片處理失敗，請重新選擇或移除照片後再送出。', true);
+        return;
+      }
 
       if (!window.questionnaireSupabase) {
         showFormStatus(status, '資料服務尚未完成設定，請聯絡網站管理員。', true);
@@ -718,6 +726,8 @@ function initializeScreeningPhotos() {
   };
   const clearPhoto = field => {
     const kind = field.dataset.photoKind;
+    screeningPhotoJobs.delete(kind);
+    screeningPhotoErrors.delete(kind);
     const entry = screeningPhotos.get(kind);
     if (entry) URL.revokeObjectURL(entry.url);
     screeningPhotos.delete(kind);
@@ -742,34 +752,43 @@ function initializeScreeningPhotos() {
     input.addEventListener('change', async () => {
       const file = input.files?.[0];
       if (!file) return;
-      setStatus(field, '正在處理照片…');
+      clearPhoto(field);
+      const kind = field.dataset.photoKind;
+      const job = {};
+      screeningPhotoJobs.set(kind, job);
+      field.querySelector('[data-photo-preview]').hidden = false;
+      field.querySelector('[data-photo-image]').hidden = true;
+      setStatus(field, '正在壓縮照片至 500 KB 以下…');
       try {
         const blob = await compressScreeningPhoto(file);
-        const kind = field.dataset.photoKind;
-        const previous = screeningPhotos.get(kind);
-        if (previous) URL.revokeObjectURL(previous.url);
+        if (screeningPhotoJobs.get(kind) !== job) return;
         const url = URL.createObjectURL(blob);
         screeningPhotos.set(kind, { blob, url });
         field.querySelector('[data-photo-image]').src = url;
+        field.querySelector('[data-photo-image]').hidden = false;
         field.querySelector('[data-photo-preview]').hidden = false;
-        setStatus(field, '');
+        setStatus(field, `照片已壓縮：${Math.ceil(blob.size / 1000)} KB（上限 500 KB）。`);
       } catch (error) {
-        clearPhoto(field);
+        if (screeningPhotoJobs.get(kind) !== job) return;
+        screeningPhotoErrors.add(kind);
         setStatus(field, error.message || '無法處理這張照片，請改選另一張。');
       } finally {
-        input.value = '';
+        if (screeningPhotoJobs.get(kind) === job) {
+          screeningPhotoJobs.delete(kind);
+          input.value = '';
+        }
       }
     });
   });
 
   form.addEventListener('change', event => {
     if (event.target.matches('input[name="screening_interpretation[]"]')) {
-      window.setTimeout(syncVisibility, 0);
+      syncVisibility();
     }
   });
   form.addEventListener('reset', () => {
+    fields.forEach(clearPhoto);
     window.setTimeout(() => {
-      fields.forEach(clearPhoto);
       syncVisibility();
     }, 0);
   });
@@ -782,27 +801,49 @@ async function compressScreeningPhoto(file) {
   if (file.size > 25_000_000) throw new Error('照片檔案過大，請改選另一張。');
 
   let bitmap;
+  let sourceUrl;
   try {
-    bitmap = await createImageBitmap(file);
+    try {
+      bitmap = await createImageBitmap(file);
+    } catch {
+      sourceUrl = URL.createObjectURL(file);
+      bitmap = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = sourceUrl;
+      });
+    }
   } catch {
     throw new Error('此照片格式無法處理，請改用拍照或 JPEG／PNG 圖片。');
+  } finally {
+    if (sourceUrl) URL.revokeObjectURL(sourceUrl);
   }
 
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const context = canvas.getContext('2d');
-  context.fillStyle = '#fff';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close?.();
-
-  for (const quality of [0.82, 0.7, 0.55]) {
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
-    if (blob && blob.size <= maxScreeningPhotoBytes) return blob;
+  try {
+    let longestEdge = 1280;
+    while (longestEdge >= 160) {
+      const scale = Math.min(1, longestEdge / Math.max(bitmap.width, bitmap.height));
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('瀏覽器無法處理照片，請改用其他瀏覽器。');
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      for (const quality of [0.82, 0.7, 0.55]) {
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+        if (!blob || blob.type !== 'image/jpeg') throw new Error('無法壓縮照片，請改選另一張。');
+        if (blob.size > 0 && blob.size <= maxScreeningPhotoBytes) return blob;
+      }
+      longestEdge = Math.floor(longestEdge * 0.75);
+    }
+    throw new Error('照片檔案過大，請改選另一張。');
+  } finally {
+    bitmap.close?.();
+    canvas.width = canvas.height = 1;
   }
-  throw new Error('照片檔案過大，請改選另一張。');
 }
 
 function validateScreeningInterpretation(form) {

@@ -226,6 +226,41 @@ test('site initialization and permission-gated admin interactions', {
     assert.deepEqual(errors, []);
   });
 
+  await t.test('questionnaire compresses a large noisy image using the actual browser JPEG encoder', async () => {
+    await open('/hiva/', 'administrator');
+    const result = await evaluate(`(async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2400;
+      canvas.height = 1800;
+      const context = canvas.getContext('2d');
+      const image = context.createImageData(canvas.width, canvas.height);
+      let seed = 12345;
+      for (let i = 0; i < image.data.length; i += 4) {
+        for (let channel = 0; channel < 3; channel += 1) {
+          seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+          image.data[i + channel] = seed >>> 24;
+        }
+        image.data[i + 3] = 255;
+      }
+      context.putImageData(image, 0, 0);
+      const original = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const compressed = await compressScreeningPhoto(original);
+      const decoded = await createImageBitmap(compressed);
+      const result = {
+        originalBytes: original.size, bytes: compressed.size, type: compressed.type,
+        width: decoded.width, height: decoded.height
+      };
+      decoded.close();
+      return result;
+    })()`);
+    assert.ok(result.originalBytes > 2_500_000);
+    assert.ok(result.bytes > 0 && result.bytes <= 500_000);
+    assert.equal(result.type, 'image/jpeg');
+    assert.ok(result.width <= 1280);
+    assert.equal(result.width / result.height, 4 / 3);
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('administrator sees content, staff management and editable screening rules', async () => {
     await open('/admin/', 'administrator');
     await waitFor('!document.getElementById("admin-tab-content").hidden');

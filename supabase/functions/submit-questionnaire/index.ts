@@ -133,6 +133,7 @@ Deno.serve(async request => {
         : [];
       const photoPaths: Record<string, string> = {};
       const folder = crypto.randomUUID();
+      const validatedPhotos = [];
 
       for (const [kind, file] of photoFiles) {
         if (!results.includes(photoRequiredResult[kind]) || file.size === 0 || file.size > maxPhotoBytes) {
@@ -143,11 +144,14 @@ Deno.serve(async request => {
         if (!imageType) {
           return jsonResponse({ error: 'Invalid photo' }, 400);
         }
+        validatedPhotos.push({ kind, bytes, imageType });
+      }
 
+      for (const { kind, bytes, imageType } of validatedPhotos) {
         const path = `${folder}/${kind}.${imageType.ext}`;
         const { error: uploadError } = await supabase.storage
           .from(photoBucket)
-          .upload(path, bytes, { contentType: imageType.mime, upsert: false });
+          .upload(path, bytes, { contentType: imageType.mime, cacheControl: '0', upsert: false });
         if (uploadError) {
           console.error('Photo upload failed:', uploadError.message);
           if (uploadedPaths.length) await supabase.storage.from(photoBucket).remove(uploadedPaths);
