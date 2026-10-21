@@ -198,6 +198,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const screeningPlanAdvice = document.getElementById('screening-plan-advice');
   const refreshScreeningOutlookButton = document.getElementById('refresh-screening-outlook');
   const saveScreeningPlanButton = document.getElementById('save-screening-plan');
+  const screeningCalendarSubscribeButton = document.getElementById('screening-calendar-subscribe');
+  const calendarSubscriptionDialog = document.getElementById('calendar-subscription-dialog');
+  const createCalendarFeedButton = document.getElementById('create-calendar-feed');
+  const calendarFeedUrlPanel = document.getElementById('calendar-feed-url-panel');
+  const calendarFeedUrlInput = document.getElementById('calendar-feed-url');
+  const copyCalendarFeedUrlButton = document.getElementById('copy-calendar-feed-url');
+  const revokeCalendarFeedButton = document.getElementById('revoke-calendar-feed');
+  const calendarSubscriptionStatus = document.getElementById('calendar-subscription-status');
   const screenerNumberForm = document.getElementById('screener-number-form');
   const screenerNumberInput = document.getElementById('screener-number-input');
   const screenerNumberStatus = document.getElementById('screener-number-status');
@@ -895,6 +903,11 @@ document.addEventListener('DOMContentLoaded', () => {
   closeDialogButton.addEventListener('click', () => dialog.close());
   accountProfileForm.addEventListener('submit', saveAccountProfile);
   screeningPlanForm.addEventListener('submit', saveScreeningPlan);
+  screeningCalendarSubscribeButton?.addEventListener('click', openCalendarSubscriptionDialog);
+  document.addEventListener('open-screening-calendar-subscription', openCalendarSubscriptionDialog);
+  createCalendarFeedButton?.addEventListener('click', createCalendarFeed);
+  copyCalendarFeedUrlButton?.addEventListener('click', copyCalendarFeedUrl);
+  revokeCalendarFeedButton?.addEventListener('click', revokeCalendarFeed);
   screeningPlanInfoButton.addEventListener('click', () => screeningPlanInfoDialog.showModal());
   screeningPlanInfoDialog.querySelectorAll('[data-close-screening-plan-info]').forEach(button => {
     button.addEventListener('click', () => screeningPlanInfoDialog.close());
@@ -1100,6 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       activeStaffProfile = { ...activeStaffProfile, nickname: profileData.nickname };
+      publishScreeningPlanToCalendar(activeUser);
     }
     setButtonBusy(saveAccountProfileButton, false, '儲存帳號資料');
     accountNicknameInput.value = activeUser.user_metadata?.nickname || nickname;
@@ -1140,11 +1154,13 @@ document.addEventListener('DOMContentLoaded', () => {
     screeningPlanRulesContainer.replaceChildren();
     savedScreeningPreferences = { version: 2, rules };
     screeningPlanEditable = canEdit;
+    if (screeningCalendarSubscribeButton) screeningCalendarSubscribeButton.disabled = !canEdit;
     if (Array.isArray(stored.rules) || rules.length) rules.forEach(rule => createScreeningPlanRule(rule));
     else createScreeningPlanRule();
     setScreeningPlanDisabled(!canEdit);
     screeningPlanOutlookKey = '';
     renderNextScreeningSlot(savedScreeningPreferences);
+    publishScreeningPlanToCalendar(user);
   }
 
   function findScreeningPlanConflict(rules) {
@@ -1197,6 +1213,92 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     return null;
+  }
+
+  let calendarFeedActive = false;
+
+  async function openCalendarSubscriptionDialog() {
+    if (!activeUser || !calendarSubscriptionDialog) return;
+    calendarSubscriptionDialog.showModal();
+    calendarSubscriptionStatus.hidden = true;
+    await refreshCalendarFeedStatus();
+  }
+
+  async function refreshCalendarFeedStatus() {
+    const { data, error } = await window.questionnaireSupabase.rpc('has_staff_calendar_feed');
+    if (error) {
+      calendarFeedActive = false;
+      createCalendarFeedButton.disabled = true;
+      revokeCalendarFeedButton.hidden = true;
+      showStatus(calendarSubscriptionStatus, '無法確認訂閱狀態；請確認已套用日曆訂閱 migration。', true);
+      return;
+    }
+    calendarFeedActive = data === true;
+    createCalendarFeedButton.disabled = false;
+    revokeCalendarFeedButton.hidden = !calendarFeedActive;
+    createCalendarFeedButton.textContent = calendarFeedActive ? '重新產生訂閱連結' : '建立訂閱連結';
+    if (calendarFeedActive && !calendarFeedUrlInput.value) {
+      showStatus(calendarSubscriptionStatus, '目前已有有效連結；重新產生會使舊連結立即失效。');
+    }
+  }
+
+  async function createCalendarFeed() {
+    if (!activeUser) return;
+    if (calendarFeedActive && !window.confirm('重新產生會立即使舊訂閱網址失效。繼續？')) return;
+    createCalendarFeedButton.disabled = true;
+    showStatus(calendarSubscriptionStatus, '正在建立個人訂閱連結…');
+    try {
+      const tokenBytes = window.crypto.getRandomValues(new Uint8Array(32));
+      const token = Array.from(tokenBytes, byte => byte.toString(16).padStart(2, '0')).join('');
+      const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+      const tokenHash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+      const { error } = await window.questionnaireSupabase.rpc('create_staff_calendar_feed', { p_token_hash: tokenHash });
+      if (error) throw error;
+      const supabaseUrl = window.SUPABASE_URL || window.questionnaireSupabase.supabaseUrl;
+      const feedUrl = new URL('/functions/v1/staff-calendar-feed', supabaseUrl);
+      feedUrl.searchParams.set('token', token);
+      calendarFeedUrlInput.value = feedUrl.toString();
+      calendarFeedUrlPanel.hidden = false;
+      calendarFeedActive = true;
+      revokeCalendarFeedButton.hidden = false;
+      createCalendarFeedButton.textContent = '重新產生訂閱連結';
+      showStatus(calendarSubscriptionStatus, '連結已建立。請複製並貼到行事曆軟體的「訂閱行事曆」功能。');
+    } catch (error) {
+      showStatus(calendarSubscriptionStatus, `建立失敗：${error.message || '請確認已部署 staff-calendar-feed 函式。'}`, true);
+    } finally {
+      createCalendarFeedButton.disabled = false;
+    }
+  }
+
+  async function copyCalendarFeedUrl() {
+    if (!calendarFeedUrlInput.value) return;
+    try {
+      await navigator.clipboard.writeText(calendarFeedUrlInput.value);
+      showStatus(calendarSubscriptionStatus, '訂閱網址已複製。');
+    } catch {
+      calendarFeedUrlInput.select();
+      calendarFeedUrlInput.focus();
+      showStatus(calendarSubscriptionStatus, '無法自動複製，請選取欄位中的完整網址。', true);
+    }
+  }
+
+  async function revokeCalendarFeed() {
+    if (!calendarFeedActive || !window.confirm('撤銷後，已匯入此網址的行事曆將無法再更新。確定撤銷？')) return;
+    revokeCalendarFeedButton.disabled = true;
+    try {
+      const { error } = await window.questionnaireSupabase.rpc('revoke_staff_calendar_feed');
+      if (error) throw error;
+      calendarFeedActive = false;
+      calendarFeedUrlInput.value = '';
+      calendarFeedUrlPanel.hidden = true;
+      revokeCalendarFeedButton.hidden = true;
+      createCalendarFeedButton.textContent = '建立訂閱連結';
+      showStatus(calendarSubscriptionStatus, '訂閱連結已撤銷。');
+    } catch (error) {
+      showStatus(calendarSubscriptionStatus, `撤銷失敗：${error.message || '請稍後再試。'}`, true);
+    } finally {
+      revokeCalendarFeedButton.disabled = false;
+    }
   }
 
   async function saveScreeningPlan(event) {
@@ -1281,6 +1383,7 @@ document.addEventListener('DOMContentLoaded', () => {
       savedScreeningPreferences = preferences;
       screeningOutlookKey = '';
       renderNextScreeningSlot(preferences);
+      publishScreeningPlanToCalendar(activeUser);
       showStatus(screeningPlanStatus, rules.length
         ? `已儲存 ${rules.length} 筆篩檢安排。符合日期與時段時，問卷會預填對應地點。`
         : '已儲存：目前沒有固定篩檢排程（未安排或休假）。問卷不會預填排程地點。');
@@ -1365,6 +1468,14 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
     return null;
+  }
+
+  function publishScreeningPlanToCalendar(user = activeUser) {
+    const slot = screeningPlanEditable ? getNextScreeningSlot(savedScreeningPreferences) : null;
+    const nickname = String(activeStaffProfile?.nickname || user?.user_metadata?.nickname || '').trim();
+    document.dispatchEvent(new CustomEvent('screening-plan-calendar-change', {
+      detail: slot && user?.id ? { userId: user.id, nickname: nickname || '篩檢員', slot } : null
+    }));
   }
 
   function renderNextScreeningSlot(preferences) {
@@ -1699,6 +1810,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showLogin() {
     activeStaffProfile = null;
+    screeningPlanEditable = false;
+    document.dispatchEvent(new CustomEvent('screening-plan-calendar-change', { detail: null }));
     loginPanel.hidden = false;
     dashboard.hidden = true;
     signOutButton.hidden = true;

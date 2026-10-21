@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const recordsView = document.getElementById('site-content-records-view');
   const contentList = document.getElementById('site-content-list');
   const contentStatus = document.getElementById('site-content-status');
+  const calendarSubscribeButton = document.getElementById('calendar-subscribe-button');
   const formStatus = document.getElementById('site-content-form-status');
   const emptyState = document.getElementById('site-content-empty');
   if (!manager || !contentForm || !window.questionnaireSupabase) return;
@@ -52,12 +53,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const almanacTraditionalizer = window.OpenCC?.Converter?.({ from: 'cn', to: 'tw' });
   let records = [];
   let activeUserId = null;
+  let screeningPlanCalendar = null;
   let calendar = null;
   let calendarViewType = 'dayGridMonth';
   let weatherForecastLoaded = false;
   let weatherForecastFailed = false;
   let editorDirty = false;
   let editorOpener = null;
+
+  document.addEventListener('screening-plan-calendar-change', event => {
+    screeningPlanCalendar = event.detail?.slot ? event.detail : null;
+    renderCalendar();
+  });
+  calendarSubscribeButton?.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('open-screening-calendar-subscription'));
+  });
 
   manager.querySelectorAll('[data-content-filter]').forEach(button => button.addEventListener('click', () => {
     filterSelect.value = button.dataset.contentFilter;
@@ -321,6 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
           showStatus(contentStatus, `${info.event.extendedProps.description}：${info.event.startStr}`);
         } else if (info.event.extendedProps.kind === 'solar-term') {
           showStatus(contentStatus, `${info.event.extendedProps.description}：${info.event.startStr}`);
+        } else if (info.event.extendedProps.kind === 'screening-plan') {
+          showStatus(contentStatus, info.event.extendedProps.description);
         }
       },
       eventDidMount: info => {
@@ -331,6 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `${description || info.event.title}：${info.event.startStr}`
             : kind === 'solar-term'
               ? `${description}：${info.event.startStr}`
+              : kind === 'screening-plan'
+                ? description
             : record
               ? [record.title, record.location, record.summary].filter(Boolean).join('\n')
               : info.event.title;
@@ -403,6 +417,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const governmentDays = years.flatMap(year => governmentCalendarData.get(year) || []);
     const governmentDaysByDate = new Map(governmentDays.map(day => [formatGovernmentDate(day.date), day]));
     const events = [...contentEvents];
+    const plannedScreening = screeningPlanCalendar;
+    if (plannedScreening?.slot?.dateKey) {
+      const { slot, nickname, userId } = plannedScreening;
+      const startAt = new Date(`${slot.dateKey}T${slot.startTime}:00+08:00`);
+      const endAt = new Date(`${slot.dateKey}T${slot.endTime}:00+08:00`);
+      if (startAt < fetchInfo.end && endAt > fetchInfo.start) {
+        const description = [
+          `篩檢員：${nickname}`,
+          `安排：${slot.name || '篩檢'}`,
+          `地點：${slot.place.label}`
+        ].join('\n');
+        events.push({
+          id: `screening-plan-${userId}-${slot.dateKey}-${slot.startTime}`,
+          title: `${nickname}・篩檢${slot.name ? `・${slot.name}` : ''}`,
+          start: `${slot.dateKey}T${slot.startTime}:00`,
+          end: `${slot.dateKey}T${slot.endTime}:00`,
+          allDay: false,
+          classNames: ['screening-plan-event'],
+          extendedProps: { kind: 'screening-plan', description, screeningPlan: plannedScreening }
+        });
+      }
+    }
     const visibleDate = new Date(`${formatTaipeiDateKey(fetchInfo.start)}T00:00:00Z`);
     const lastDate = new Date(`${formatTaipeiDateKey(lastVisibleDate)}T00:00:00Z`);
     const isTimeGrid = viewType.startsWith('timeGrid');

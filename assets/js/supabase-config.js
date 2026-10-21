@@ -8,6 +8,7 @@ const hasSupabaseConfig = !SUPABASE_URL.includes('YOUR_PROJECT_REF')
   && !SUPABASE_ANON_KEY.includes('YOUR_');
 
 if (hasSupabaseConfig && window.supabase?.createClient) {
+  window.SUPABASE_URL = SUPABASE_URL;
   window.SUPABASE_FUNCTION_NAME = SUPABASE_FUNCTION_NAME;
   window.questionnaireSupabase = window.supabase.createClient(
     SUPABASE_URL,

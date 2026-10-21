@@ -285,6 +285,7 @@ permalink: /admin/
               <button type="button" data-calendar-mode="timeGridDay" title="日檢視" aria-label="日檢視" aria-pressed="false"><span class="material-icons notranslate" translate="no" aria-hidden="true">today</span></button>
               <button type="button" data-calendar-mode="listMonth" title="連續清單" aria-label="連續清單" aria-pressed="false"><span class="material-icons notranslate" translate="no" aria-hidden="true">view_list</span></button>
             </div>
+            <button id="calendar-subscribe-button" class="admin-button secondary icon-only" type="button" title="訂閱工作行事曆" aria-label="訂閱工作行事曆"><span class="material-icons notranslate" translate="no" aria-hidden="true">event_repeat</span></button>
           </div>
           <div id="site-content-calendar" class="site-content-calendar" aria-label="新聞與活動行事曆"></div>
           <p id="calendar-source-status" class="admin-muted" role="status" hidden></p>
@@ -460,6 +461,7 @@ permalink: /admin/
           </button>
         </div>
         <p class="admin-muted screening-plan-hint">每筆安排各自設定週期、時段與地點。沒有固定排程或休假時，可刪除全部安排後儲存。</p>
+        <button id="screening-calendar-subscribe" class="admin-button secondary" type="button"><span class="material-icons notranslate" translate="no" aria-hidden="true">event_repeat</span>管理我的行事曆訂閱</button>
         <form id="screening-plan-form" class="screening-plan-form">
           <div id="screening-plan-rules" class="screening-plan-rules"></div>
           <button id="add-screening-plan-rule" class="admin-button secondary" type="button" disabled>
@@ -562,6 +564,24 @@ permalink: /admin/
           <div id="screening-plan-disasters" class="screening-plan-disasters" role="status" aria-live="polite">尚未查詢</div>
           <div id="screening-plan-advice" class="screening-plan-advice" aria-live="polite" hidden></div>
         </section>
+        <dialog id="calendar-subscription-dialog" class="calendar-small-dialog" aria-labelledby="calendar-subscription-title">
+          <form method="dialog">
+            <h3 id="calendar-subscription-title">訂閱工作行事曆</h3>
+            <p>連結包含已發布新聞/活動，以及你最近一次的篩檢規劃。行事曆軟體會定期更新，更新頻率依各軟體而異。</p>
+            <p class="admin-status error">此連結可讀取你的篩檢地點與時段，請當作密碼保管；不要轉傳。</p>
+            <button id="create-calendar-feed" class="admin-button" type="button">建立訂閱連結</button>
+            <div id="calendar-feed-url-panel" hidden>
+              <label for="calendar-feed-url">個人訂閱網址</label>
+              <div class="screening-calendar-feed-url-row">
+                <input id="calendar-feed-url" type="url" readonly autocomplete="off">
+                <button id="copy-calendar-feed-url" class="admin-button secondary icon-only" type="button" title="複製訂閱網址" aria-label="複製訂閱網址"><span class="material-icons notranslate" translate="no" aria-hidden="true">content_copy</span></button>
+              </div>
+              <button id="revoke-calendar-feed" class="admin-button secondary" type="button" hidden><span class="material-icons notranslate" translate="no" aria-hidden="true">link_off</span>撤銷訂閱連結</button>
+            </div>
+            <p id="calendar-subscription-status" class="admin-status" role="status" aria-live="polite" hidden></p>
+            <div class="calendar-dialog-actions"><button class="admin-button secondary" type="submit">關閉</button></div>
+          </form>
+        </dialog>
       </section>
       <dialog id="screening-plan-info-dialog" class="calendar-small-dialog screening-plan-info-dialog" aria-labelledby="screening-plan-info-title">
         <div class="dialog-header">

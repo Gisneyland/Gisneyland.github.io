@@ -854,6 +854,17 @@ html[data-theme="dark"] .admin-body .content-switch-track::after { background: v
   margin-top: -0.7rem;
 }
 
+.screening-calendar-feed-url-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.screening-calendar-feed-url-row input {
+  min-width: 0;
+  margin: 0;
+}
+
 .screening-plan-card h2,
 .screening-plan-card h3 {
   margin: 0 0 0.3rem;
@@ -2313,6 +2324,13 @@ html[data-theme="dark"] .admin-body .content-switch-track::after { background: v
   border-color: var(--button-bg);
 }
 
+.site-content-calendar .fc-event.screening-plan-event {
+  color: var(--text);
+  background: #276749;
+  border-color: #276749;
+}
+.site-content-calendar.fc .fc-list-event.screening-plan-event .fc-list-event-dot { border-color: #276749; }
+
 .site-content-calendar .fc-event.is-draft {
   border-style: dashed;
   opacity: 0.76;
@@ -2514,6 +2532,7 @@ button.calendar-stream-event { cursor: pointer; }
 .calendar-stream-time { flex: 0 0 6rem; color: var(--text-muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 .calendar-stream-event.dgpa-holiday-event { background: var(--accent-soft); border-color: var(--accent); }
 .calendar-stream-event.opening-hours-event { border-color: #588b54; background: #edf5eb; }
+.calendar-stream-event.screening-plan-event { border-color: #276749; }
 .calendar-stream-event.opening-closed-event { border-color: #879791; color: var(--text-muted); }
 .site-content-calendar.fc .fc-timegrid-slot-label { width: 3.5rem; color: var(--text-muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 .site-content-calendar.fc .fc-timegrid-slot { height: 1.6rem; }

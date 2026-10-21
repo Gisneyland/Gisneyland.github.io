@@ -87,6 +87,8 @@ values ('YOUR_AUTH_USER_UUID', 'YOUR_ASSIGNED_SCREENER_NUMBER');
 
 ## 活動行事曆與 ICS
 
+後台可訂閱個人工作行事曆。需先套用 [202610220001_staff_calendar_subscriptions.sql](supabase/migrations/202610220001_staff_calendar_subscriptions.sql)，再部署 `staff-calendar-feed`：`supabase functions deploy staff-calendar-feed --no-verify-jwt`。訂閱網址是存取密鑰，請勿分享或提交到 Git；行事曆軟體會依自身排程更新，並非即時推送。
+
 活動頁預設開放時段依[風城部屋團隊資訊](https://hackmd.io/@HsinchuPride/Welcome)設定為每週二至週六 14:00–22:00；DGPA 辦公日曆標記的國定假日不排開放時段。套用排程 migration 後，可在後台編輯固定週時段與單日例外；單日例外優先於固定時段及國定假日。假日日曆 JSON 取自 [TaiwanCalendar](https://github.com/ruyut/TaiwanCalendar)，其資料源為[政府資料開放平台的政府行政機關辦公日曆表](https://data.gov.tw/dataset/14718)，年度資料發布後由上游更新。
 
 活動頁的「匯出 .ics」會下載從當日至目前可取得年度範圍的開放時段、國定假日、補班日，以及已上架活動；時間採用 `Asia/Taipei`。若要新增或編輯活動，需先完成上方 Supabase `site_content` migration，並由授權工作人員在 `/admin/` 上架。
@@ -94,6 +96,8 @@ values ('YOUR_AUTH_USER_UUID', 'YOUR_ASSIGNED_SCREENER_NUMBER');
 後台另提供全球地名搜尋、瀏覽器授權定位、七日天氣、農曆節氣，以及月相、行星方位與天象計算；顯示時間一律採台北時間 UTC+8。全球災害區分 USGS 地震事件、GDACS 衝擊評估與 NOAA 海嘯公告，不等同全球完整即時預警。GDACS／NOAA 須另外部署只讀代理函式，詳見 [environment-feeds 部署與資料來源說明](supabase/functions/environment-feeds/README.md)。未連線或過期時顯示無法確認，不代表沒有警報；應以當地政府避難指示為準。
 
 後台「新聞與活動」以共用工具列篩選全部／新聞／活動，並可切換行事曆或內容管理工作區。行事曆保留月、週、日、列表模式；內容管理提供編輯、發布開關與更多選單中的刪除操作。新增與編輯在原生對話框進行，手機為全螢幕，關閉或 Esc 會確認未儲存變更。天氣、農曆、天文及災害內容收納在環境資訊抽屜，收合後仍保留地點、今日天氣及災害來源連線摘要。所有資料寫入權限及刪除確認維持不變。
+
+後台行事曆訂閱需先在 SQL Editor 執行 [202610220001_staff_calendar_subscriptions.sql](supabase/migrations/202610220001_staff_calendar_subscriptions.sql)，並部署 `staff-calendar-feed` Edge Function（`supabase functions deploy staff-calendar-feed --no-verify-jwt`）。每位工作人員可建立自己的訂閱網址；網址是存取密鑰，請勿分享，並可在後台撤銷。訂閱內容只含已發布新聞/活動及本人最近一次篩檢規劃；更新頻率由行事曆軟體決定。
 
 後台與前台共用 `site-mode` 主題偏好，頁面開啟時即套用亮色／暗色／自動模式；登入區、管理工作區、狀態標籤與行事曆一併適配。後台主題切換按鈕可切換亮／暗色，另有重設為「自動」的按鈕；自動模式即時跟隨作業系統設定，其他分頁變更主題偏好也會同步套用。
 
