@@ -127,6 +127,8 @@ test('clear, replace, hide and reset invalidate pending photo work', async () =>
   const count = expression => vm.runInContext(expression, fixture.context);
   const old = change();
   assert.equal(count('screeningPhotoJobs.size'), 1);
+  assert.equal(elements.preview.hidden, false);
+  assert.equal(elements.image.hidden, true);
   const recent = change();
   completions[0](new Blob(['old']));
   await old;
@@ -147,6 +149,14 @@ test('clear, replace, hide and reset invalidate pending photo work', async () =>
     assert.equal(count('screeningPhotos.size'), 0);
     assert.equal(count('screeningPhotoJobs.size'), 0);
   }
+  fixture.context.compressScreeningPhoto = async () => { throw new Error('Unsupported image'); };
+  await change();
+  assert.equal(count('screeningPhotoErrors.size'), 1);
+  assert.equal(elements.preview.hidden, false);
+  assert.equal(elements.image.hidden, true);
+  listeners['clear:click']();
+  assert.equal(count('screeningPhotoErrors.size'), 0);
+  assert.equal(elements.preview.hidden, true);
 });
 
 function server({ uploadFailure = false, insertFailure = false } = {}) {

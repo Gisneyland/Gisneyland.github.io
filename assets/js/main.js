@@ -756,6 +756,8 @@ function initializeScreeningPhotos() {
       const kind = field.dataset.photoKind;
       const job = {};
       screeningPhotoJobs.set(kind, job);
+      field.querySelector('[data-photo-preview]').hidden = false;
+      field.querySelector('[data-photo-image]').hidden = true;
       setStatus(field, '正在壓縮照片至 500 KB 以下…');
       try {
         const blob = await compressScreeningPhoto(file);
@@ -763,6 +765,7 @@ function initializeScreeningPhotos() {
         const url = URL.createObjectURL(blob);
         screeningPhotos.set(kind, { blob, url });
         field.querySelector('[data-photo-image]').src = url;
+        field.querySelector('[data-photo-image]').hidden = false;
         field.querySelector('[data-photo-preview]').hidden = false;
         setStatus(field, `照片已壓縮：${Math.ceil(blob.size / 1000)} KB（上限 500 KB）。`);
       } catch (error) {
