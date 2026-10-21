@@ -22,10 +22,6 @@ bundle exec jekyll serve
 
 網站預設會在 `http://localhost:4000` 啟動。提交前可先執行：
 
-```bash
-bundle exec jekyll build
-```
-
 ## Supabase 問卷設定
 
 問卷支援兩種資料入口：部署 Edge Function 後的安全入口，以及尚未部署時的暫時直接寫入模式。正式環境應使用 Edge Function；`service_role` key 只能存在 Supabase 的 server-side secrets，絕對不可放入網站。
@@ -68,10 +64,6 @@ Edge Function 會使用 Supabase 自動提供的 `SUPABASE_SERVICE_ROLE_KEY`，�
 
 ```bash
 bundle install
-bundle exec jekyll serve
-bundle exec jekyll build
-```
-
 GitHub Actions 會在每次 push 與 Pull Request 執行相同的 Jekyll build，設定檔位於 [.github/workflows/validate.yml](.github/workflows/validate.yml)。
 
 ## 管理後台
