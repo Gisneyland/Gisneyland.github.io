@@ -60,6 +60,32 @@ test('renderer has no raw HTML or executable source sinks', () => {
   assert.match(sql, /revoke all on function public.site_editor_valid_runs\(jsonb\) from public, anon/);
 });
 
+test('visual components roundtrip safe fields and reject markup, arbitrary CSS and unsafe image URLs', () => {
+  for (const type of ['button', 'icon', 'logo']) {
+    const doc = documentWith({ blocks: [block({ type, icon: 'arrow_forward', variant: 'outline', alt: 'Logo', url: '/visual' })],
+      patches: { visual: { src: 'https://example.org/image.png', alt: 'Description', icon: 'favorite', href: '/go', variant: 'secondary' } } });
+    assert.deepEqual(plain(M.normalize(doc)), doc);
+  }
+  for (const invalid of [{ icon: '<svg>' }, { icon: 'home star' }, { icon: 'x'.repeat(65) },
+    { icon: '' }, { icon: null }, { variant: 'red;display:none' }, { variant: null }, { alt: null }, { alt: 'a'.repeat(301) }]) {
+    assert.throws(() => M.normalize(documentWith({ blocks: [block({ type: 'button', ...invalid })] })));
+    assert.throws(() => M.normalize(documentWith({ patches: { visual: invalid } })));
+  }
+  for (const src of ['', null, 'javascript:alert(1)', 'data:image/svg+xml,<svg>', '//evil.example/logo', 'mailto:a@b.test', '/bad\\image']) {
+    assert.throws(() => M.normalize(documentWith({ patches: { visual: { src } } })));
+    if (src !== '') assert.throws(() => M.normalize(documentWith({ blocks: [block({ type: 'logo', url: src })] })));
+  }
+  const navigation = item => documentWith({ navigation: { main: [{ id: 'home', label: 'Home', url: '/', ...item }], more: [] } });
+  for (const visual of [{ icon: 'home', src: '/logo.png', alt: 'Logo' }, { icon: '', src: '', alt: '' }]) {
+    assert.deepEqual(plain(M.normalize(navigation(visual))), navigation(visual));
+  }
+  for (const invalid of [{ icon: null }, { icon: '<svg>' }, { icon: 'home star' }, { src: null },
+    { src: '//evil.example/logo' }, { src: 'javascript:alert(1)' }, { src: 'mailto:a@b.test' },
+    { alt: null }, { alt: 'a'.repeat(301) }, { html: '<svg>' }]) {
+    assert.throws(() => M.normalize(navigation(invalid)));
+  }
+});
+
 test('browser: semantic runs, all block previews, literal hostile source and reversible widget-safe patches', {
   skip: !process.env.CHROMIUM_BIN && 'Set CHROMIUM_BIN to exercise actual DOM previews.',
   timeout: 60000
@@ -207,9 +233,45 @@ test('browser: semantic runs, all block previews, literal hostile source and rev
     expect(Array.from(cards.querySelectorAll('[data-site-editor-block]')).map(child => child.getAttribute('data-site-editor-block')).join(',') ===
       'added-a,added-b,added-c', 'forward added-block anchor chains resolved');
     baseline.restore();
+    const navRoot = document.querySelector('.site-navigation'), brand = document.querySelector('#brand');
+    const glyph = brand.querySelector('.material-icons'), glyphText = glyph.firstChild, logo = brand.querySelector('img');
+    const nested = brand.querySelector('.nested'), navChildren = Array.from(brand.childNodes);
+    const picture = brand.querySelector('picture'), pictureSource = picture.querySelector('source');
+    const account = navRoot.querySelector('#nav-runtime'); let accountClicks = 0;
+    account.addEventListener('click', event => { event.preventDefault(); accountClicks++; });
+    const menuButton = navRoot.querySelector('button'); let toggles = 0;
+    menuButton.addEventListener('click', () => toggles++);
+    const navBaseline = SiteEditorDOM.capture(main, navRoot);
+    expect(navBaseline.baselineNavigation.main[0].label === 'Home' && navBaseline.baselineNavigation.main[0].icon === 'home'
+      && navBaseline.baselineNavigation.main[0].src === '/brand.png', 'source nav visuals captured independently from label');
+    const navDoc = M.empty(); navDoc.navigation = { main: [{ id: 'main-0', label: 'Home', url: '/updated',
+      icon: 'favorite', src: '/updated-brand.png', alt: 'Updated logo' },
+      { id: 'new-nav', label: 'New', url: '/new', icon: 'star', src: '/new-logo.png', alt: 'New logo' }], more: [] };
+    navBaseline.render(M.empty(), navDoc);
+    expect(!pictureSource.hasAttribute('srcset') && logo.parentNode === picture, 'unchanged navigation label keeps responsive logo structure while replacing source');
+    navDoc.navigation.main[0].label = 'Updated';
+    navBaseline.render(M.empty(), navDoc);
+    expect(brand.querySelector('.material-icons') === glyph && glyph.textContent === 'favorite'
+      && brand.querySelector('img') === logo && logo.getAttribute('src') === '/updated-brand.png' && logo.alt === 'Updated logo',
+      'nav edits preserve original nested visual nodes');
+    const newNav = navRoot.querySelector('a[href="/new"]');
+    expect(newNav.querySelector('.material-icons').textContent === 'star' && newNav.querySelector('img').alt === 'New logo', 'new nav icons and logos rendered');
+    navDoc.navigation.main[0].icon = ''; navDoc.navigation.main[0].src = '';
+    navBaseline.render(M.empty(), navDoc);
+    expect(glyph.hidden && logo.hidden, 'nav visual removal is reversible');
+    navBaseline.restore();
+    expect(navChildren.every((child, index) => brand.childNodes[index] === child)
+      && glyph.parentNode === nested && logo.parentNode === picture && glyph.firstChild === glyphText
+      && glyph.textContent === 'home' && !glyph.hidden && !logo.hidden && logo.getAttribute('src') === '/brand.png'
+      && logo.getAttribute('srcset') === '/brand2.png 2x' && pictureSource.getAttribute('srcset') === '/brand-wide.png'
+      && !navRoot.querySelector('a[href="/new"]'), 'nav baseline identities and attributes restored');
+    menuButton.click(); expect(toggles === 1 && navRoot.querySelector('button') === menuButton, 'functional nav control preserved');
+    account.click(); expect(accountClicks === 1 && !account.hidden && account.getAttribute('href') === '/login'
+      && navRoot.querySelector('#nav-runtime') === account, 'protected auth navigation remains untouched');
     return 'all rich browser assertions passed';
   }
   const html = `<!doctype html><meta charset="utf-8"><main><p id="mixed">Mixed <strong>bold</strong> tail</p><section id="widgets"><h2>Widget</h2><form id="widget"><input value="keep"><button type="button">Click</button></form></section><section id="cards"><article id="card-a">A</article><button id="card-widget">Keep</button><article id="card-b">B</article></section></main>
+    <nav class="site-navigation"><div class="bottom-nav"><a id="brand" href="/"><span class="nested"><span class="material-icons" aria-hidden="true">home</span><picture><source srcset="/brand-wide.png"><img src="/brand.png" srcset="/brand2.png 2x" alt="Brand"></picture></span><span>Home</span></a><a id="nav-runtime" href="/login" data-site-editor-protected>Account</a><button type="button">More</button></div><div id="navigation-more-menu"><a href="/other">Other</a></div></nav>
     ${scripts}<script>try { document.body.setAttribute('data-result', (${checks.toString()})()); } catch (error) { document.body.setAttribute('data-result', 'FAIL: ' + error.stack); }</script>`;
   const server = http.createServer((request, response) => {
     response.setHeader('Content-Type', 'text/html; charset=utf-8'); response.end(html);

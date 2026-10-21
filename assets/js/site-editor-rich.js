@@ -366,14 +366,31 @@
     article.setAttribute('data-site-editor-type', block.type || 'card');
     const heading = node('h3', block.title); heading.setAttribute('data-site-editor-field', 'title'); article.append(heading);
     const type = block.type || 'card';
-    if (['image', 'audio', 'video'].includes(type)) {
+    if (['image', 'audio', 'video', 'logo'].includes(type)) {
       if (block.url) {
-        const media = node(type === 'image' ? 'img' : type); media.src = block.url;
-        if (type === 'image') { media.alt = block.title; media.loading = 'lazy'; }
+        const media = node(['image', 'logo'].includes(type) ? 'img' : type); media.src = block.url;
+        if (['image', 'logo'].includes(type)) { media.alt = block.alt ?? block.title; media.loading = 'lazy'; }
         else { media.controls = true; media.preload = 'metadata'; }
+        if (type === 'logo') media.className = 'site-editor-logo';
         article.append(media);
       }
       article.append(bodyText(block));
+    } else if (type === 'button' || type === 'icon') {
+      const visual = node(type === 'button' ? (block.url ? 'a' : 'button') : 'span');
+      if (type === 'button') {
+        visual.className = `site-editor-button site-editor-variant-${block.variant || 'primary'}`;
+        if (block.url) visual.href = block.url;
+        else { visual.type = 'button'; visual.setAttribute('data-site-editor-static', 'true'); }
+        if (block.icon) {
+          const glyph = node('span', block.icon); glyph.className = 'material-icons'; glyph.setAttribute('aria-hidden', 'true'); visual.append(glyph);
+        }
+        const label = node('span', block.label || block.body || '按鈕'); visual.append(label);
+      } else {
+        visual.className = 'material-icons site-editor-icon'; visual.textContent = block.icon || 'star';
+        if (block.label || block.title) { visual.setAttribute('role', 'img'); visual.setAttribute('aria-label', block.label || block.title); }
+        else visual.setAttribute('aria-hidden', 'true');
+      }
+      article.append(visual, bodyText(block));
     } else if (type === 'table') {
       const table = node('table'), body = node('tbody');
       for (const line of block.body.split('\n')) {
@@ -398,7 +415,7 @@
       }
       article.append(preview, source(block));
     } else article.append(bodyText(block));
-    if (block.url && !['image', 'audio', 'video'].includes(type)) {
+    if (block.url && !['image', 'audio', 'video', 'logo', 'button', 'icon'].includes(type)) {
       const link = node('a', block.label || '了解更多'); link.href = block.url; article.append(link);
     }
     return article;

@@ -2,7 +2,6 @@ const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
 const http = require('node:http');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
@@ -31,7 +30,8 @@ test('site initialization and permission-gated admin interactions', {
   t.after(() => new Promise(resolve => server.close(resolve)));
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
-  const profileDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'gisneyland-browser-'));
+  const profileDirectory = path.resolve(__dirname, '../.jekyll-cache', `site-interactions-browser-${process.pid}`);
+  await fs.mkdir(profileDirectory, { recursive: true });
   t.after(() => fs.rm(profileDirectory, { recursive: true, force: true, maxRetries: 5 }));
   const browser = spawn(process.env.CHROMIUM_BIN, [
     '--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu',
@@ -106,7 +106,7 @@ test('site initialization and permission-gated admin interactions', {
     function query(table) {
       const result = {};
       for (const method of ['select', 'eq', 'order', 'range', 'limit', 'is', 'not']) result[method] = () => result;
-      result.maybeSingle = async () => ({ data: profile, error: null });
+      result.maybeSingle = async () => ({ data: table.startsWith('site_editor_') ? null : profile, error: null });
       result.then = resolve => resolve({ data: table === 'admin_profiles' ? [profile] : [], error: null });
       return result;
     }
@@ -195,6 +195,35 @@ test('site initialization and permission-gated admin interactions', {
     assert.deepEqual(errors, []);
   });
 
+  await t.test('admin theme reads shared preference, follows OS auto and styles dark panels and buttons', async () => {
+    await open('/', 'anonymous');
+    await evaluate(`localStorage.setItem('site-mode','dark')`);
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
+    await open('/admin/', 'anonymous');
+    await waitFor('!document.getElementById("admin-login").hidden');
+    assert.equal(await evaluate(`document.documentElement.dataset.mode==='dark'
+      &&document.documentElement.dataset.theme==='dark'&&localStorage.getItem('site-mode')==='dark'`), true);
+    assert.deepEqual(await evaluate(`(() => {
+      const panel=getComputedStyle(document.getElementById('admin-login'));
+      const button=getComputedStyle(document.querySelector('#login-form button[type=submit]'));
+      return {background:getComputedStyle(document.body).backgroundColor,panel:panel.backgroundColor,
+        button:button.backgroundColor,buttonText:button.color};
+    })()`), { background:'rgb(23, 32, 43)',panel:'rgb(32, 44, 58)',button:'rgb(132, 209, 197)',buttonText:'rgb(23, 32, 43)' });
+    await click('#admin-theme-auto');
+    assert.equal(await evaluate(`localStorage.getItem('site-mode')==='auto'
+      &&document.documentElement.dataset.mode==='auto'&&document.documentElement.dataset.theme==='light'`), true);
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+    await waitFor('document.documentElement.dataset.theme === "dark"');
+    await click('#theme-toggle-button');
+    assert.equal(await evaluate(`localStorage.getItem('site-mode')==='light'
+      &&document.documentElement.dataset.mode==='light'&&document.documentElement.dataset.theme==='light'`), true);
+    await evaluate(`localStorage.setItem('site-mode','dark');window.dispatchEvent(new StorageEvent('storage',{key:'site-mode',newValue:'dark'}))`);
+    assert.equal(await evaluate(`document.documentElement.dataset.theme==='dark'&&document.documentElement.dataset.mode==='dark'`), true);
+    await evaluate(`localStorage.removeItem('site-mode')`);
+    await send('Emulation.setEmulatedMedia', { features: [] });
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('news occupies the main service slot and services moves into more on mobile', async () => {
     await open('/', 'anonymous');
     assert.deepEqual(await evaluate('[...document.querySelectorAll(".bottom-nav > a")].map(link => new URL(link.href).pathname)'), [
@@ -206,6 +235,107 @@ test('site initialization and permission-gated admin interactions', {
     assert.equal(await evaluate('new URL(document.querySelector(".navigation-more-mobile-link").href).pathname'), '/services/');
     assert.notEqual(await evaluate('getComputedStyle(document.querySelector(".navigation-more-mobile-link")).display'), 'none');
     await send('Emulation.clearDeviceMetricsOverride');
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('visual navigation editing stays open with production navbar interactions', async () => {
+    await open('/', 'administrator');
+    await waitFor('document.getElementById("site-editor-button").hidden === false');
+    await click('#site-editor-button');
+    await waitFor('document.body.classList.contains("site-editor-editing")');
+    assert.equal(await evaluate(`!document.getElementById('site-editor-settings')
+      &&!document.getElementById('site-editor-text')&&!document.getElementById('site-editor-node')
+      &&document.querySelector('.site-navigation').contains(document.getElementById('site-editor-nav'))`), true);
+    await click('#site-editor-nav-toggle');
+    await click('#site-editor-nav-more');
+    await click('#site-editor-nav-add');
+    assert.equal(await hidden('navigation-more-menu'), false);
+    assert.ok(await evaluate(`document.getElementById('site-editor-nav').getBoundingClientRect().top>=7`));
+    await evaluate(`document.getElementById('site-editor-nav-label').value='Visual more link';
+      document.getElementById('site-editor-nav-url').value='/contact/'`);
+    await click('#site-editor-nav-apply');
+    assert.equal(await hidden('navigation-more-menu'), false);
+    assert.equal(await evaluate(`Array.from(document.querySelectorAll('#navigation-more-menu > a')).some(a=>a.textContent==='Visual more link')`), true);
+    await click('#navigation-more-menu > a');
+    assert.equal(await evaluate(`location.pathname==='/'&&!document.getElementById('site-editor-nav-form').hidden
+      &&!document.getElementById('navigation-more-menu').hidden`), true);
+    await click('#site-editor-nav-close');
+    assert.equal(await hidden('site-editor-nav'), true);
+    assert.equal(await hidden('navigation-more-menu'), true);
+    await click('#site-editor-close');
+    assert.equal(await evaluate(`!document.body.classList.contains('site-editor-editing')
+      &&document.getElementById('site-editor').hidden&&document.getElementById('site-editor-nav-toggle').hidden`), true);
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('visual button variants override legacy styles and icons and logos have bounded sizing', async () => {
+    await open('/', 'anonymous');
+    const styles = await evaluate(`(() => {
+      const container=document.createElement('div');container.className='site-editor-content-block';
+      document.getElementById('main-content').append(container);
+      const values={};
+      for(const variant of ['primary','secondary','outline','text']){
+        const node=document.createElement('a');node.className='btn site-editor-button site-editor-variant-'+variant;
+        node.href='/';node.textContent=variant;container.append(node);
+        const style=getComputedStyle(node);values[variant]={background:style.backgroundColor,color:style.color,
+          display:style.display,minHeight:style.minHeight,border:style.borderTopColor};
+      }
+      const icon=document.createElement('span');icon.className='material-icons site-editor-icon';icon.textContent='star';container.append(icon);
+      const logo=document.createElement('img');logo.className='site-editor-logo';container.append(logo);
+      values.iconSize=getComputedStyle(icon).fontSize;values.logoHeight=getComputedStyle(logo).maxHeight;
+      container.remove();return values;
+    })()`);
+    for (const variant of ['primary', 'secondary', 'outline', 'text']) {
+      assert.equal(styles[variant].display, 'inline-flex');
+      assert.equal(styles[variant].minHeight, '44px');
+    }
+    assert.notEqual(styles.primary.background, styles.secondary.background);
+    assert.notEqual(styles.primary.color, styles.secondary.color);
+    assert.equal(styles.outline.background, 'rgba(0, 0, 0, 0)');
+    assert.equal(styles.outline.border, styles.outline.color);
+    assert.equal(styles.text.background, 'rgba(0, 0, 0, 0)');
+    assert.equal(styles.text.border, 'rgba(0, 0, 0, 0)');
+    assert.ok(parseFloat(styles.iconSize) >= 30);
+    assert.equal(styles.logoHeight, '120px');
+    assert.deepEqual(errors, []);
+  });
+
+  await t.test('editor command bar, navigation and property controls inherit public light and dark themes', async () => {
+    await open('/', 'administrator');
+    await waitFor('document.getElementById("site-editor-button").hidden === false');
+    await click('#site-editor-button');
+    await waitFor('document.body.classList.contains("site-editor-editing")');
+    await click('#site-editor-nav-toggle');
+    for (const mode of ['light', 'dark']) {
+      const result = await evaluate(`(() => {
+        document.documentElement.dataset.theme=${JSON.stringify(mode)};
+        const reference=document.createElement('div');
+        reference.style.cssText='background:var(--surface);color:var(--text);border:1px solid var(--border)';
+        document.body.append(reference);
+        const expectedStyle=getComputedStyle(reference);
+        const expected={background:expectedStyle.backgroundColor,color:expectedStyle.color,border:expectedStyle.borderTopColor};
+        reference.style.background='var(--surface-muted)';
+        const muted=getComputedStyle(reference).backgroundColor;
+        const pane=document.createElement('div');pane.className='site-editor-inline-ui';
+        const input=document.createElement('input'),textarea=document.createElement('textarea');
+        const select=document.createElement('select'),button=document.createElement('button');
+        pane.append(input,textarea,select,button);document.body.append(pane);
+        const controls=[document.getElementById('site-editor'),document.getElementById('site-editor-nav'),
+          document.getElementById('site-editor-page'),document.getElementById('site-editor-nav-label'),
+          document.getElementById('site-editor-nav-icon'),document.getElementById('site-editor-nav-src'),
+          document.getElementById('site-editor-nav-alt'),
+          document.getElementById('site-editor-reopen'),pane,input,textarea].map(node=>{const style=getComputedStyle(node);return {background:style.backgroundColor,color:style.color,border:style.borderTopColor}});
+        const mutedControls=[select,button,document.getElementById('site-editor-save'),
+          document.getElementById('site-editor-status')].map(node=>{const style=getComputedStyle(node);return {background:style.backgroundColor,color:style.color}});
+        reference.remove();pane.remove();return {expected,muted,controls,mutedControls};
+      })()`);
+      for (const actual of result.controls) assert.deepEqual(actual, result.expected, mode);
+      for (const actual of result.mutedControls) {
+        assert.equal(actual.background, result.muted, mode);
+        assert.equal(actual.color, result.expected.color, mode);
+      }
+    }
+    await click('#site-editor-close');
     assert.deepEqual(errors, []);
   });
 

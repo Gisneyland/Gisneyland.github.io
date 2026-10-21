@@ -1,25 +1,34 @@
 (function (global) {
   'use strict';
   const M = global.SiteEditorModel;
+  const ICONS = '.material-icons,.material-icons-outlined,.material-symbols-outlined,.material-symbols-rounded,.material-symbols-sharp';
   // Capture original nodes before i18n, calendars, feeds or questionnaire initialization.
   // No innerHTML snapshots: interactive nodes and their event handlers always stay alive.
-  const PROTECTED = 'script,style,form,input,textarea,select,button,iframe,canvas,svg,'
+  const PROTECTED = 'script,style,form,input,textarea,select,button:not([data-site-editor-static="true"]),iframe,canvas,svg,'
     + '[contenteditable], [data-managed-news], [aria-live], [role="status"],'
+    + '[onclick],[onkeydown],[role="button"]:not([data-site-editor-static="true"]),[aria-controls],[aria-expanded],'
     + '#activity-calendar,#activity-event-details,.calendar-info-popover,.questionnaire-progress,.questionnaire-section-nav,'
     + '[data-site-editor-protected]';
   function capture(main, navigation) {
-    const nodes = new Map(), texts = new Map(), links = new Map(), parents = new Map();
+    const nodes = new Map(), texts = new Map(), links = new Map(), parents = new Map(), components = new Map();
     const attributes = new Map(), added = [], navAdded = [], touched = new Set(), touchedTexts = new Set(), reordered = new Set();
     const replacedTextParents = new Map(), navEntries = new Map();
     const textWrappers = new Map();
     let navChanged = false;
     const baselineNavigation = { main: [], more: [] }, navRoots = {};
     const navOriginal = {};
+    function navText(node) {
+      if (node.nodeType === 3) return node.nodeValue;
+      if (node.nodeType !== 1 || node.matches(`${ICONS},img,[aria-hidden="true"]`)) return '';
+      return Array.from(node.childNodes).map(navText).join('');
+    }
     function remember(element) {
       if (!attributes.has(element)) attributes.set(element, {
         hidden: element.hidden, href: element.getAttribute('href'),
         i18n: element.getAttribute('data-i18n'), translate: element.getAttribute('translate'),
-        style: element.getAttribute('style'), format: element.getAttribute('data-site-editor-style')
+        style: element.getAttribute('style'), format: element.getAttribute('data-site-editor-style'),
+        src: element.getAttribute('src'), alt: element.getAttribute('alt'), srcset: element.getAttribute('srcset'),
+        variant: element.getAttribute('data-site-editor-variant'), className: element.getAttribute('class')
       });
     }
     function walk(element, path) {
@@ -30,13 +39,18 @@
       nodes.set(stable, { element, parent: null, deletable: !containsWidget, movable: !containsWidget,
         label: `${element.tagName.toLowerCase()} ${element.id || String(element.className).split(' ')[0] || ''}` });
       remember(element);
+      const isIcon = element.matches(ICONS)
+        && !element.children.length;
+      if (element.tagName === 'IMG') components.set(stable, { element, type: 'image' });
+      else if (isIcon) components.set(stable, { element, type: 'icon', original: Array.from(element.childNodes) });
+      else if (element.matches('a[href],button[data-site-editor-static="true"]')) components.set(stable, { element, type: 'button' });
       const children = Array.from(element.children);
       parents.set(stable, { element, children, childNodes: Array.from(element.childNodes), ids: [] });
       let textIndex = 0;
       for (const child of element.childNodes) {
         if (child.nodeType === 3) {
           const original = child.nodeValue;
-          if (original.trim() && !element.closest('[aria-hidden="true"],.material-icons,.notranslate')) {
+          if (original.trim() && !isIcon && !element.closest('[aria-hidden="true"],.material-icons,.material-icons-outlined,.material-symbols-outlined,.material-symbols-rounded,.material-symbols-sharp,.notranslate')) {
             const textId = `${stable}/t${textIndex}:${M.fingerprint(original)}`;
             texts.set(textId, { node: child, original, label: original.trim().slice(0, 85), element });
           }
@@ -61,14 +75,21 @@
       navRoots.more = navigation.querySelector('#navigation-more-menu');
       for (const group of ['main', 'more']) {
         navOriginal[group] = Array.from(navRoots[group]?.childNodes || []);
-        navOriginal[group].filter(node => node.tagName === 'A').forEach((node, index) => {
-          const label = Array.from(node.childNodes).filter(child => child.nodeType === 3
-            || (child.nodeType === 1 && !child.matches('.material-icons,[aria-hidden="true"]')))
-            .map(child => child.textContent).join('').trim();
-          baselineNavigation[group].push({ id: `${group}-${index}`, label,
-            url: node.getAttribute('href') });
+        navOriginal[group].filter(node => node.tagName === 'A' && !node.matches(PROTECTED) && !node.querySelector(PROTECTED)).forEach((node, index) => {
+          const label = navText(node).trim();
+          const icon = node.querySelector(ICONS), image = node.querySelector('img');
+          const item = { id: `${group}-${index}`, label, url: node.getAttribute('href') };
+          if (icon && /^[a-z][a-z0-9_]{0,63}$/.test(icon.textContent.trim())) item.icon = icon.textContent.trim();
+          if (image && M.safeMediaURL(image.getAttribute('src'))) {
+            item.src = image.getAttribute('src'); item.alt = image.getAttribute('alt') || '';
+          }
+          baselineNavigation[group].push(item);
+          if (icon) remember(icon);
+          if (image) remember(image);
           navEntries.set(`${group}-${index}`, { element: node, children: Array.from(node.childNodes),
-            href: node.getAttribute('href'), hidden: node.hidden, current: node.getAttribute('aria-current'), label });
+            href: node.getAttribute('href'), hidden: node.hidden, current: node.getAttribute('aria-current'), label,
+            icon, image, iconChildren: icon ? Array.from(icon.childNodes) : [],
+            visualParents: [icon, image].filter(Boolean).map(visual => ({ node: visual, parent: visual.parentNode, next: visual.nextSibling })) });
         });
       }
     }
@@ -93,19 +114,26 @@
         element.hidden = attrs.hidden;
         element.removeAttribute('data-site-editor-deleted');
         for (const [name, value] of [['href', attrs.href], ['data-i18n', attrs.i18n], ['translate', attrs.translate],
-          ['style', attrs.style], ['data-site-editor-style', attrs.format]]) {
+          ['style', attrs.style], ['data-site-editor-style', attrs.format], ['src', attrs.src], ['alt', attrs.alt],
+          ['srcset', attrs.srcset], ['data-site-editor-variant', attrs.variant], ['class', attrs.className]]) {
           // Flush pending CSSOM serialization before removing an originally absent style.
           if (name === 'style') element.getAttribute(name);
           if (value === null) element.removeAttribute(name); else element.setAttribute(name, value);
         }
+        for (const item of components.values()) if (item.type === 'icon' && touched.has(item.element)) item.element.replaceChildren(...item.original);
       }
       touched.clear();
       if (navChanged) for (const group of ['main', 'more']) {
         navOriginal[group]?.forEach(node => {
           if (node.tagName === 'A') {
             const entry = Array.from(navEntries.values()).find(item => item.element === node);
+            if (!entry) { navRoots[group].append(node); return; }
             node.hidden = entry.hidden; node.removeAttribute('data-site-editor-deleted');
             node.replaceChildren(...entry.children); node.setAttribute('href', entry.href);
+            for (const visual of entry.visualParents) {
+              visual.parent.insertBefore(visual.node, visual.next?.parentNode === visual.parent ? visual.next : null);
+            }
+            if (entry.icon) entry.icon.replaceChildren(...entry.iconChildren);
             if (entry.current === null) node.removeAttribute('aria-current'); else node.setAttribute('aria-current', entry.current);
           }
           navRoots[group].append(node);
@@ -145,6 +173,28 @@
         }
         if (links.has(id) && patch.href) {
           const element = links.get(id).element; touched.add(element); element.setAttribute('href', patch.href);
+        }
+        const visual = components.get(id);
+        if (visual) {
+          const element = visual.element;
+          if (visual.type === 'image' && ('src' in patch || 'alt' in patch)) {
+            touched.add(element);
+            if ('src' in patch) {
+              element.setAttribute('src', patch.src); element.removeAttribute('srcset');
+              if (element.parentElement?.tagName === 'PICTURE') for (const source of element.parentElement.querySelectorAll('source[srcset]')) {
+                remember(source); touched.add(source); source.removeAttribute('srcset');
+              }
+            }
+            if ('alt' in patch) element.setAttribute('alt', patch.alt);
+          }
+          if (visual.type === 'icon' && 'icon' in patch) {
+            touched.add(element); element.textContent = patch.icon;
+          }
+          if (visual.type === 'button' && patch.variant) {
+            touched.add(element); element.setAttribute('data-site-editor-variant', patch.variant);
+            M.VARIANTS.forEach(value => element.classList.remove(`site-editor-variant-${value}`));
+            element.classList.add('site-editor-button', `site-editor-variant-${patch.variant}`);
+          }
         }
         if (nodes.has(id) && patch.style && global.SiteEditorRich) {
           const element = nodes.get(id).element; touched.add(element);
@@ -229,7 +279,8 @@
         navChanged = true;
         const container = navRoots[group];
         if (!container) continue;
-        navOriginal[group].filter(node => node.tagName === 'A').forEach(node => {
+        navOriginal[group].filter(node => node.tagName === 'A'
+          && Array.from(navEntries.values()).some(entry => entry.element === node)).forEach(node => {
           node.hidden = true; node.setAttribute('data-site-editor-deleted', '');
         });
         const before = navOriginal[group].find(node => node.tagName === 'BUTTON') || null;
@@ -237,11 +288,41 @@
           const entry = navEntries.get(item.id);
           const anchor = entry ? entry.element : document.createElement('a');
           if (!entry || entry.label !== item.label) {
-            const icon = entry?.children.filter(node => node.nodeType === 1 && node.matches('.material-icons,[aria-hidden="true"]')) || [];
+            const icon = entry?.children.filter(node => node.nodeType === 1 && node.matches(`${ICONS},img,[aria-hidden="true"]`)) || [];
+            for (const visual of [entry?.icon, entry?.image]) if (visual && !icon.some(node => node === visual || node.contains(visual))) icon.push(visual);
             const label = document.createElement('span'); label.textContent = item.label;
             anchor.replaceChildren(...icon, label);
           }
           anchor.href = item.url; anchor.hidden = false; anchor.removeAttribute('data-site-editor-deleted');
+          if ('icon' in item) {
+            let icon = entry?.icon || anchor.querySelector(ICONS);
+            if (!icon && item.icon) {
+              icon = document.createElement('span'); icon.className = 'material-icons';
+              icon.setAttribute('aria-hidden', 'true'); anchor.prepend(icon);
+            }
+            if (icon) {
+              if (entry?.icon === icon) touched.add(icon);
+              icon.hidden = !item.icon;
+              if (item.icon) icon.textContent = item.icon;
+            }
+          }
+          if ('src' in item || 'alt' in item) {
+            let image = entry?.image || anchor.querySelector('img');
+            if (!image && item.src) { image = document.createElement('img'); anchor.prepend(image); }
+            if (image) {
+              if (entry?.image === image) touched.add(image);
+              if ('src' in item) {
+                image.hidden = !item.src;
+                if (item.src) {
+                  image.setAttribute('src', item.src); image.removeAttribute('srcset');
+                  if (image.parentElement?.tagName === 'PICTURE') for (const source of image.parentElement.querySelectorAll('source[srcset]')) {
+                    remember(source); touched.add(source); source.removeAttribute('srcset');
+                  }
+                }
+              }
+              if ('alt' in item) image.setAttribute('alt', item.alt);
+            }
+          }
           anchor.removeAttribute('aria-current');
           if (new URL(item.url, location.href).pathname === location.pathname) anchor.setAttribute('aria-current', 'page');
           container.insertBefore(anchor, before);
@@ -249,7 +330,7 @@
         }
       }
     }
-    return { nodes, texts, links, parents, root, baselineNavigation, render, restore, PROTECTED };
+    return { nodes, texts, links, parents, components, root, baselineNavigation, render, restore, PROTECTED };
   }
   global.SiteEditorDOM = Object.freeze({ capture, PROTECTED });
 })(globalThis);

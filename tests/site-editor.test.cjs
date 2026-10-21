@@ -80,6 +80,10 @@ test('deployment contracts separate public data, RPC-only writes, auth checks an
   assert.match(sql, /pg_advisory_xact_lock/);
   assert.match(sql, /expected_navigation_revision is distinct from/);
   const layout = fs.readFileSync(path.join(root, '_layouts/default.html'), 'utf8');
+  for (const asset of ['css/site-editor.css', 'js/site-editor-model.js', 'js/site-editor-rich.js',
+    'js/site-editor-dom.js', 'js/site-editor-inline.js', 'js/site-editor.js']) {
+    assert.ok(layout.includes(`'/assets/${asset}' | relative_url }}?v=20261020-3`), `${asset} cache version`);
+  }
   assert.ok(layout.indexOf('site-editor.js') < layout.indexOf('i18n.js'));
   assert.ok(layout.indexOf('site-editor.js') < layout.indexOf("'/assets/js/content.js'"));
   const controller = fs.readFileSync(path.join(root, 'assets/js/site-editor.js'), 'utf8');
@@ -94,7 +98,8 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
   timeout: 60000
 }, async t => {
   const editor = fs.readFileSync(path.join(root, '_includes/site-editor.html'), 'utf8')
-    .replace(/{%[\s\S]*?%}/g, '').replace(/<option value="{{[\s\S]*?<\/option>/g, '');
+    .replace(/{%[\s\S]*?%}/g, '').replace(/<option value="{{[\s\S]*?<\/option>/g, '')
+    .replace('</select>', '<option value="/">Home</option><option value="/about/">About</option><option value="/404.html">404</option></select>');
   const tools = fs.readFileSync(path.join(root, '_includes/tools.html'), 'utf8')
     .replace(/\{\{[\s\S]*?\}\}/g, '/admin/');
   const fixture = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/css/site-editor.css"></head><body data-site-editor-page="/" data-site-editor-url="/">
@@ -186,6 +191,10 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
     window.profileReads = 0;
     window.fixtureRole = null;
     window.saved = {};
+    window.publications = {};
+    window.publicationResolvers = [];
+    window.holdPublications = false;
+    window.failPublications = false;
     window.storageUploads = [];
     window.session = fixtureMode === 'public' ? null : {user:{id:'fixture-admin'}};
     window.questionnaireSupabase = {
@@ -203,6 +212,8 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
           async maybeSingle(){
             if(table==='admin_profiles'){profileReads++;return {data:{account_role:fixtureRole||(fixtureMode==='screener'?'screener':'administrator'),approval_status:fixtureMode==='pending'?'pending':'approved',privacy_consent_at:fixtureMode==='no-consent'?null:'2026-10-20'}}};
             if(fixtureMode==='missing') return {error:{message:'relation site_editor_drafts does not exist'}};
+            if(table==='site_editor_publications' && holdPublications) await new Promise(resolve=>publicationResolvers.push(resolve));
+            if(table==='site_editor_publications' && failPublications) return {error:{message:'Publication network failure'}};
             if(table==='site_editor_drafts' && fixtureMode==='race') await new Promise(resolve=>{draftResolvers.push(resolve);window.resolveDraft=()=>draftResolvers.splice(0).forEach(fn=>fn())});
             if(table==='site_editor_publications' && fixtureMode==='public' && key==='/'){
               const capture=SiteEditorDOM.capture(document.getElementById('main-content'),null);
@@ -210,16 +221,21 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
               const doc=SiteEditorModel.empty(); doc.patches[id]={text:'Published anonymous heading'};
               return {data:{document:doc,revision:1}};
             }
-            return {data:table==='site_editor_drafts'?saved[key]||null:null};
+            return {data:(table==='site_editor_drafts'?saved[key]:publications[key])||null};
           }
         };
       },
       async rpc(name,args) {
         rpcCalls.push({name,args});
+        if(window.rpcError) return {error:{message:rpcError}};
         if(name==='save_site_editor_drafts'){
           saved[args.target_page]={document:args.page_document,revision:args.expected_page_revision+1};
           saved['@navigation']={document:args.navigation_document,revision:args.expected_navigation_revision+1};
           return {data:{page_revision:args.expected_page_revision+1,navigation_revision:args.expected_navigation_revision+1}};
+        }
+        if(name==='publish_site_editor'){
+          publications[args.target_page]=structuredClone(saved[args.target_page]);
+          publications['@navigation']=structuredClone(saved['@navigation']);
         }
         return {data:null,error:null};
       }
@@ -241,37 +257,36 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
   })()`), { mutations: 0, rejected: true, same: true, text: 'Mixed bold tail' });
   await evaluate(`document.getElementById('site-editor-button').click()`);
   await wait(`document.getElementById('site-editor-status').textContent.includes('私人草稿已載入')`);
-  assert.equal(await evaluate(`Array.from(document.getElementById('site-editor-text').options).some(o=>o.text.includes('Static feed')||o.text.includes('Widget'))`), true); // Static widget section heading remains editable.
-  assert.equal(await evaluate(`Array.from(document.getElementById('site-editor-text').options).some(o=>o.text.includes('Static feed')||o.text==='BUTTON: Widget')`), false);
-  await evaluate(`{
-    const s=document.getElementById('site-editor-node');s.value=Array.from(s.options).find(o=>o.text.includes('section widgets')).value;s.dispatchEvent(new Event('change'));
-  }`);
-  assert.equal(await evaluate(`document.getElementById('site-editor-node-up').disabled && document.getElementById('site-editor-node-down').disabled && document.getElementById('site-editor-node-delete').disabled`), true);
+  assert.equal(await evaluate(`!document.getElementById('site-editor-text')&&!document.getElementById('site-editor-node')
+    &&!document.querySelector('#site-editor details')&&!document.getElementById('secret').isContentEditable`), true);
   await evaluate(`
     document.getElementById('secret').value='PRIVATE HEALTH ANSWER';
-    window.selectOption=(id,match)=>{const s=document.getElementById('site-editor-'+id);s.value=Array.from(s.options).find(o=>o.text.includes(match)).value;s.dispatchEvent(new Event('change'))};
-    selectOption('text','Original heading');
-    document.getElementById('site-editor-text-value').value='Edited <img src=x onerror=alert(1)>';
-    document.getElementById('site-editor-text-apply').click();
-    selectOption('text','Original translated text');document.getElementById('site-editor-text-value').value='Edited translated text';document.getElementById('site-editor-text-apply').click();
-    selectOption('link','Original link');document.getElementById('site-editor-link-value').value='javascript:alert(1)';document.getElementById('site-editor-link-apply').click();
+    window.editHeading=text=>{const node=document.querySelector('h1 [contenteditable]');node.focus();node.textContent=text;node.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}))};
+    window.navApply=(label,url)=>{document.getElementById('site-editor-nav-label').value=label;document.getElementById('site-editor-nav-url').value=url;document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))};
+    editHeading('Edited <img src=x onerror=alert(1)>');
+    document.querySelector('.bottom-nav a').click();
+    navApply('Home edited','javascript:alert(1)');
   `);
   assert.match(await evaluate(`document.getElementById('site-editor-status').textContent`), /連結僅限/);
   await evaluate(`
-    document.getElementById('site-editor-link-value').value='/news/';document.getElementById('site-editor-link-apply').click();
-    const s=document.getElementById('site-editor-node');s.value=Array.from(s.options).find(o=>o.text.includes('article card-b')).value;s.dispatchEvent(new Event('change'));document.getElementById('site-editor-node-up').click();
-    const p=document.getElementById('site-editor-parent');p.value=Array.from(fixtureBaseline.parents).find(([,item])=>item.element===document.querySelector('.info-grid'))[0];p.dispatchEvent(new Event('change'));
-    selectOption('before','article card-a');
-    document.getElementById('site-editor-block-title').value='Added card';document.getElementById('site-editor-block-body').value='Safe new body';document.getElementById('site-editor-block-apply').click();
-    document.getElementById('site-editor-block').value='';document.getElementById('site-editor-block').dispatchEvent(new Event('change'));
-    p.value=Array.from(fixtureBaseline.parents).find(([,item])=>item.element===document.querySelector('.info-grid'))[0];p.dispatchEvent(new Event('change'));selectOption('before','article card-b');
-    document.getElementById('site-editor-block-title').value='First card';document.getElementById('site-editor-block-body').value='First new body';document.getElementById('site-editor-block-apply').click();
-    document.getElementById('site-editor-nav-label').value='New entry';document.getElementById('site-editor-nav-url').value='/contact/';document.getElementById('site-editor-nav-apply').click();
+    navApply('Home edited','/');
+    document.getElementById('site-editor-nav-add').click();navApply('New entry','/contact/');
+    document.getElementById('site-editor-nav-up').click();
   `);
+  assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.bottom-nav a')).filter(a=>!a.hidden).map(a=>a.textContent)`), ['New entry', 'Home edited']);
+  await evaluate(`document.getElementById('site-editor-nav-more').click();document.querySelector('#navigation-more-menu a').click();navApply('About edited','/about/');
+    document.getElementById('site-editor-nav-add').click();navApply('Extra more','/contact/');
+    document.getElementById('site-editor-nav-up').click()`);
+  assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('#navigation-more-menu a')).filter(a=>!a.hidden).map(a=>a.textContent)`), ['Extra more', 'infoAbout edited']);
+  await evaluate(`document.getElementById('site-editor-nav-delete').click()`);
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('#navigation-more-menu a')).filter(a=>!a.hidden).length`), 1);
+  await evaluate(`document.getElementById('site-editor-undo').click()`);
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('#navigation-more-menu a')).filter(a=>!a.hidden).length`), 2);
+  await evaluate(`document.getElementById('site-editor-redo').click()`);
   const initialProfileReads = await evaluate(`profileReads`);
-  await evaluate(`document.getElementById('site-editor-block-body').value='Unapplied field retained';authChange('TOKEN_REFRESHED',session)`);
+  await evaluate(`document.getElementById('site-editor-nav-label').value='Unapplied field retained';authChange('TOKEN_REFRESHED',session)`);
   await wait(`profileReads>${initialProfileReads}`);
-  assert.equal(await evaluate(`!document.getElementById('site-editor').hidden && !document.getElementById('site-editor-button').hidden && document.getElementById('site-editor-block-body').value==='Unapplied field retained' && rpcCalls.length===0`), true);
+  assert.equal(await evaluate(`!document.getElementById('site-editor').hidden && !document.getElementById('site-editor-button').hidden && document.getElementById('site-editor-nav-label').value==='Unapplied field retained' && rpcCalls.length===0`), true);
   await evaluate(`document.getElementById('site-editor-preview').click()`);
   await wait(`document.body.classList.contains('site-editor-preview')`);
   assert.equal(await evaluate(`document.getElementById('site-editor').hidden && !document.getElementById('site-editor-preview-toolbar').hidden`), true);
@@ -291,16 +306,10 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
     more:!!document.getElementById('navigation-more-button'),
     top:!!document.querySelector('[data-scroll-to-top]'),
     nav:document.querySelector('.bottom-nav').textContent.includes('New entry')
-  })`), { title: 'Edited <img src=x onerror=alert(1)>', cards: ['First card', 'Card B', 'Added card', 'Card A'],
-    input: 'PRIVATE HEALTH ANSWER', widget: true, feed: 'Live feed', safe: true, translated: 'Edited translated text', mixed: 'Mixed bold tail', more: true, top: true, nav: true });
+  })`), { title: 'Edited <img src=x onerror=alert(1)>', cards: ['Card A', 'Card B'],
+    input: 'PRIVATE HEALTH ANSWER', widget: true, feed: 'Live feed', safe: true, translated: 'Runtime translation', mixed: 'Mixed bold tail', more: true, top: true, nav: true });
   await evaluate(`document.getElementById('site-editor-reopen').click()`);
   assert.equal(await evaluate(`!document.getElementById('site-editor').hidden && document.body.classList.contains('site-editor-preview')`), true);
-  await evaluate(`{
-    const s=document.getElementById('site-editor-node');s.value=Array.from(s.options).find(o=>o.text.includes('article card-a')).value;s.dispatchEvent(new Event('change'));document.getElementById('site-editor-node-delete').click();
-  }`);
-  assert.equal(await evaluate(`document.getElementById('card-a').hidden`), true);
-  await evaluate(`document.getElementById('site-editor-node-delete').click()`);
-  assert.equal(await evaluate(`document.getElementById('card-a').hidden`), false);
   assert.equal(await evaluate(`JSON.stringify(rpcCalls).includes('PRIVATE HEALTH ANSWER')`), false);
   await evaluate(`originalWidget.click();document.getElementById('site-editor-close').click()`);
   assert.equal(await evaluate(`document.querySelector('h1').textContent`), 'Original heading');
@@ -317,10 +326,10 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
   await evaluate(`document.getElementById('site-editor-reopen').click()`);
   await evaluate(`document.getElementById('site-editor-publish').click()`);
   await wait(`document.getElementById('site-editor-status').textContent.includes('已發布目前頁面')`);
-  assert.equal(await evaluate(`(()=>{authChange('SIGNED_IN',{user:{id:'different-admin'}});return document.getElementById('site-editor-button').hidden && document.getElementById('site-editor-nav-item').options.length===0})()`), true);
+  assert.equal(await evaluate(`(()=>{authChange('SIGNED_IN',{user:{id:'different-admin'}});return document.getElementById('site-editor-button').hidden && document.getElementById('site-editor-nav-label').value===''})()`), true);
   await evaluate(`authChange('SIGNED_OUT',null)`);
   assert.equal(await evaluate(`document.getElementById('site-editor-button').hidden && document.getElementById('site-editor').hidden`), true);
-  assert.equal(await evaluate(`document.getElementById('site-editor-nav-item').options.length`), 0);
+  assert.equal(await evaluate(`document.getElementById('site-editor-nav').hidden`), true);
   assert.equal(await evaluate(`document.querySelector('h1').textContent`), 'Edited <img src=x onerror=alert(1)>');
   assert.equal(await evaluate(`originalInput.value`), 'PRIVATE HEALTH ANSWER');
   for (const mode of ['screener', 'pending', 'no-consent']) {
@@ -336,22 +345,20 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
   await evaluate(`document.getElementById('site-editor-button').click()`);
   await wait(`document.getElementById('site-editor-status').textContent.includes('私人草稿已載入')`);
   await evaluate(`{
-    const select=document.getElementById('site-editor-text');select.value=Array.from(select.options).find(o=>o.text.includes('Original heading')).value;select.dispatchEvent(new Event('change'));
-    document.getElementById('site-editor-text-value').value='Revoked private draft';document.getElementById('site-editor-text-apply').click();
-    document.getElementById('site-editor-block-title').value='PRIVATE BLOCK LABEL';document.getElementById('site-editor-block-body').value='Private body';document.getElementById('site-editor-block-apply').click();
-    document.getElementById('site-editor-nav-label').value='PRIVATE NAV LABEL';document.getElementById('site-editor-nav-url').value='/contact/';document.getElementById('site-editor-nav-apply').click();
+    const node=document.querySelector('h1 [contenteditable]');node.focus();node.textContent='Revoked private draft';node.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText'}));
+    document.querySelector('.bottom-nav a').click();
+    document.getElementById('site-editor-nav-label').value='PRIVATE NAV LABEL';document.getElementById('site-editor-nav-url').value='/contact/';document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
     document.getElementById('site-editor-preview').click();
   }`);
   await wait(`document.body.classList.contains('site-editor-preview')`);
   await evaluate(`fixtureRole='screener';authChange('TOKEN_REFRESHED',session)`);
   await wait(`document.getElementById('site-editor-button').hidden`);
-  assert.equal(await evaluate(`document.querySelector('h1').textContent==='Original heading' && !document.body.classList.contains('site-editor-preview') && document.getElementById('site-editor-preview-toolbar').hidden && document.getElementById('site-editor-text').options.length===0`), true);
+  assert.equal(await evaluate(`document.querySelector('h1').textContent==='Original heading' && !document.body.classList.contains('site-editor-preview') && document.getElementById('site-editor-preview-toolbar').hidden && document.getElementById('site-editor-nav').hidden`), true);
   assert.equal(await evaluate(`(()=>{
-    const panel=document.getElementById('site-editor');
-    return !panel.textContent.includes('PRIVATE BLOCK LABEL') && !panel.textContent.includes('PRIVATE NAV LABEL')
-      && ['text','link','node','parent','before','block','nav-item'].every(id=>document.getElementById('site-editor-'+id).options.length===0)
+    const panel=document.getElementById('site-editor-nav');
+    return !panel.textContent.includes('PRIVATE NAV LABEL')
       && Array.from(panel.querySelectorAll('input,textarea')).every(field=>field.value==='')
-      && document.getElementById('site-editor-status').textContent==='' && document.getElementById('site-editor-node-info').textContent==='';
+      && document.getElementById('site-editor-status').textContent==='';
   })()`), true, 'Revocation must erase private labels, fields and messages from hidden DOM');
   await send('Page.navigate', { url: `${origin}/?mode=missing` });
   await wait(`window.fixtureMode==='missing' && document.getElementById('site-editor-button')?.hidden===false`);
@@ -365,6 +372,153 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
   await evaluate(`authChange('SIGNED_OUT',null);resolveDraft()`);
   await new Promise(resolve => setTimeout(resolve, 100));
   assert.equal(await evaluate(`document.getElementById('site-editor-button').hidden && document.getElementById('site-editor').hidden && !document.body.classList.contains('site-editor-preview')`), true);
+  await t.test('page switching saves first and save conflicts retain the active private draft', async () => {
+    await send('Page.navigate', { url: `${origin}/?mode=page-switch` });
+    await wait(`window.fixtureMode==='page-switch' && document.getElementById('site-editor-button')?.hidden===false`);
+    await evaluate(`document.getElementById('site-editor-button').click()`);
+    await wait(`document.querySelector('h1 [contenteditable]')`);
+    await evaluate(`
+      const node=document.querySelector('h1 [contenteditable]');node.focus();node.textContent='Retained page draft';
+      node.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText'}));
+      rpcError='Draft revision conflict';
+      const select=document.getElementById('site-editor-page');select.value='/about/';select.dispatchEvent(new Event('change'));
+    `);
+    await wait(`document.getElementById('site-editor-status').textContent.includes('Draft revision conflict')
+      &&!document.getElementById('site-editor-save').disabled`);
+    assert.equal(await evaluate(`location.pathname==='/'&&document.querySelector('h1').textContent==='Retained page draft'
+      &&rpcCalls.length===1&&rpcCalls[0].args.expected_page_revision===0&&rpcCalls[0].args.expected_navigation_revision===0
+      &&rpcCalls[0].args.navigation_document.navigation.main.length===1`), true);
+    await evaluate(`document.getElementById('site-editor-publish').click()`);
+    await wait(`document.getElementById('site-editor-status').textContent.includes('請先儲存草稿')`);
+    assert.equal(await evaluate('rpcCalls.length'), 1);
+    await evaluate(`rpcError=null;document.getElementById('site-editor-page').dispatchEvent(new Event('change'))`);
+    await wait(`location.pathname==='/about/'&&location.search==='?site-editor=1'&&document.querySelector('h1 [contenteditable]')`);
+  });
+  await t.test('navigation label edits preserve optional icon, logo and alternative text fields', async () => {
+    await send('Page.navigate', { url: `${origin}/?mode=nav-visual` });
+    await wait(`window.fixtureMode==='nav-visual' && document.getElementById('site-editor-button')?.hidden===false`);
+    await evaluate(`{
+      const documentValue=SiteEditorModel.empty();
+      documentValue.navigation={main:[{id:'main-0',label:'Home',url:'/',icon:'home',src:'/logo.png',alt:'Navigation logo'}],more:[]};
+      saved['@navigation']={document:documentValue,revision:1};
+      document.getElementById('site-editor-button').click();
+    }`);
+    await wait(`document.querySelector('h1 [contenteditable]')`);
+    await evaluate(`document.querySelector('.bottom-nav a:not([hidden])').click();
+      document.getElementById('site-editor-nav-label').value='Renamed home';
+      document.getElementById('site-editor-nav-url').value='/contact/';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('site-editor-save').click()`);
+    await wait(`saved['@navigation'].revision===2&&!document.getElementById('site-editor-save').disabled`);
+    assert.deepEqual(await evaluate(`saved['@navigation'].document.navigation.main[0]`), {
+      id:'main-0',label:'Renamed home',url:'/contact/',icon:'home',src:'/logo.png',alt:'Navigation logo'
+    });
+    assert.equal(await evaluate(`document.getElementById('site-editor-nav-icon').value==='home'
+      &&document.getElementById('site-editor-nav-src').value==='/logo.png'
+      &&document.getElementById('site-editor-nav-alt').value==='Navigation logo'`), true);
+    await evaluate(`document.getElementById('site-editor-nav-icon').value='<svg>';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))`);
+    assert.equal(await evaluate(`document.querySelector('.bottom-nav a:not([hidden]) .material-icons').textContent==='home'
+      &&!document.querySelector('.bottom-nav svg')`), true);
+    await evaluate(`document.getElementById('site-editor-nav-icon').value='favorite';
+      document.getElementById('site-editor-nav-src').value='javascript:alert(1)';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))`);
+    assert.equal(await evaluate(`document.querySelector('.bottom-nav a:not([hidden]) img').getAttribute('src')==='/logo.png'`), true);
+    await evaluate(`document.getElementById('site-editor-nav-src').value='/updated-logo.png';
+      document.getElementById('site-editor-nav-alt').value='Updated navigation logo';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('site-editor-save').click()`);
+    await wait(`saved['@navigation'].revision===3&&!document.getElementById('site-editor-save').disabled`);
+    assert.deepEqual(await evaluate(`saved['@navigation'].document.navigation.main[0]`), {
+      id:'main-0',label:'Renamed home',url:'/contact/',icon:'favorite',src:'/updated-logo.png',alt:'Updated navigation logo'
+    });
+    await evaluate(`for(const field of ['icon','src','alt'])document.getElementById('site-editor-nav-'+field).value='';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))`);
+    assert.equal(await evaluate(`Array.from(document.querySelectorAll('.bottom-nav a:not([hidden]) img,.bottom-nav a:not([hidden]) .material-icons')).every(node=>node.hidden)`), true);
+    await evaluate(`document.getElementById('site-editor-undo').click()`);
+    assert.equal(await evaluate(`document.getElementById('site-editor-nav-icon').value==='favorite'
+      &&document.getElementById('site-editor-nav-src').value==='/updated-logo.png'
+      &&document.querySelector('.bottom-nav a:not([hidden]) img').getAttribute('alt')==='Updated navigation logo'`), true);
+    await evaluate(`document.getElementById('site-editor-redo').click();
+      document.getElementById('site-editor-nav-add').click();
+      document.getElementById('site-editor-nav-label').value='Plain new link';
+      document.getElementById('site-editor-nav-url').value='/plain/';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('site-editor-save').click()`);
+    await wait(`saved['@navigation'].revision===4&&!document.getElementById('site-editor-save').disabled`);
+    assert.equal(await evaluate(`(()=>{
+      const [cleared,added]=saved['@navigation'].document.navigation.main;
+      return cleared.icon===''&&cleared.src===''&&cleared.alt===''
+        &&!('icon' in added)&&!('src' in added)&&!('alt' in added);
+    })()`), true);
+  });
+  await t.test('reset refreshes published page and global navigation, is private, undoable and race-safe', async () => {
+    await send('Page.navigate', { url: `${origin}/?mode=reset` });
+    await wait(`window.fixtureMode==='reset' && document.getElementById('site-editor-button')?.hidden===false`);
+    await evaluate(`document.getElementById('site-editor-button').click()`);
+    await wait(`document.querySelector('h1 [contenteditable]')`);
+    await evaluate(`
+      window.typeHeading=text=>{const node=document.querySelector('h1 [contenteditable]');node.focus();node.textContent=text;node.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}))};
+      typeHeading('Saved local heading');document.querySelector('.bottom-nav a').click();
+      document.getElementById('site-editor-nav-label').value='Local nav';
+      document.getElementById('site-editor-nav-url').value='/local/';
+      document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      document.getElementById('site-editor-save').click();
+    `);
+    await wait(`saved['/']?.revision===1&&!document.getElementById('site-editor-reset').disabled`);
+    await evaluate(`
+      const publishedPage=SiteEditorModel.empty();
+      const titleId=Array.from(fixtureBaseline.texts).find(([,item])=>item.original==='Original heading')[0];
+      publishedPage.patches[titleId]={text:'Current published heading'};
+      const publishedNavigation=SiteEditorModel.empty();
+      publishedNavigation.navigation={main:[{id:'main-current',label:'Current main',url:'/current/'}],more:[{id:'more-current',label:'Current more',url:'/current-more/'}]};
+      publications['/']={document:publishedPage,revision:5};
+      publications['@navigation']={document:publishedNavigation,revision:7};
+      typeHeading('Unsaved local heading');
+      document.getElementById('site-editor-reset').click();
+    `);
+    await wait(`document.getElementById('site-editor-status').textContent.includes('已還原目前已發布')&&!document.getElementById('site-editor-reset').disabled`);
+    assert.deepEqual(await evaluate(`({
+      heading:document.querySelector('h1').textContent,
+      main:Array.from(document.querySelectorAll('.bottom-nav a')).filter(a=>!a.hidden).map(a=>a.textContent),
+      more:Array.from(document.querySelectorAll('#navigation-more-menu a')).filter(a=>!a.hidden).map(a=>a.textContent),
+      writes:rpcCalls.length,savedTitle:Object.values(saved['/'].document.patches).find(p=>p.text)?.text,
+      undoDisabled:document.getElementById('site-editor-undo').disabled
+    })`), { heading:'Current published heading',main:['Current main'],more:['Current more'],writes:1,savedTitle:'Saved local heading',undoDisabled:false });
+    await evaluate(`document.getElementById('site-editor-undo').click()`);
+    assert.equal(await evaluate(`document.querySelector('h1').textContent==='Unsaved local heading'
+      &&document.querySelector('.bottom-nav').textContent.includes('Local nav')`), true);
+    await evaluate(`document.getElementById('site-editor-redo').click()`);
+    assert.equal(await evaluate(`document.querySelector('h1').textContent==='Current published heading'`), true);
+    const readsBeforeCancel = await evaluate('profileReads');
+    await evaluate(`confirm=()=>false;document.getElementById('site-editor-reset').click();confirm=()=>true`);
+    assert.equal(await evaluate('profileReads'), readsBeforeCancel);
+    await evaluate(`typeHeading('Retained on error');failPublications=true;document.getElementById('site-editor-reset').click()`);
+    await wait(`document.getElementById('site-editor-status').textContent.includes('Publication network failure')&&!document.getElementById('site-editor-reset').disabled`);
+    assert.equal(await evaluate(`document.querySelector('h1').textContent==='Retained on error'&&rpcCalls.length===1`), true);
+    await evaluate(`failPublications=false;saved['@navigation'].revision++;document.getElementById('site-editor-reset').click()`);
+    await wait(`document.getElementById('site-editor-status').textContent.includes('版本衝突')&&!document.getElementById('site-editor-reset').disabled`);
+    assert.equal(await evaluate(`document.querySelector('h1').textContent==='Retained on error'&&rpcCalls.length===1`), true);
+    await evaluate(`saved['@navigation'].revision--;publications={};document.getElementById('site-editor-reset').click()`);
+    await wait(`document.getElementById('site-editor-status').textContent.includes('已還原目前已發布')&&!document.getElementById('site-editor-reset').disabled`);
+    assert.equal(await evaluate(`document.querySelector('h1').textContent==='Original heading'
+      &&document.querySelector('.bottom-nav').textContent.includes('Home')
+      &&document.querySelector('#navigation-more-menu').textContent.includes('About')&&rpcCalls.length===1`), true);
+    await evaluate(`typeHeading('Private delayed reset');holdPublications=true;document.getElementById('site-editor-reset').click()`);
+    await wait(`publicationResolvers.length===2`);
+    await evaluate(`authChange('SIGNED_OUT',null);holdPublications=false;publicationResolvers.splice(0).forEach(resolve=>resolve())`);
+    await new Promise(resolve=>setTimeout(resolve,100));
+    assert.equal(await evaluate(`document.querySelector('h1').textContent==='Original heading'
+      &&document.getElementById('site-editor').hidden&&document.getElementById('site-editor-nav').hidden
+      &&document.getElementById('site-editor-button').hidden&&rpcCalls.length===1`), true);
+    await send('Page.navigate', { url: `${origin}/?mode=reset-revoked` });
+    await wait(`window.fixtureMode==='reset-revoked' && document.getElementById('site-editor-button')?.hidden===false`);
+    await evaluate(`document.getElementById('site-editor-button').click()`);
+    await wait(`document.querySelector('h1 [contenteditable]')`);
+    await evaluate(`fixtureRole='screener';document.getElementById('site-editor-reset').click()`);
+    await wait(`document.getElementById('site-editor-button').hidden`);
+    assert.equal(await evaluate(`document.getElementById('site-editor').hidden&&rpcCalls.length===0`), true);
+  });
   await t.test('integrated inline editing, formatting, history, insertion, source flush and public uploads', async () => {
     await send('Page.navigate', { url: `${origin}/?mode=inline` });
     await wait(`window.fixtureMode==='inline' && document.getElementById('site-editor-button')?.hidden===false`);
@@ -504,9 +658,9 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
     assert.equal(await evaluate(`!!document.querySelector('main img')&&document.activeElement.hasAttribute('data-delete')`), true);
     await evaluate(`clickInlineLabel('刪除元件')`);
     assert.equal(await evaluate(`!document.querySelector('main img')&&storageUploads.length===1`), true);
-    await evaluate(`document.getElementById('site-editor-settings').click()`);
-    assert.equal(await evaluate(`document.getElementById('site-editor').hidden&&document.body.classList.contains('site-editor-editing')`), true);
-    await evaluate(`document.getElementById('site-editor-settings').click();document.getElementById('site-editor-preview').click()`);
+    assert.equal(await evaluate(`!document.getElementById('site-editor-settings')
+      &&!document.getElementById('site-editor-preview').hidden&&document.body.classList.contains('site-editor-editing')`), true);
+    await evaluate(`document.getElementById('site-editor-preview').click()`);
     await wait(`document.body.classList.contains('site-editor-preview')`);
     assert.equal(await evaluate(`!document.querySelector('main [contenteditable]')
       &&document.getElementById('site-editor-mode-actions').hidden&&document.querySelector('h1').textContent==='Inline history'`), true);
@@ -517,7 +671,7 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
     await wait(`document.querySelector('h1 [contenteditable]')`);
     await evaluate(`typeInline(document.querySelector('#mixed [contenteditable]'),'UNSAVED INLINE TEXT');authChange('SIGNED_OUT',null)`);
     assert.equal(await evaluate(`document.getElementById('site-editor-button').hidden
-      &&!document.querySelector('main [contenteditable]')&&!document.querySelector('.site-editor-inline-ui')
+      &&!document.querySelector('main [contenteditable]')&&!document.querySelector('.site-editor-inline-ui:not([hidden])')
       &&!document.querySelector('main').textContent.includes('UNSAVED INLINE TEXT')
       &&document.querySelector('#mixed').textContent==='Mixed bold tail'
       &&document.querySelector('#intro strong')===originalInlineStrong

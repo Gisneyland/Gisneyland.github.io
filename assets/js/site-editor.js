@@ -10,6 +10,8 @@
   let published = M.empty(), publishedNav = M.empty(), draft = null, navDraft = null;
   let pageRevision = 0, navRevision = 0, panel, trigger;
   let inline, visual = false, restoring = false;
+  let navGroup = 'main', navId = null, navOpen = false, publicationRequest = 0;
+  let moreWasHidden = null;
   const undo = [], redo = [];
   const $ = id => document.getElementById(`site-editor-${id}`);
   const copy = value => JSON.parse(JSON.stringify(value));
@@ -25,13 +27,17 @@
     visual = value;
     document.body.classList.toggle('site-editor-editing', value);
     if ($('mode-actions')) $('mode-actions').hidden = !value;
+    if (panel) panel.hidden = !value;
+    if ($('nav-toggle')) $('nav-toggle').hidden = !value;
+    if (!value) hideNavigation();
     trigger?.setAttribute('aria-pressed', String(value));
+    trigger?.setAttribute('aria-expanded', String(value));
     if (!value) inline?.stop();
     historyControls();
   }
   function authorized(token) { return admin && token === generation; }
   function errorMessage(error) {
-    return `編輯服務無法使用：${error?.message || '連線失敗'}。請確認已依序執行 supabase/migrations/202610200001_site_editor.sql、202610200002_site_editor_rich.sql、202610200003_site_editor_media.sql，且管理員已核准並完成個資同意。原網站不受影響。`;
+    return `編輯服務無法使用：${error?.message || '連線失敗'}。請確認已依序執行 supabase/migrations/202610200001_site_editor.sql、202610200002_site_editor_rich.sql、202610200003_site_editor_media.sql、202610200004_site_editor_components.sql，且管理員已核准並完成個資同意。原網站不受影響。`;
   }
   function showPublished() {
     editing(false);
@@ -56,8 +62,9 @@
     if (panel) {
       panel.hidden = true; trigger?.setAttribute('aria-expanded', 'false');
       panel.querySelectorAll('input,textarea').forEach(node => { node.value = ''; });
-      for (const id of ['text', 'link', 'node', 'parent', 'before', 'block', 'nav-item']) $(id).replaceChildren();
-      message(''); $('node-info').textContent = '';
+      $('nav').querySelectorAll('input').forEach(node => { node.value = ''; });
+      navId = null; $('nav-form').hidden = true; $('nav-hint').textContent = '';
+      message('');
     }
     showPublished();
   }
@@ -67,16 +74,18 @@
     return { document: data ? M.normalize(data.document) : null, revision: data?.revision || 0 };
   }
   async function loadPublished() {
+    const request = ++publicationRequest;
     try {
       const [content, nav] = await Promise.all([
         enabled ? read('site_editor_publications', page) : Promise.resolve({ document: null }),
         read('site_editor_publications', '@navigation')
       ]);
+      if (request !== publicationRequest) return;
       published = content.document || M.empty(); publishedNav = nav.document || M.empty();
       if (!preview && !visual) showPublished();
     } catch (error) {
       // Missing migrations and network failures never blank or disable the static site.
-      if (admin) message(errorMessage(error));
+      if (request === publicationRequest && admin) message(errorMessage(error));
     }
   }
   async function checkSession(session, token, check, preserve) {
@@ -109,11 +118,13 @@
     panel.querySelectorAll('button,select,input,textarea').forEach(node => { node.disabled = value || !draft; });
     $('close').disabled = false;
     for (const id of ['reopen', 'preview-leave']) $(id).disabled = value;
-    for (const id of ['mode-save', 'settings']) if ($(id)) $(id).disabled = value || !draft;
+    if ($('mode-save')) $('mode-save').disabled = value || !draft;
+    $('nav').querySelectorAll('button,input').forEach(node => { node.disabled = value || !draft; });
+    $('nav-toggle').disabled = value || !draft;
     if (value) inline?.stop();
     else if (visual) inline?.start();
     historyControls();
-    if (!value && draft) nodeSelection();
+    if (!value && draft) refreshNavigation();
     if (!value && preview && panel.hidden) $('reopen').focus();
   }
   async function run(action) {
@@ -126,70 +137,82 @@
     finally { if (authorized(token) && currentOperation === operation) setBusy(false); }
   }
   function selected(id) { return $(id).value; }
-  function fill(id, entries, value, first) {
-    const select = $(id); select.replaceChildren();
-    if (first) { const option = document.createElement('option'); option.value = ''; option.textContent = first; select.append(option); }
-    for (const [key, label] of entries) {
-      const option = document.createElement('option'); option.value = key; option.textContent = label;
-      select.append(option);
+  function navRoot(group = navGroup) {
+    return document.querySelector(group === 'main' ? '.site-navigation .bottom-nav' : '#navigation-more-menu');
+  }
+  function positionNavigation() {
+    const root = navRoot(navOpen && navGroup === 'more' ? 'more' : 'main');
+    if (!root || !$('nav')) return;
+    const bottom = Math.max(8, Math.min(global.innerHeight - 180, global.innerHeight - root.getBoundingClientRect().top + 8));
+    $('nav').style.bottom = `${bottom}px`; $('nav-toggle').style.bottom = `${bottom}px`;
+    $('nav').style.maxHeight = `${Math.min(global.innerHeight * .55, global.innerHeight - bottom - 8)}px`;
+  }
+  function hideNavigation() {
+    navOpen = false;
+    if ($('nav')) $('nav').hidden = true;
+    $('nav-toggle')?.setAttribute('aria-expanded', 'false');
+    document.querySelectorAll('.site-editor-nav-selected').forEach(node => node.classList.remove('site-editor-nav-selected'));
+    const more = navRoot('more');
+    if (more && moreWasHidden !== null) {
+      more.hidden = moreWasHidden;
+      document.getElementById('navigation-more-button')?.setAttribute('aria-expanded', String(!more.hidden));
     }
-    if (Array.from(select.options).some(option => option.value === value)) select.value = value;
+    moreWasHidden = null;
   }
-  function textSelection() {
-    const id = selected('text');
-    $('text-value').value = draft.patches[id]?.text ?? baseline.texts.get(id)?.original ?? '';
+  function refreshNavigation() {
+    if (!navDraft?.navigation) return;
+    const list = navDraft.navigation[navGroup], index = list.findIndex(item => item.id === navId);
+    $('nav-main').setAttribute('aria-pressed', String(navGroup === 'main'));
+    $('nav-more').setAttribute('aria-pressed', String(navGroup === 'more'));
+    $('nav-form').hidden = navId === null;
+    $('nav-hint').textContent = navId === '' ? '新增全站導覽項目' : index < 0
+      ? '點選導覽連結修改，或新增項目。' : `編輯：${list[index].label}`;
+    $('nav-up').disabled = busy || index <= 0;
+    $('nav-down').disabled = busy || index < 0 || index === list.length - 1;
+    $('nav-delete').disabled = busy || index < 0;
+    document.querySelectorAll('.site-editor-nav-selected').forEach(node => node.classList.remove('site-editor-nav-selected'));
+    const anchors = Array.from(navRoot()?.querySelectorAll(':scope > a') || []).filter(node => !node.hidden);
+    if (index >= 0 && navOpen) anchors[index]?.classList.add('site-editor-nav-selected');
+    positionNavigation();
   }
-  function linkSelection() {
-    const id = selected('link');
-    $('link-value').value = draft.patches[id]?.href ?? baseline.links.get(id)?.original ?? '';
+  function selectNavigation(group, id = null) {
+    if (!admin || !visual || busy || !navDraft) return;
+    if (inline?.flush() === false) return;
+    navGroup = group; navId = id; navOpen = true;
+    const more = navRoot('more');
+    if (more) {
+      if (moreWasHidden === null) moreWasHidden = more.hidden;
+      more.hidden = group !== 'more';
+      document.getElementById('navigation-more-button')?.setAttribute('aria-expanded', String(!more.hidden));
+    }
+    const item = navDraft.navigation[group].find(entry => entry.id === id);
+    navigationFields(item);
+    $('nav').hidden = false; $('nav-toggle').setAttribute('aria-expanded', 'true');
+    refreshNavigation();
+    if (id !== null) $('nav-label').focus();
   }
-  function nodeSelection() {
-    const id = selected('node'), target = baseline.nodes.get(id);
-    $('node-info').textContent = target
-      ? `${target.element.textContent.trim().slice(0, 65)}${draft.patches[id]?.deleted ? '（已刪除）' : ''}${target.deletable ? '' : '（互動工具，無法移動或刪除）'}` : '';
-    $('node-delete').disabled = !target?.deletable;
-    $('node-up').disabled = !target?.movable;
-    $('node-down').disabled = !target?.movable;
-  }
-  function blockSelection() {
-    const block = draft.blocks.find(item => item.id === selected('block'));
-    for (const field of ['title', 'body', 'url', 'label']) $('block-' + field).value = block?.[field] || '';
-    $('parent').value = block?.parent || baseline.root;
-    beforeSelection(block?.before || '');
-  }
-  function beforeSelection(value = '') {
-    const parentId = selected('parent');
-    fill('before', Array.from(baseline.nodes).filter(([, node]) => node.parent === parentId && node.movable)
-      .map(([id, node]) => [id, `${node.label} — ${node.element.textContent.trim().slice(0, 55)}`]), value, '容器末端');
-  }
-  function navSelection() {
-    const item = navDraft.navigation[selected('nav-group')].find(entry => entry.id === selected('nav-item'));
-    $('nav-label').value = item?.label || ''; $('nav-url').value = item?.url || '';
-  }
-  function refreshNav(value) {
-    fill('nav-item', navDraft.navigation[selected('nav-group')].map(item => [item.id, item.label]), value, '新增導覽項目');
-    navSelection();
+  function navigationFields(item) {
+    const original = baseline.baselineNavigation[navGroup].find(entry => entry.id === item?.id);
+    for (const field of ['label', 'url', 'icon', 'src', 'alt']) {
+      $('nav-' + field).value = item?.[field] ?? (item ? original?.[field] : '') ?? '';
+    }
   }
   function refresh() {
-    if (!draft || !navDraft) return;
-    fill('text', Array.from(baseline.texts, ([id, item]) => [id, `${item.element.tagName}: ${item.label}`]), selected('text'));
-    fill('link', Array.from(baseline.links, ([id, item]) => [id, item.label]), selected('link'));
-    const nodeEntries = Array.from(baseline.nodes).filter(([, item]) => item.parent
-      && /^(SECTION|ARTICLE|DIV|LI|A|H[1-6]|P|UL|OL)$/.test(item.element.tagName));
-    fill('node', nodeEntries.map(([id, item]) => [id, `${'·'.repeat(Math.min(id.split('/').length, 8))} ${item.label} — ${item.element.textContent.trim().slice(0, 45)}`]), selected('node'));
-    fill('parent', Array.from(baseline.parents).filter(([, item]) => /^(MAIN|SECTION|ARTICLE|DIV)$/.test(item.element.tagName))
-      .map(([id, item]) => [id, item.element.querySelector('h1,h2,h3,h4')?.textContent.trim().slice(0, 55)
-        || item.element.textContent.trim().slice(0, 55) || '頁面內容']), selected('parent') || baseline.root);
-    fill('block', draft.blocks.map(block => [block.id, block.title || '未命名區塊']), selected('block'), '新增區塊');
-    textSelection(); linkSelection(); nodeSelection(); blockSelection(); refreshNav(selected('nav-item'));
+    if (navId !== null) {
+      const item = navDraft?.navigation[navGroup].find(entry => entry.id === navId);
+      if (navId && !item) navId = null;
+      navigationFields(item);
+    }
+    refreshNavigation();
   }
   function changed() {
     draft = M.normalize(draft); navDraft = M.normalize(navDraft); dirty = true;
     if (preview || visual) applyOverlay(draft, navDraft);
+    refreshNavigation();
     message('草稿已修改，尚未儲存／發布。');
   }
-  function mutate(action) {
-    if (!admin || busy || !draft) return false;
+  function mutate(action, resetting = false) {
+    if (!admin || (busy && !resetting) || !draft) return false;
     const before = copy(draft), navBefore = copy(navDraft);
     try {
       action();
@@ -260,6 +283,8 @@
     if (index >= 0 && next >= 0 && next < array.length) [array[index], array[next]] = [array[next], array[index]];
   }
   function wire() {
+    const navigation = document.querySelector('.site-navigation');
+    if (navigation) navigation.append($('nav'), $('nav-toggle'));
     trigger.addEventListener('click', () => { if (visual) close(); else open(); });
     $('close').addEventListener('click', close);
     $('reopen').addEventListener('click', open);
@@ -267,11 +292,6 @@
       showPublished(); message('已離開預覽；可重新開啟草稿。'); trigger.focus();
     });
     $('mode-save')?.addEventListener('click', () => run(save));
-    $('settings')?.addEventListener('click', () => {
-      panel.hidden = !panel.hidden;
-      trigger.setAttribute('aria-expanded', String(!panel.hidden));
-      if (!panel.hidden) $('close').focus();
-    });
     for (const [id, source, destination] of [['undo', undo, redo], ['redo', redo, undo]]) {
       $(id)?.addEventListener('click', () => {
         if (!admin || busy || !draft) return;
@@ -316,7 +336,6 @@
       $('preview-toolbar').hidden = false; $('reopen').focus();
       message('管理員草稿預覽中；訪客仍看到已發布版本。');
     }));
-    $('exit').addEventListener('click', () => { showPublished(); message('已離開預覽；可重新開啟草稿。'); });
     $('publish').addEventListener('click', () => run(async token => {
       if (!draft) throw new Error('請先載入草稿');
       if (dirty) { message('請先儲存草稿，再發布。'); return; }
@@ -325,80 +344,85 @@
         expected_page_revision: pageRevision, expected_navigation_revision: navRevision });
       if (error) throw error;
       if (!authorized(token)) return;
+      publicationRequest += 1;
       published = copy(draft); publishedNav = copy(navDraft); showPublished(); message('已發布目前頁面與全站導覽。');
     }));
-    $('reset').addEventListener('click', () => {
-      if (global.confirm('將目前頁面草稿還原為原始版面？導覽不變；儲存、發布後才對訪客生效。')) {
-        mutate(() => { draft = M.empty(); }); refresh();
+    $('reset').addEventListener('click', () => run(async token => {
+      if (!draft || !global.confirm('將目前頁面與全站導覽的私人草稿還原為「目前已發布版本」？可復原；只有儲存並發布後才會影響訪客。')) return;
+      const request = ++publicationRequest;
+      message('重新讀取目前已發布版本與草稿版本…');
+      const userId = activeUserId;
+      const [content, nav, currentPage, currentNav, profile] = await Promise.all([
+        read('site_editor_publications', page), read('site_editor_publications', '@navigation'),
+        read('site_editor_drafts', page), read('site_editor_drafts', '@navigation'),
+        client.from('admin_profiles').select('account_role,approval_status,privacy_consent_at').eq('user_id', userId).maybeSingle()
+      ]);
+      if (!authorized(token) || request !== publicationRequest || activeUserId !== userId) return;
+      if (profile.error) throw profile.error;
+      if (!M.administrator(profile.data)) { revoke(); return; }
+      if (currentPage.revision !== pageRevision || currentNav.revision !== navRevision) {
+        throw new Error('草稿版本衝突，未還原。請重新整理並檢查其他管理員的最新草稿');
       }
+      published = content.document || M.empty(); publishedNav = nav.document || M.empty();
+      mutate(() => {
+        draft = copy(published); navDraft = copy(publishedNav);
+        if (!navDraft.navigation) navDraft.navigation = copy(baseline.baselineNavigation);
+      }, true);
+      navId = null; refresh();
+      message('已還原目前已發布的頁面與全站導覽至私人草稿；可復原，尚未儲存／發布。');
+    }));
+    $('nav-toggle').addEventListener('click', () => {
+      if (navOpen) hideNavigation(); else selectNavigation(navGroup);
     });
-    $('text').addEventListener('change', textSelection);
-    $('link').addEventListener('change', linkSelection);
-    $('node').addEventListener('change', nodeSelection);
-    $('text-apply').addEventListener('click', () => mutate(() => {
-      const id = selected('text'); if (!baseline.texts.has(id)) return;
-      draft.patches[id] = { ...draft.patches[id], text: $('text-value').value };
-      delete draft.patches[id].rich;
-    }));
-    $('link-apply').addEventListener('click', () => mutate(() => {
-      const id = selected('link'); if (!baseline.links.has(id)) return;
-      draft.patches[id] = { ...draft.patches[id], href: $('link-value').value };
-    }));
+    $('nav-close').addEventListener('click', hideNavigation);
+    for (const group of ['main', 'more']) $('nav-' + group).addEventListener('click', () => selectNavigation(group));
+    $('nav-add').addEventListener('click', () => selectNavigation(navGroup, ''));
+    navigation?.addEventListener('click', event => {
+      if (!admin || !visual) return;
+      const anchor = event.target.closest('a');
+      if (!anchor) return;
+      const group = anchor.parentElement === navRoot('main') ? 'main'
+        : anchor.parentElement === navRoot('more') ? 'more' : null;
+      if (!group) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (busy) return;
+      const anchors = Array.from(navRoot(group).querySelectorAll(':scope > a')).filter(node => !node.hidden);
+      const item = navDraft?.navigation[group][anchors.indexOf(anchor)];
+      if (item) selectNavigation(group, item.id);
+    }, true);
+    $('nav-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (inline?.flush() === false || navId === null) return;
+      let id = navId;
+      if (mutate(() => {
+        if (!id) id = `nav-${global.crypto.randomUUID()}`;
+        const list = navDraft.navigation[navGroup], index = list.findIndex(entry => entry.id === id);
+        const item = { ...list[index], id, label: $('nav-label').value, url: $('nav-url').value };
+        for (const field of ['icon', 'src', 'alt']) {
+          const value = field === 'alt' ? $('nav-' + field).value : $('nav-' + field).value.trim();
+          if (index >= 0 || value) item[field] = value;
+        }
+        if (index < 0) list.push(item); else list[index] = item;
+      })) { navId = id; refreshNavigation(); }
+    });
     for (const [name, direction] of [['up', -1], ['down', 1]]) {
-      $('node-' + name).addEventListener('click', () => mutate(() => {
-        const id = selected('node'), parent = baseline.nodes.get(id)?.parent;
-        if (!parent || !baseline.nodes.get(id).movable) return;
-        const order = draft.orders[parent] || [...baseline.parents.get(parent).ids];
-        move(order, id, direction); draft.orders[parent] = order;
-      }));
-      $('block-' + name).addEventListener('click', () => {
-        mutate(() => move(draft.blocks, selected('block'), direction)); refresh();
-      });
       $('nav-' + name).addEventListener('click', () => {
-        const id = selected('nav-item');
-        mutate(() => move(navDraft.navigation[selected('nav-group')], id, direction)); refreshNav(id);
+        if (inline?.flush() === false) return;
+        mutate(() => move(navDraft.navigation[navGroup], navId, direction));
       });
     }
-    $('node-delete').addEventListener('click', () => {
-      mutate(() => {
-        const id = selected('node'); if (!baseline.nodes.get(id)?.deletable) return;
-        draft.patches[id] = { ...draft.patches[id], deleted: !draft.patches[id]?.deleted };
-      }); nodeSelection();
-    });
-    $('block').addEventListener('change', blockSelection);
-    $('parent').addEventListener('change', () => beforeSelection());
-    $('block-apply').addEventListener('click', () => {
-      let id = selected('block');
-      mutate(() => {
-        if (!id) id = `block-${global.crypto.randomUUID()}`;
-        const block = { ...draft.blocks.find(item => item.id === id), id, parent: selected('parent'), before: selected('before') };
-        if (block.body !== $('block-body').value) delete block.rich;
-        for (const field of ['title', 'body', 'url', 'label']) block[field] = $('block-' + field).value;
-        const index = draft.blocks.findIndex(item => item.id === id);
-        if (index < 0) draft.blocks.push(block); else draft.blocks[index] = block;
-      });
-      refresh(); $('block').value = id; blockSelection();
-    });
-    $('block-delete').addEventListener('click', () => { mutate(() => {
-      draft.blocks = draft.blocks.filter(item => item.id !== selected('block'));
-    }); refresh(); });
-    $('nav-group').addEventListener('change', () => refreshNav(''));
-    $('nav-item').addEventListener('change', navSelection);
-    $('nav-apply').addEventListener('click', () => {
-      let id = selected('nav-item');
-      mutate(() => {
-        if (!id) id = `nav-${global.crypto.randomUUID()}`;
-        const list = navDraft.navigation[selected('nav-group')];
-        const item = { id, label: $('nav-label').value, url: $('nav-url').value };
-        const index = list.findIndex(entry => entry.id === id);
-        if (index < 0) list.push(item); else list[index] = item;
-      }); refreshNav(id);
-    });
     $('nav-delete').addEventListener('click', () => {
-      mutate(() => {
-        navDraft.navigation[selected('nav-group')] = navDraft.navigation[selected('nav-group')].filter(item => item.id !== selected('nav-item'));
-      }); refreshNav('');
+      if (inline?.flush() === false) return;
+      if (!global.confirm('從全站導覽草稿刪除此項目？可復原；不會刪除實體頁面。')) return;
+      if (mutate(() => {
+        navDraft.navigation[navGroup] = navDraft.navigation[navGroup].filter(item => item.id !== navId);
+      })) { navId = null; navigationFields(); refreshNavigation(); }
     });
+    $('nav').addEventListener('keydown', event => {
+      if (event.key === 'Escape') { hideNavigation(); $('nav-toggle').focus(); }
+    });
+    global.addEventListener('resize', positionNavigation);
+    global.addEventListener('scroll', positionNavigation, { passive: true });
     global.addEventListener('beforeunload', event => {
       if (admin && dirty) { event.preventDefault(); event.returnValue = ''; }
     });
