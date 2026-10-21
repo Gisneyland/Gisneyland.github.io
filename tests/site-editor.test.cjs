@@ -312,6 +312,10 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
   assert.equal(await evaluate(`!document.getElementById('site-editor').hidden && document.body.classList.contains('site-editor-preview')`), true);
   assert.equal(await evaluate(`JSON.stringify(rpcCalls).includes('PRIVATE HEALTH ANSWER')`), false);
   await evaluate(`originalWidget.click();document.getElementById('site-editor-close').click()`);
+  assert.equal(await evaluate(`document.getElementById('site-editor').hidden
+    &&document.body.classList.contains('site-editor-editing')
+    &&document.getElementById('site-editor-nav-toggle').getAttribute('aria-label')==='展開編輯面板'`), true);
+  await evaluate(`document.getElementById('site-editor-button').click()`);
   assert.equal(await evaluate(`document.querySelector('h1').textContent`), 'Original heading');
   assert.equal(await evaluate(`clicks`), 1);
   assert.equal(await evaluate(`document.querySelector('#intro p').textContent`), 'Mixed bold tail');
@@ -384,7 +388,7 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
       const select=document.getElementById('site-editor-page');select.value='/about/';select.dispatchEvent(new Event('change'));
     `);
     await wait(`document.getElementById('site-editor-status').textContent.includes('Draft revision conflict')
-      &&!document.getElementById('site-editor-save').disabled`);
+      &&!document.getElementById('site-editor-mode-save').disabled`);
     assert.equal(await evaluate(`location.pathname==='/'&&document.querySelector('h1').textContent==='Retained page draft'
       &&rpcCalls.length===1&&rpcCalls[0].args.expected_page_revision===0&&rpcCalls[0].args.expected_navigation_revision===0
       &&rpcCalls[0].args.navigation_document.navigation.main.length===1`), true);
@@ -408,8 +412,8 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
       document.getElementById('site-editor-nav-label').value='Renamed home';
       document.getElementById('site-editor-nav-url').value='/contact/';
       document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
-      document.getElementById('site-editor-save').click()`);
-    await wait(`saved['@navigation'].revision===2&&!document.getElementById('site-editor-save').disabled`);
+      document.getElementById('site-editor-mode-save').click()`);
+    await wait(`saved['@navigation'].revision===2&&!document.getElementById('site-editor-mode-save').disabled`);
     assert.deepEqual(await evaluate(`saved['@navigation'].document.navigation.main[0]`), {
       id:'main-0',label:'Renamed home',url:'/contact/',icon:'home',src:'/logo.png',alt:'Navigation logo'
     });
@@ -427,8 +431,8 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
     await evaluate(`document.getElementById('site-editor-nav-src').value='/updated-logo.png';
       document.getElementById('site-editor-nav-alt').value='Updated navigation logo';
       document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
-      document.getElementById('site-editor-save').click()`);
-    await wait(`saved['@navigation'].revision===3&&!document.getElementById('site-editor-save').disabled`);
+      document.getElementById('site-editor-mode-save').click()`);
+    await wait(`saved['@navigation'].revision===3&&!document.getElementById('site-editor-mode-save').disabled`);
     assert.deepEqual(await evaluate(`saved['@navigation'].document.navigation.main[0]`), {
       id:'main-0',label:'Renamed home',url:'/contact/',icon:'favorite',src:'/updated-logo.png',alt:'Updated navigation logo'
     });
@@ -444,8 +448,8 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
       document.getElementById('site-editor-nav-label').value='Plain new link';
       document.getElementById('site-editor-nav-url').value='/plain/';
       document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
-      document.getElementById('site-editor-save').click()`);
-    await wait(`saved['@navigation'].revision===4&&!document.getElementById('site-editor-save').disabled`);
+      document.getElementById('site-editor-mode-save').click()`);
+    await wait(`saved['@navigation'].revision===4&&!document.getElementById('site-editor-mode-save').disabled`);
     assert.equal(await evaluate(`(()=>{
       const [cleared,added]=saved['@navigation'].document.navigation.main;
       return cleared.icon===''&&cleared.src===''&&cleared.alt===''
@@ -463,7 +467,7 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
       document.getElementById('site-editor-nav-label').value='Local nav';
       document.getElementById('site-editor-nav-url').value='/local/';
       document.getElementById('site-editor-nav-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
-      document.getElementById('site-editor-save').click();
+      document.getElementById('site-editor-mode-save').click();
     `);
     await wait(`saved['/']?.revision===1&&!document.getElementById('site-editor-reset').disabled`);
     await evaluate(`

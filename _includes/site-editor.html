@@ -9,11 +9,10 @@
     {% endfor %}
   </select>
   <div class="site-editor-actions">
-    <button type="button" id="site-editor-save" title="只儲存私人草稿"><span class="material-icons" aria-hidden="true">save</span>儲存</button>
     <button type="button" id="site-editor-preview" title="儲存並預覽，訪客不會看到草稿"><span class="material-icons" aria-hidden="true">visibility</span>預覽</button>
     <button type="button" id="site-editor-publish" title="發布已儲存的目前頁面與全站導覽"><span class="material-icons" aria-hidden="true">publish</span>發布</button>
-    <button type="button" id="site-editor-reset" title="重新讀取目前已發布的頁面與全站導覽，還原私人草稿">還原已發布</button>
-    <button type="button" id="site-editor-close" title="結束編輯，返回已發布網站" aria-label="結束編輯"><span class="material-icons" aria-hidden="true">close</span></button>
+    <button type="button" id="site-editor-reset" title="重新讀取目前已發布的頁面與全站導覽，還原私人草稿"><span class="material-icons" aria-hidden="true">restore</span>還原已發布</button>
+    <button type="button" id="site-editor-close" title="收合編輯面板" aria-label="收合編輯面板"><span class="material-icons" aria-hidden="true">expand_less</span></button>
   </div>
   <p class="site-editor-hint">點文字或元件編輯 · 點導覽修改 · ＋ 新增。勿輸入個資；儲存不會發布。</p>
   <p id="site-editor-status" role="status" aria-live="polite"></p>

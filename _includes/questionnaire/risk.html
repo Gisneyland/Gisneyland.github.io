@@ -9,39 +9,39 @@
           <label><input type="radio" name="frequency_sex" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_sex" value="no" /><span data-i18n="false">否</span></label>
         </fieldset>
-        <fieldset class="question-group">
+        <fieldset class="question-group sex-dependent-question" data-show-if="frequency_sex:yes">
           <legend class="text-lg" data-i18n="frequency_condom">一年內每次陰道交、肛交或口交都<span class="text-underline">全程正確使用保險套</span>。</legend>
           <label><input type="radio" name="frequency_condom" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_condom" value="no" /><span data-i18n="false">否</span></label>
         </fieldset>
-        <fieldset class="question-group">
+        <fieldset class="question-group sex-dependent-question" data-show-if="frequency_sex:yes">
           <legend class="text-lg" data-i18n="frequency_closed_relationship">一年內每次性行為都<span class="text-underline">只跟固定性伴侶</span>發生。</legend>
           <label><input type="radio" name="frequency_closed_relationship" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_closed_relationship" value="no" /><span data-i18n="false">否</span></label>
           <label><input type="radio" name="frequency_closed_relationship" value="none" /><span data-i18n="no_fixed_partner">沒有固定性伴侶</span></label>
         </fieldset>
-        <fieldset class="question-group" data-show-if="frequency_closed_relationship:yes,no">
+        <fieldset class="question-group sex-dependent-question" data-show-if="frequency_sex:yes&frequency_closed_relationship:yes,no">
           <legend class="text-lg" data-i18n="relationship_aids_question">固定性伴侶<span class="text-underline">是愛滋感染者</span>。</legend>
           <label><input type="radio" name="closed_relationship_aids" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="closed_relationship_aids" value="no" /><span data-i18n="false">否</span></label>
           <label><input type="radio" name="closed_relationship_aids" value="unknown" /><span data-i18n="unknown">不知道</span></label>
         </fieldset>
-        <fieldset class="question-group">
+        <fieldset class="question-group sex-dependent-question" data-show-if="frequency_sex:yes">
           <legend class="text-lg" data-i18n="frequency_online_dating">最近一年內有<span class="text-underline">透過網路認識其他性伴侶並發生性行為</span>。</legend>
           <label><input type="radio" name="frequency_online_dating" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_online_dating" value="no" /><span data-i18n="false">否</span></label>
         </fieldset>
-        <fieldset class="question-group">
+        <fieldset class="question-group sex-dependent-question" data-show-if="frequency_sex:yes">
           <legend class="text-lg" data-i18n="frequency_public_dating">最近一年內有<span class="text-underline">透過三溫暖、酒吧、健身房等娛樂場所認識其他性伴侶並發生性行為</span>。</legend>
           <label><input type="radio" name="frequency_public_dating" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_public_dating" value="no" /><span data-i18n="false">否</span></label>
         </fieldset>      
-        <fieldset class="question-group">
+        <fieldset class="question-group sex-dependent-question" data-show-if="frequency_sex:yes">
           <legend class="text-lg" data-i18n="frequency_sex_work">最近一年內有<span class="text-underline">從事性工作、提供性交易服務</span>。</legend>
           <label><input type="radio" name="frequency_sex_service" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_sex_service" value="no" /><span data-i18n="false">否</span></label>
         </fieldset>
-        <fieldset class="question-group">
+        <fieldset class="question-group sex-dependent-question" data-show-if="frequency_sex:yes">
           <legend class="text-lg" data-i18n="frequency_sex_consumption">最近一年內有<span class="text-underline">進行性消費、買春</span>。</legend>
           <label><input type="radio" name="frequency_sex_consumption" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_sex_consumption" value="no" /><span data-i18n="false">否</span></label>
@@ -49,12 +49,12 @@
       </div>
     <div class="card-content">
         <h3 class="card-title" data-i18n="risk_substance_title">物質使用</h3>
-        <fieldset class="question-group">
+        <fieldset class="question-group sex-dependent-question" data-show-if="frequency_sex:yes">
           <legend class="text-lg" data-i18n="frequency_alcohol">一年內曾經在性行為前、後或過程中<span class="text-underline">飲酒</span>。</legend>
           <label><input type="radio" name="frequency_alcohol" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_alcohol" value="no" /><span data-i18n="false">否</span></label>
         </fieldset>      
-        <fieldset class="question-group">
+        <fieldset class="question-group sex-dependent-question" data-show-if="frequency_sex:yes">
           <legend class="text-lg" data-i18n="frequency_drug">一年內曾經在性行為前、後或過程中<span class="text-underline">使用娛樂性藥物</span>。</legend>
           <label><input type="radio" name="frequency_drug" value="yes" /><span data-i18n="true">是</span></label>
           <label><input type="radio" name="frequency_drug" value="no" /><span data-i18n="false">否</span></label>

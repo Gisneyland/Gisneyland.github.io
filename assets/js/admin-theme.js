@@ -15,7 +15,9 @@
     document.documentElement.dataset.theme = theme;
     const button = document.getElementById('theme-toggle-button');
     if (!button) return;
-    const label = mode === 'auto' ? '自動主題' : theme === 'dark' ? '暗黑主題' : '明亮主題';
+    const label = mode === 'auto'
+      ? '切換主題（目前：自動跟隨系統）'
+      : `切換主題（目前：${theme === 'dark' ? '暗黑' : '明亮'}）`;
     button.setAttribute('aria-label', label);
     button.title = label;
     button.dataset.siteMode = mode;
@@ -29,13 +31,10 @@
   document.addEventListener('DOMContentLoaded', () => {
     apply(mode);
     document.getElementById('theme-toggle-button')?.addEventListener('click', () => {
-      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      const theme = document.documentElement.dataset.theme;
+      const next = theme === 'dark' ? 'light' : 'dark';
       try { localStorage.setItem('site-mode', next); } catch { /* Theme switching works without storage. */ }
       apply(next);
-    });
-    document.getElementById('admin-theme-auto')?.addEventListener('click', () => {
-      try { localStorage.setItem('site-mode', 'auto'); } catch { /* Theme switching works without storage. */ }
-      apply('auto');
     });
   });
 })();

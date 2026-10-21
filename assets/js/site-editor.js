@@ -23,6 +23,15 @@
     if ($('undo')) $('undo').disabled = busy || !undo.length;
     if ($('redo')) $('redo').disabled = busy || !redo.length;
   }
+  function updateNavigationToggle() {
+    const toggle = $('nav-toggle');
+    if (!toggle) return;
+    const collapsed = visual && panel?.hidden;
+    toggle.textContent = collapsed ? '編輯 ＋' : '導覽 ＋';
+    toggle.setAttribute('aria-label', collapsed ? '展開編輯面板' : '編輯全站導覽');
+    toggle.setAttribute('aria-controls', collapsed ? 'site-editor' : 'site-editor-nav');
+    toggle.setAttribute('aria-expanded', String(collapsed ? false : navOpen));
+  }
   function editing(value) {
     visual = value;
     document.body.classList.toggle('site-editor-editing', value);
@@ -34,6 +43,7 @@
     trigger?.setAttribute('aria-expanded', String(value));
     if (!value) inline?.stop();
     historyControls();
+    updateNavigationToggle();
   }
   function authorized(token) { return admin && token === generation; }
   function errorMessage(error) {
@@ -158,6 +168,7 @@
       document.getElementById('navigation-more-button')?.setAttribute('aria-expanded', String(!more.hidden));
     }
     moreWasHidden = null;
+    updateNavigationToggle();
   }
   function refreshNavigation() {
     if (!navDraft?.navigation) return;
@@ -277,6 +288,14 @@
     panel.hidden = true; trigger.setAttribute('aria-expanded', 'false');
     showPublished(); trigger.focus();
   }
+  function collapsePanel() {
+    if (inline?.flush() === false) return;
+    hideNavigation();
+    panel.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+    updateNavigationToggle();
+    $('nav-toggle').focus();
+  }
   function move(array, id, direction) {
     const index = array.findIndex(item => (typeof item === 'string' ? item : item.id) === id);
     const next = index + direction;
@@ -286,7 +305,7 @@
     const navigation = document.querySelector('.site-navigation');
     if (navigation) navigation.append($('nav'), $('nav-toggle'));
     trigger.addEventListener('click', () => { if (visual) close(); else open(); });
-    $('close').addEventListener('click', close);
+    $('close').addEventListener('click', collapsePanel);
     $('reopen').addEventListener('click', open);
     $('preview-leave').addEventListener('click', () => {
       showPublished(); message('已離開預覽；可重新開啟草稿。'); trigger.focus();
@@ -327,7 +346,6 @@
       if (!await save(token)) return;
       if (authorized(token)) location.assign(destination.href);
     }));
-    $('save').addEventListener('click', () => run(save));
     $('preview').addEventListener('click', () => run(async token => {
       if (!await save(token) || !authorized(token) || panel.hidden) return;
       editing(false);
@@ -372,7 +390,12 @@
       message('已還原目前已發布的頁面與全站導覽至私人草稿；可復原，尚未儲存／發布。');
     }));
     $('nav-toggle').addEventListener('click', () => {
-      if (navOpen) hideNavigation(); else selectNavigation(navGroup);
+      if (panel.hidden) {
+        panel.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+        updateNavigationToggle();
+        $('page').focus();
+      } else if (navOpen) hideNavigation(); else selectNavigation(navGroup);
     });
     $('nav-close').addEventListener('click', hideNavigation);
     for (const group of ['main', 'more']) $('nav-' + group).addEventListener('click', () => selectNavigation(group));

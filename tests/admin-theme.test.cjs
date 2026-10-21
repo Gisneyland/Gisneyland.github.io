@@ -17,7 +17,7 @@ function setup(saved, dark = false, blocked = false) {
     documentElement: { dataset: {} },
     getElementById(id) {
       if (!ready) return null;
-      return id === 'theme-toggle-button' ? button : { addEventListener(name, fn) { clicks.auto = fn; } };
+      return id === 'theme-toggle-button' ? button : null;
     },
     addEventListener(name, fn) { events[name] = fn; }
   };
@@ -35,18 +35,24 @@ function setup(saved, dark = false, blocked = false) {
   return { document, initial, media, mediaEvents, clicks, button, icon, storage, windowEvents };
 }
 
-test('admin applies public theme preference before DOM ready and persists accessible toggles', () => {
-  const env = setup('dark');
-  assert.deepEqual(env.initial, { mode: 'dark', theme: 'dark' });
-  assert.equal(env.button['aria-label'], '暗黑主題');
-  env.clicks.toggle();
-  assert.equal(env.document.documentElement.dataset.theme, 'light');
-  assert.equal(env.storage.getItem('site-mode'), 'light');
-  assert.equal(env.icon.textContent, 'light_mode');
-  env.clicks.auto();
-  assert.equal(env.storage.getItem('site-mode'), 'auto');
+test('admin follows system until the first manual selection, then toggles light and dark', () => {
+  const env = setup(null);
+  assert.deepEqual(env.initial, { mode: 'auto', theme: 'light' });
+  assert.equal(env.icon.textContent, 'brightness_auto');
   env.media.matches = true; env.mediaEvents.change();
   assert.equal(env.document.documentElement.dataset.theme, 'dark');
+  assert.equal(env.icon.textContent, 'brightness_auto');
+  env.clicks.toggle();
+  assert.equal(env.document.documentElement.dataset.theme, 'light');
+  assert.equal(env.document.documentElement.dataset.mode, 'light');
+  assert.equal(env.storage.getItem('site-mode'), 'light');
+  assert.equal(env.icon.textContent, 'light_mode');
+  env.media.matches = false; env.mediaEvents.change();
+  assert.equal(env.document.documentElement.dataset.theme, 'light');
+  env.clicks.toggle();
+  assert.equal(env.document.documentElement.dataset.theme, 'dark');
+  env.clicks.toggle();
+  assert.equal(env.document.documentElement.dataset.theme, 'light');
 });
 
 test('admin tracks system only in auto mode and syncs theme changes from other tabs', () => {
@@ -68,6 +74,9 @@ test('admin theme remains functional when storage is unavailable', () => {
   assert.equal(env.initial.theme, 'dark');
   env.clicks.toggle();
   assert.equal(env.document.documentElement.dataset.theme, 'light');
-  env.clicks.auto();
+  env.clicks.toggle();
   assert.equal(env.document.documentElement.dataset.theme, 'dark');
+  env.clicks.toggle();
+  assert.equal(env.document.documentElement.dataset.theme, 'light');
+  assert.equal(env.document.documentElement.dataset.mode, 'light');
 });

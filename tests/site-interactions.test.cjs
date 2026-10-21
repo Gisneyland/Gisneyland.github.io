@@ -176,6 +176,10 @@ test('site initialization and permission-gated admin interactions', {
   await t.test('public navigation, theme, language and staff login buttons respond', async () => {
     await open('/', 'anonymous');
     await waitFor('document.querySelector(".staff-session-tool").dataset.state === "signed-out"');
+    await evaluate('window.scrollTo(0, document.documentElement.scrollHeight)');
+    await waitFor('Number(document.querySelector(".bottom-nav").style.getPropertyValue("--reading-progress")) > 0.99');
+    await evaluate('window.scrollTo(0, 0)');
+    await waitFor('Number(document.querySelector(".bottom-nav").style.getPropertyValue("--reading-progress")) === 0');
     await click('#navigation-more-button');
     assert.equal(await hidden('navigation-more-menu'), false);
     await click('#navigation-more-button');
@@ -209,14 +213,17 @@ test('site initialization and permission-gated admin interactions', {
       return {background:getComputedStyle(document.body).backgroundColor,panel:panel.backgroundColor,
         button:button.backgroundColor,buttonText:button.color};
     })()`), { background:'rgb(23, 32, 43)',panel:'rgb(32, 44, 58)',button:'rgb(132, 209, 197)',buttonText:'rgb(23, 32, 43)' });
-    await click('#admin-theme-auto');
-    assert.equal(await evaluate(`localStorage.getItem('site-mode')==='auto'
-      &&document.documentElement.dataset.mode==='auto'&&document.documentElement.dataset.theme==='light'`), true);
+    await evaluate(`localStorage.removeItem('site-mode');window.dispatchEvent(new StorageEvent('storage',{key:'site-mode'}))`);
+    assert.equal(await evaluate(`document.documentElement.dataset.mode==='auto'
+      &&document.documentElement.dataset.theme==='light'`), true);
     await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
     await waitFor('document.documentElement.dataset.theme === "dark"');
     await click('#theme-toggle-button');
     assert.equal(await evaluate(`localStorage.getItem('site-mode')==='light'
       &&document.documentElement.dataset.mode==='light'&&document.documentElement.dataset.theme==='light'`), true);
+    await click('#theme-toggle-button');
+    assert.equal(await evaluate(`localStorage.getItem('site-mode')==='dark'
+      &&document.documentElement.dataset.mode==='dark'&&document.documentElement.dataset.theme==='dark'`), true);
     await evaluate(`localStorage.setItem('site-mode','dark');window.dispatchEvent(new StorageEvent('storage',{key:'site-mode',newValue:'dark'}))`);
     assert.equal(await evaluate(`document.documentElement.dataset.theme==='dark'&&document.documentElement.dataset.mode==='dark'`), true);
     await evaluate(`localStorage.removeItem('site-mode')`);
@@ -263,6 +270,14 @@ test('site initialization and permission-gated admin interactions', {
     assert.equal(await hidden('site-editor-nav'), true);
     assert.equal(await hidden('navigation-more-menu'), true);
     await click('#site-editor-close');
+    assert.equal(await evaluate(`document.body.classList.contains('site-editor-editing')
+      &&document.getElementById('site-editor').hidden&&!document.getElementById('site-editor-nav-toggle').hidden
+      &&document.getElementById('site-editor-nav-toggle').getAttribute('aria-label')==='展開編輯面板'`), true);
+    await click('#site-editor-nav-toggle');
+    assert.equal(await evaluate(`document.body.classList.contains('site-editor-editing')
+      &&!document.getElementById('site-editor').hidden
+      &&document.getElementById('site-editor-nav-toggle').getAttribute('aria-label')==='編輯全站導覽'`), true);
+    await click('#site-editor-button');
     assert.equal(await evaluate(`!document.body.classList.contains('site-editor-editing')
       &&document.getElementById('site-editor').hidden&&document.getElementById('site-editor-nav-toggle').hidden`), true);
     assert.deepEqual(errors, []);
@@ -325,7 +340,7 @@ test('site initialization and permission-gated admin interactions', {
           document.getElementById('site-editor-nav-icon'),document.getElementById('site-editor-nav-src'),
           document.getElementById('site-editor-nav-alt'),
           document.getElementById('site-editor-reopen'),pane,input,textarea].map(node=>{const style=getComputedStyle(node);return {background:style.backgroundColor,color:style.color,border:style.borderTopColor}});
-        const mutedControls=[select,button,document.getElementById('site-editor-save'),
+        const mutedControls=[select,button,document.getElementById('site-editor-mode-save'),
           document.getElementById('site-editor-status')].map(node=>{const style=getComputedStyle(node);return {background:style.backgroundColor,color:style.color}});
         reference.remove();pane.remove();return {expected,muted,controls,mutedControls};
       })()`);
@@ -341,9 +356,77 @@ test('site initialization and permission-gated admin interactions', {
 
   await t.test('questionnaire restores bound screener, interpretation, referral and photo controls', async () => {
     await open('/hiva/', 'administrator');
+    assert.deepEqual(await evaluate(`[...document.querySelectorAll('#questionnaire-form > .card')].map(card=>card.hidden)`), [false, true, true, true]);
+    const submitStates = await evaluate(`(() => {
+      setPageLanguage('zh-TW');
+      const button=document.querySelector('#screener-panel button[type=submit]');
+      const read=()=>({text:button.firstChild.textContent.trim(),icon:button.querySelector('.material-icons').textContent,
+        disabled:button.disabled,busy:button.getAttribute('aria-busy')});
+      setQuestionnaireSubmitState(button,'sending');const sending=read();
+      setQuestionnaireSubmitState(button,'success');const success=read();
+      setQuestionnaireSubmitState(button,'error');const error=read();
+      setQuestionnaireSubmitState(button,'idle');return {sending,success,error,idle:read()};
+    })()`);
+    assert.deepEqual(submitStates, {
+      sending:{text:'資料傳送中…',icon:'hourglass_top',disabled:true,busy:'true'},
+      success:{text:'問卷已送出，謝謝填答',icon:'check_circle',disabled:true,busy:'false'},
+      error:{text:'送出失敗，點此重試',icon:'refresh',disabled:false,busy:'false'},
+      idle:{text:'送出問卷',icon:'send',disabled:false,busy:'false'}
+    });
     await waitFor('document.getElementById("screener").dataset.bindingReady === "true"');
     assert.equal(await evaluate('document.getElementById("screener").value'), 'TEST');
+    assert.equal(await evaluate('document.getElementById("screener").readOnly'), false);
+    await evaluate(`document.getElementById('screener').value='TEST-ALT'`);
+    assert.equal(await evaluate('document.getElementById("screener").value'), 'TEST-ALT');
     assert.equal(await evaluate('document.getElementById("screening_place").value'), '');
+
+    await evaluate(`document.dispatchEvent(new CustomEvent('site-language-change',{detail:{language:'zh-TW'}}))`);
+    assert.equal(await evaluate(`document.querySelector('#nationality-options input[value="TW"]').checked`), true);
+    await evaluate(`{
+      document.querySelector('#nationality-options input[value="TW"]').checked=false;
+      const manual=document.querySelector('#nationality-options input[value="JP"]');manual.checked=true;
+      manual.dispatchEvent(new Event('change',{bubbles:true}));
+      document.dispatchEvent(new CustomEvent('site-language-change',{detail:{language:'id'}}));
+    }`);
+    assert.equal(await evaluate(`document.querySelector('#nationality-options input[value="JP"]').checked
+      &&!document.querySelector('#nationality-options input[value="ID"]').checked`), true);
+
+    await evaluate(`{
+      const nickname=document.getElementById('nickname');nickname.value='Questionnaire test';
+      nickname.closest('.question-step').querySelector('[data-question-next]').click();
+      const privacy=document.querySelector('.privacy-copy');privacy.scrollTop=privacy.scrollHeight;
+      privacy.dispatchEvent(new Event('scroll'));
+      document.querySelectorAll('.consent-options input[required]').forEach(input=>{
+        input.checked=true;input.dispatchEvent(new Event('change',{bubbles:true}));
+      });
+    }`);
+    const screeningDate = await evaluate(`(() => {
+      const frequency=document.getElementById('frequency_screening');frequency.value='1';
+      frequency.dispatchEvent(new Event('input',{bubbles:true}));
+      const date=document.getElementById('last_screening_at');
+      document.querySelector('.frequency-question [data-question-next]').click();
+      return {required:date.required,invalid:!date.checkValidity()};
+    })()`);
+    assert.deepEqual(screeningDate, { required: true, invalid: true });
+    await evaluate(`{
+      const date=document.getElementById('last_screening_at');date.value='2025-01';
+      date.dispatchEvent(new Event('change',{bubbles:true}));
+    }`);
+    assert.equal(await evaluate(`!document.querySelector('[name="frequency_sex"]').closest('.question-group').hidden`), true);
+    await click('input[name="frequency_sex"][value="no"]');
+    assert.deepEqual(await evaluate(`[...document.querySelectorAll('#questionnaire-form > .card')].map(card=>card.hidden)`), [true, false, true, true]);
+    assert.equal(await evaluate(`!document.querySelector('[name="usage_drug"]').closest('.question-group').hidden
+      &&document.querySelectorAll('.sex-dependent-question:not([hidden])').length===0`), true);
+    assert.deepEqual(await evaluate(`(()=>{
+      const data=collectFormData(document.getElementById('questionnaire-form'));
+      return ['frequency_condom','frequency_closed_relationship','closed_relationship_aids',
+        'frequency_alcohol','frequency_drug','frequency_online_dating','frequency_public_dating',
+        'frequency_sex_service','frequency_sex_consumption'].map(name=>data[name]);
+    })()`), Array(9).fill('一年內沒有發生性行為'));
+    await evaluate(`document.querySelector('[name="usage_drug"]').closest('.question-group').querySelector('[data-question-back]').click()`);
+    await click('input[name="frequency_sex"][value="yes"]');
+    assert.equal(await evaluate(`!document.querySelector('[name="frequency_condom"]').closest('.question-group').hidden`), true);
+
     await click('input[name="screening_interpretation[]"][value="hiv_positive"]');
     assert.equal(await hidden('hiv-positive-referral'), false);
     assert.equal(await evaluate('document.querySelector(".screening-photo-field[data-photo-kind=hiv]").hidden'), false);

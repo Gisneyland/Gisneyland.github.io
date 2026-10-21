@@ -9,13 +9,21 @@ const screeningPhotos = new Map();
 const screeningPhotoJobs = new Map();
 const screeningPhotoErrors = new Set();
 const maxScreeningPhotoBytes = 500_000;
+const noSexAnswer = '一年內沒有發生性行為';
+const noSexDependentNames = new Set([
+  'frequency_condom', 'frequency_closed_relationship', 'closed_relationship_aids',
+  'frequency_alcohol', 'frequency_drug', 'frequency_online_dating',
+  'frequency_public_dating', 'frequency_sex_service', 'frequency_sex_consumption'
+]);
 
 document.addEventListener('DOMContentLoaded', function() {
+  const noSex = form.querySelector('[name="frequency_sex"]:checked')?.value === 'no';
   initializeAmbientRainbow();
   initializeQuestionnaireFields();
   const staffSessionReady = initializeStaffSessionIndicator();
 
   initializeSiteNavigation();
+  initializeBottomNavProgress();
 
   // 初始化 Materialize 元件
   if (window.M) {
@@ -99,6 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
     questionnaireForm.addEventListener('submit', async function(event) {
       event.preventDefault();
       const status = document.getElementById('form-status');
+      const submitButton = questionnaireForm.querySelector('button[type="submit"]');
       await screenerNumberReady;
       if (!validateScreenerNumber(questionnaireForm)) return;
       if (!validateScreeningInterpretation(questionnaireForm)) return;
@@ -110,7 +119,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       if (!window.questionnaireSupabase) {
-        showFormStatus(status, '資料服務尚未完成設定，請聯絡網站管理員。', true);
+        setQuestionnaireSubmitState(submitButton, 'error');
+        status.hidden = true;
         return;
       }
 
@@ -126,9 +136,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      const submitButton = questionnaireForm.querySelector('button[type="submit"]');
-      submitButton.disabled = true;
-      showFormStatus(status, '資料傳送中，請稍候。');
+      setQuestionnaireSubmitState(submitButton, 'sending');
+      status.hidden = true;
 
       try {
         const responseData = collectFormData(questionnaireForm);
@@ -168,14 +177,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         questionnaireForm.reset();
-        showFormStatus(status, '問卷已送出，謝謝您的填答。');
+        setQuestionnaireSubmitState(submitButton, 'success');
+        status.hidden = true;
       } catch (error) {
         console.error('問卷送出失敗:', error);
-        showFormStatus(status, '問卷送出失敗，請確認網路連線後再試一次。', true);
+        setQuestionnaireSubmitState(submitButton, 'error');
+        status.hidden = true;
       } finally {
-        submitButton.disabled = false;
+        if (submitButton.dataset.submitState === 'sending') {
+          setQuestionnaireSubmitState(submitButton, 'error');
+        }
       }
     });
+    const resetSubmitButton = () => {
+      if (['success', 'error'].includes(questionnaireForm.querySelector('button[type="submit"]')?.dataset.submitState)) {
+        setQuestionnaireSubmitState(questionnaireForm.querySelector('button[type="submit"]'), 'idle');
+      }
+    };
+    questionnaireForm.addEventListener('input', resetSubmitButton);
+    questionnaireForm.addEventListener('change', resetSubmitButton);
   }
 });
 
@@ -183,9 +203,9 @@ document.addEventListener('DOMContentLoaded', function() {
 function buildAnonymousConsultAnswers(data) {
   const yn = value => (value === 'yes' ? '是 Yes' : value === 'no' ? '否 No' : '');
   const noSex = data.frequency_sex === 'no';
-  const skipped = '沒有發生 Did not happen（該題會被停用，不需選擇）';
+  const skipped = noSexAnswer;
   const dependent = value => (noSex ? skipped : yn(value));
-  const partner = data.frequency_closed_relationship === 'none'
+  const partner = noSex ? skipped : data.frequency_closed_relationship === 'none'
     ? '否 No（本站答「沒有固定性伴侶」）'
     : yn(data.frequency_closed_relationship);
   const drug = data.frequency_drug;
@@ -284,6 +304,10 @@ function collectFormData(form) {
     }
   });
 
+  if (data.frequency_sex === 'no') {
+    noSexDependentNames.forEach(name => { data[name] = noSexAnswer; });
+  }
+
   return data;
 }
 
@@ -347,6 +371,29 @@ function initializeSiteNavigation() {
     closeMenu();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
+}
+
+function initializeBottomNavProgress() {
+  const navigation = document.querySelector('.bottom-nav');
+  if (!navigation) return;
+
+  let updateScheduled = false;
+  const update = () => {
+    const documentHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    const maximumScroll = Math.max(0, documentHeight - window.innerHeight);
+    const progress = maximumScroll > 0 ? Math.min(1, Math.max(0, window.scrollY / maximumScroll)) : 0;
+    navigation.style.setProperty('--reading-progress', String(progress));
+    updateScheduled = false;
+  };
+  const scheduleUpdate = () => {
+    if (updateScheduled) return;
+    updateScheduled = true;
+    window.requestAnimationFrame(update);
+  };
+
+  update();
+  window.addEventListener('scroll', scheduleUpdate, { passive: true });
+  window.addEventListener('resize', scheduleUpdate);
 }
 
 function initializeQuestionnaireFields() {
@@ -1110,10 +1157,11 @@ async function initializeScreenerNumber(form, staffSessionReady) {
     return;
   }
 
+  input.readOnly = false;
   input.value = staffState.screenerNumber;
   input.dataset.bindingReady = 'true';
   input.dataset.boundScreenerNumber = staffState.screenerNumber;
-  setScreenerNumberStatus(status, `已自動帶入篩檢員編號：${staffState.screenerNumber}`);
+  setScreenerNumberStatus(status, `已自動帶入篩檢員編號（可修改）：${staffState.screenerNumber}`);
 }
 
 function validateScreenerNumber(form) {
@@ -1706,6 +1754,39 @@ function initializeNationalityPicker() {
       selectedContainer.append(removeButton);
     });
   };
+  let nationalityTouched = false;
+  let suggestedNationalityCode = null;
+  const languageRegions = { zh: 'TW', en: 'US', id: 'ID', th: 'TH', vi: 'VN', my: 'MM', tl: 'PH', km: 'KH', bn: 'BD' };
+  const suggestNationality = language => {
+    if (nationalityTouched) return;
+    if (suggestedNationalityCode) {
+      const previousSuggestion = options.querySelector(`input[value="${suggestedNationalityCode}"]`);
+      if (previousSuggestion) previousSuggestion.checked = false;
+    }
+    suggestedNationalityCode = null;
+
+    const selectedLanguage = String(language || '').toLowerCase();
+    const languageCode = selectedLanguage.split('-')[0];
+    const explicitRegion = selectedLanguage.split('-')[1]?.toUpperCase();
+    let browserLocale;
+    try { browserLocale = new Intl.Locale(navigator.language || 'zh-TW'); } catch { browserLocale = null; }
+    const browserRegion = browserLocale?.region?.toUpperCase();
+    const region = explicitRegion && countryCodes.includes(explicitRegion)
+      ? explicitRegion
+      : browserLocale?.language === languageCode && countryCodes.includes(browserRegion)
+        ? browserRegion
+        : languageRegions[languageCode];
+    const checkbox = region && options.querySelector(`input[value="${region}"]`);
+    if (!checkbox) {
+      updateSelected();
+      return;
+    }
+    checkbox.checked = true;
+    suggestedNationalityCode = region;
+    updateSelected();
+  };
+
+  document.addEventListener('site-language-change', event => suggestNationality(event.detail?.language));
 
   search.addEventListener('input', () => {
     const query = search.value.trim().toLocaleLowerCase();
@@ -1717,6 +1798,7 @@ function initializeNationalityPicker() {
   options.addEventListener('change', event => {
     const checkbox = event.target;
     if (checkbox.type !== 'checkbox') return;
+    nationalityTouched = true;
     const exclusiveSelected = Array.from(options.querySelectorAll('input:checked'))
       .find(item => item !== checkbox && restrictedDualCitizenship.has(item.value));
     if (checkbox.checked && restrictedDualCitizenship.has(checkbox.value)) {
@@ -1824,6 +1906,7 @@ function initializeQuestionnaire(form) {
 
   const frequency = document.getElementById('frequency_screening');
   const output = form.querySelector('.frequency-screening-value');
+  const lastScreeningAt = form.querySelector('#last_screening_at');
   if (frequency && output) {
     const labels = form.querySelectorAll('.frequency-labels span');
     const values = new Map([[-1, labels[0]?.textContent.trim() || '從未篩檢'], [0, labels[1]?.textContent.trim() || '偶爾篩檢'], [1, labels[2]?.textContent.trim() || '定期篩檢']]);
@@ -1832,6 +1915,10 @@ function initializeQuestionnaire(form) {
       output.value = values.get(value);
       output.textContent = output.value;
       frequency.setAttribute('aria-valuetext', output.value);
+      if (lastScreeningAt) {
+        lastScreeningAt.required = value === 1;
+        lastScreeningAt.setAttribute('aria-required', String(value === 1));
+      }
       const progress = ((value - Number(frequency.min)) / (Number(frequency.max) - Number(frequency.min))) * 100;
       frequency.style.setProperty('--range-progress', `${progress}%`);
       labels.forEach(label => {
@@ -1912,6 +1999,10 @@ function initializeQuestionnaire(form) {
 
   const showStep = (index, scroll = false) => {
     currentStep = index;
+    const activeCard = steps[index]?.closest('.card');
+    form.querySelectorAll(':scope > .card').forEach(card => {
+      card.hidden = card !== activeCard;
+    });
     steps.forEach((step, stepIndex) => {
       step.querySelector('.answer-edit-done')?.remove();
       step.hidden = stepIndex !== index;
@@ -1964,20 +2055,31 @@ function initializeQuestionnaire(form) {
   const isStepAvailable = step => {
     const condition = step.dataset.showIf;
     if (!condition) return true;
-    const [fieldName, expectedValue] = condition.split(':');
-    const expectedValues = expectedValue.split(',');
-    return Array.from(form.querySelectorAll('input, select, textarea')).some(input => {
-      if (input.name !== fieldName) return false;
-      const value = input.type === 'radio' || input.type === 'checkbox'
-        ? input.checked && input.value
-        : input.value;
-      return expectedValues.includes(String(value));
+    return condition.split('&').every(requirement => {
+      const separator = requirement.indexOf(':');
+      if (separator < 1) return false;
+      const fieldName = requirement.slice(0, separator);
+      const expectedValues = requirement.slice(separator + 1).split(',');
+      return Array.from(form.querySelectorAll('input, select, textarea')).some(input => {
+        if (input.name !== fieldName) return false;
+        const value = input.type === 'radio' || input.type === 'checkbox'
+          ? input.checked && input.value
+          : input.value;
+        return expectedValues.includes(String(value));
+      });
     });
   };
 
   const handleRadioAnswer = input => {
     const step = input.closest('.question-group');
     if (!step || steps[currentStep] !== step) return;
+    if (input.name === 'frequency_sex' && input.value === 'no') {
+      form.querySelectorAll('input').forEach(field => {
+        if (!noSexDependentNames.has(field.name)) return;
+        if (field.type === 'radio' || field.type === 'checkbox') field.checked = false;
+        else field.value = '';
+      });
+    }
     const branch = input.name === 'usage_drug' ? updateDrugBranches
       : input.name === 'frequency_std' ? updateStdBranches
         : null;
@@ -2068,7 +2170,9 @@ function initializeQuestionnaire(form) {
         currentGroup.start = Math.min(currentGroup.start, groupRange[0].index);
         currentGroup.end = Math.max(currentGroup.end, groupRange.at(-1).index);
       }
-      if (!isStepAvailable(group)) return;
+      const fieldName = group.querySelector('input[name]')?.name;
+      const markedNoSex = noSex && noSexDependentNames.has(fieldName);
+      if (!isStepAvailable(group) && !markedNoSex) return;
       const question = group.querySelector(':scope > legend')?.textContent.trim().replace(/\s+/g, ' ');
       if (!question) return;
       const radios = Array.from(group.querySelectorAll('input[type="radio"]'));
@@ -2084,7 +2188,7 @@ function initializeQuestionnaire(form) {
       if (checkedBoxes.length) answers.push(checkedBoxes.join('、'));
       else if (checkedRadio?.value === 'yes' && group.querySelector('input[type="checkbox"]')) answers.push('尚未勾選項目');
       answers.push(...textAnswers);
-      add(key, heading, group, question, answers.join('；'), '未回答');
+      add(key, heading, group, question, markedNoSex ? noSexAnswer : answers.join('；'), '未回答');
     });
     return Array.from(groups.values()).sort((first, second) => first.start - second.start);
   };
@@ -2251,6 +2355,30 @@ function initializeQuestionnaire(form) {
     if (input.matches('input[type="date"], input[type="month"]') && input.value) advance();
   });
   showStep(0);
+}
+
+function setQuestionnaireSubmitState(button, state) {
+  const states = {
+    idle: { key: 'submit', fallback: '送出問卷', icon: 'send', disabled: false },
+    sending: { key: 'questionnaire_sending', fallback: '資料傳送中…', icon: 'hourglass_top', disabled: true },
+    success: { key: 'questionnaire_success', fallback: '問卷已送出，謝謝填答', icon: 'check_circle', disabled: true },
+    error: { key: 'questionnaire_retry', fallback: '送出失敗，點此重試', icon: 'refresh', disabled: false }
+  };
+  const status = states[state] || states.idle;
+  const label = i18n[selectedPageLanguage]?.[status.key] || status.fallback;
+  let icon = button.querySelector('.material-icons');
+  if (!icon) icon = document.createElement('i');
+  icon.className = 'material-icons right notranslate';
+  icon.setAttribute('translate', 'no');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = status.icon;
+  button.dataset.i18n = status.key;
+  button.dataset.i18nAriaLabel = status.key;
+  button.dataset.submitState = state;
+  button.replaceChildren(document.createTextNode(`${label} `), icon);
+  button.setAttribute('aria-label', label);
+  button.setAttribute('aria-busy', String(state === 'sending'));
+  button.disabled = status.disabled;
 }
 
 function showFormStatus(status, message, isError = false) {

@@ -2388,22 +2388,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.drug_other_choice) drugFields.push(['其他藥物', 'drug_others', answerFor('drug_others')]);
 
     const noSex = data.frequency_sex === 'no';
+    const noSexAnswer = '一年內沒有發生性行為';
     const riskRows = [
       ['1. 最近一年是否有性行為', 'frequency_sex'],
-      ['2. 每次性行為是否全程使用保險套', 'frequency_condom', noSex ? '未發生性行為' : undefined],
-      ['3. 是否只與固定性伴侶發生性行為', 'frequency_closed_relationship', noSex ? '未發生性行為' : undefined],
-      ['4. 性行為前後或過程中是否飲酒', 'frequency_alcohol', noSex ? '未發生性行為' : undefined],
-      ['5. 性行為前後或過程中是否使用藥物', 'frequency_drug', noSex ? '未發生性行為' : undefined],
+      ['2. 每次性行為是否全程使用保險套', 'frequency_condom', noSex ? noSexAnswer : undefined],
+      ['3. 是否只與固定性伴侶發生性行為', 'frequency_closed_relationship', noSex ? noSexAnswer : undefined],
+      ['4. 性行為前後或過程中是否飲酒', 'frequency_alcohol', noSex ? noSexAnswer : undefined],
+      ['5. 性行為前後或過程中是否使用藥物', 'frequency_drug', noSex ? noSexAnswer : undefined],
       ['6. 最近一年是否曾感染性病', 'frequency_std'],
       ...(data.frequency_std === 'yes' ? stdFields : []),
       ['7. 最近一年是否曾使用成癮藥物', 'usage_drug'],
       ...(data.usage_drug === 'yes' ? drugFields : []),
       ...(data.usage_drug === 'yes' ? [['目前是否仍持續使用藥物', 'frequency_drug_now']] : []),
-      ['8a. 透過網路認識非固定伴侶並發生性行為', 'frequency_online_dating', noSex ? '未發生性行為' : undefined],
-      ['8b. 在娛樂場所認識非固定伴侶並發生性行為', 'frequency_public_dating', noSex ? '未發生性行為' : undefined],
-      ['8c. 提供性交易服務', 'frequency_sex_service', noSex ? '未發生性行為' : undefined],
-      ['8d. 性消費／買春', 'frequency_sex_consumption', noSex ? '未發生性行為' : undefined],
-      ['9. 固定性伴侶是否為 HIV 感染者', 'closed_relationship_aids', noSex || data.frequency_closed_relationship === 'none' ? '目前沒有固定性伴侶' : undefined],
+      ['8a. 透過網路認識非固定伴侶並發生性行為', 'frequency_online_dating', noSex ? noSexAnswer : undefined],
+      ['8b. 在娛樂場所認識非固定伴侶並發生性行為', 'frequency_public_dating', noSex ? noSexAnswer : undefined],
+      ['8c. 提供性交易服務', 'frequency_sex_service', noSex ? noSexAnswer : undefined],
+      ['8d. 性消費／買春', 'frequency_sex_consumption', noSex ? noSexAnswer : undefined],
+      ['9. 固定性伴侶是否為 HIV 感染者', 'closed_relationship_aids', noSex ? noSexAnswer : data.frequency_closed_relationship === 'none' ? '目前沒有固定性伴侶' : undefined],
       ['10. 最近一年是否使用過 PEP', 'frequency_pep'],
       ['11. 是否有意願使用 PEP', 'frequency_pep_willingness'],
       ['12. 是否聽過 PrEP', 'frequency_prep'],
