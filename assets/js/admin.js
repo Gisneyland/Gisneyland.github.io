@@ -2803,6 +2803,19 @@ document.addEventListener('DOMContentLoaded', () => {
     openLink.target = '_blank';
     openLink.rel = 'noopener noreferrer';
     openLink.textContent = '新視窗開啟';
+    const sideButton = document.createElement('button');
+    sideButton.className = 'admin-button secondary';
+    sideButton.type = 'button';
+    sideButton.textContent = '並排視窗開啟';
+    sideButton.title = '在螢幕右半邊開啟匿名諮詢網，左半邊保留填答資料';
+    sideButton.addEventListener('click', () => {
+      const availLeft = window.screen.availLeft || 0;
+      const availTop = window.screen.availTop || 0;
+      const width = Math.floor(window.screen.availWidth / 2);
+      const features = `popup=yes,left=${availLeft + width},top=${availTop},width=${width},height=${window.screen.availHeight}`;
+      const popup = window.open(CONSULTATION_SITE_URL, 'hiva-consultation', features);
+      if (!popup) window.open(CONSULTATION_SITE_URL, '_blank', 'noopener,noreferrer');
+    });
     const copyButton = document.createElement('button');
     copyButton.className = 'admin-button secondary icon-only';
     copyButton.type = 'button';
@@ -2938,12 +2951,10 @@ document.addEventListener('DOMContentLoaded', () => {
     framePanel.setAttribute('aria-label', '匿名諮詢網（內嵌）');
     const frameNote = document.createElement('p');
     frameNote.className = 'admin-muted';
-    frameNote.textContent = '可對照左側填答資料，直接在此填寫匿名諮詢網。若下方空白或顯示被拒絕連線，代表該網站不允許內嵌，請改用「新視窗開啟」。';
+    frameNote.textContent = '可對照左側填答資料，直接在此填寫匿名諮詢網。若下方空白或顯示被拒絕連線，代表該網站不允許內嵌，請改用「並排視窗開啟」，將網站放在螢幕右半邊對照。';
     const frame = document.createElement('iframe');
     frame.className = 'consultation-frame';
     frame.title = '匿名諮詢網';
-    frame.referrerPolicy = 'no-referrer';
-    frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox');
     frame.loading = 'lazy';
     framePanel.append(frameNote, frame);
     frameToggle.addEventListener('click', () => {
@@ -2956,7 +2967,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const frameActions = document.createElement('div');
     frameActions.className = 'consultation-frame-actions';
-    frameActions.append(frameToggle, openLink);
+    frameActions.append(frameToggle, sideButton, openLink);
     codeForm.append(codeLabel, codeField, frameActions);
     codeForm.addEventListener('submit', async event => {
       event.preventDefault();
