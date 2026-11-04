@@ -161,3 +161,5 @@ psql "$DISPOSABLE_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/site-editor-componen
 後台「篩檢紀錄」每筆問卷會顯示串接狀態：草稿、待填諮詢代碼、待上傳串接（標示單位）、已上傳串接。可用「串接上傳」篩選器過濾，勾選資料後按上方「產生串接上傳檔」，依 [範例檔 V2503](assets/templates/cdc-anonymous-screening-import-V2503.xlsx) 格式（保留第 1–10 列、從第 11 列起、每檔最多 500 筆、日期為 yyyy/MM/dd、諮詢代碼不含開頭 E）下載 XLSX；若未勾選則使用目前篩選結果。每組諮詢代碼可在問卷詳細資料中指定上傳單位（疾管署或地方衛生局）並標記是否已上傳，同一份問卷因此可有多組代碼分別上傳。使用前請執行 [202611040002_consult_uploads.sql](supabase/migrations/202611040002_consult_uploads.sql)。篩檢單位代碼、篩檢方式等設定只儲存在該瀏覽器。
 
 串接上傳檔預設為快篩。「篩檢地點類別」依設定頁「機構內篩檢地點」清單判斷（機構名稱或別名包含於問卷篩檢地點即為 1，否則為 7），機構搬遷或新增分點時可直接在設定頁調整；使用前請執行 [202611040003_screening_institutions.sql](supabase/migrations/202611040003_screening_institutions.sql)（預設含財團法人台灣紅絲帶基金會、風城部屋、紅樓部屋、桃園部屋、諸羅部屋）。
+
+機構設定亦可填寫地址、聯絡方式與工作人員；問卷篩檢地點包含機構名稱、別名或地址（或為該地址的一部分、至少 6 字）時，串接上傳檔的地點類別填 1。使用前請執行 [202611040004_institution_details.sql](supabase/migrations/202611040004_institution_details.sql)。

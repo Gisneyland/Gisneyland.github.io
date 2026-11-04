@@ -406,3 +406,7 @@ from (values
   ('諸羅部屋', array[]::text[])
 ) as seed(name, aliases)
 where not exists (select 1 from public.screening_institutions);
+
+alter table public.screening_institutions
+  add column if not exists contact text not null default '' check (length(contact) <= 200),
+  add column if not exists staff text[] not null default array[]::text[] check (cardinality(staff) <= 50);

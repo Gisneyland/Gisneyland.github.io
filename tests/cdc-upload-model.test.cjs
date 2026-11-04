@@ -65,6 +65,12 @@ test('site category uses the configured institutions and rapid item follows the 
   assert.equal(model.siteCategory('諸羅部屋 ', institutions), 1);
   assert.equal(model.siteCategory('竹螺單位', institutions), 7);
   assert.equal(model.siteCategory('風城部屋', []), 7);
+  const withAddress = [{ name: '新據點', address: '新竹市東區民族路 25 號 6 樓' }];
+  assert.equal(model.siteCategory('新竹市東區民族路25號6樓', withAddress), 1);
+  assert.equal(model.siteCategory('某店（新竹市東區民族路 25 號 6 樓）', withAddress), 1);
+  assert.equal(model.siteCategory('民族路 25 號 6 樓', withAddress), 1);
+  assert.equal(model.siteCategory('民族路', withAddress), 7);
+  assert.equal(model.siteCategory('新竹市北區中正路 1 號', withAddress), 7);
   assert.equal(model.rapidItem('1_month'), 4);
   assert.equal(model.rapidItem('3_months'), 5);
   const rapid = { ...options, method: 'rapid', told: 1, institutions };

@@ -66,17 +66,20 @@
     return null;
   }
 
-  // 機構內篩檢地點由設定頁的機構清單（名稱與別名）比對；其餘為外展（7）
+  // 機構內篩檢地點由設定頁的機構清單（名稱、別名、地址）比對；其餘為外展（7）
   function normalizePlace(value) {
-    return String(value || '').normalize('NFKC').toLocaleLowerCase().replace(/\s+/g, '');
+    return String(value || '').normalize('NFKC').toLocaleLowerCase().replace(/[\s,，、]+/g, '');
   }
 
   function siteCategory(place, institutions) {
     const text = normalizePlace(place);
     if (!text) return 7;
-    const matched = (institutions || []).some(institution => [institution.name, ...(institution.aliases || [])]
-      .map(normalizePlace)
-      .some(name => name && text.includes(name)));
+    const matched = (institutions || []).some(institution => {
+      if ([institution.name, ...(institution.aliases || [])].map(normalizePlace).some(name => name && text.includes(name))) return true;
+      const address = normalizePlace(institution.address);
+      // 地點文字含完整地址，或問卷地點是地址的一部分（至少 6 字，避免誤判）
+      return Boolean(address) && (text.includes(address) || (text.length >= 6 && address.includes(text)));
+    });
     return matched ? 1 : 7;
   }
 

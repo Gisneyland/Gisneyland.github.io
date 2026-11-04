@@ -2004,7 +2004,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadScreeningInstitutions() {
     const { data, error } = await window.questionnaireSupabase
       .from('screening_institutions')
-      .select('id, name, address, aliases')
+      .select('id, name, address, contact, staff, aliases')
       .order('created_at', { ascending: true });
     if (error) {
       showStatus(institutionStatus, '無法載入機構清單，請確認已執行最新資料庫更新。', true);
@@ -2022,7 +2022,7 @@ document.addEventListener('DOMContentLoaded', () => {
     institutionList.replaceChildren(...screeningInstitutions.map(institution => {
       const item = document.createElement('li');
       const text = document.createElement('span');
-      text.textContent = [institution.name, institution.address, (institution.aliases || []).length ? `別名：${institution.aliases.join('、')}` : '']
+      text.textContent = [institution.name, institution.address, institution.contact && `聯絡：${institution.contact}`, (institution.staff || []).length ? `人員：${institution.staff.join('、')}` : '', (institution.aliases || []).length ? `別名：${institution.aliases.join('、')}` : '']
         .filter(Boolean).join('｜');
       item.append(text);
       if (canEdit) {
@@ -2034,6 +2034,8 @@ document.addEventListener('DOMContentLoaded', () => {
           institutionForm.elements.id.value = institution.id;
           institutionForm.elements.name.value = institution.name;
           institutionForm.elements.address.value = institution.address || '';
+          institutionForm.elements.contact.value = institution.contact || '';
+          institutionForm.elements.staff.value = (institution.staff || []).join(', ');
           institutionForm.elements.aliases.value = (institution.aliases || []).join(', ');
           document.getElementById('screening-institution-cancel').hidden = false;
           institutionForm.elements.name.focus();
@@ -2067,11 +2069,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const record = {
         name: values.name.value.trim(),
         address: values.address.value.trim(),
+        contact: values.contact.value.trim(),
+        staff: [...new Set(values.staff.value.split(/[,，、;；]+/).map(name => name.trim()).filter(Boolean))],
         aliases: [...new Set(values.aliases.value.split(/[,，、;；]+/).map(alias => alias.trim()).filter(Boolean))]
       };
       const id = values.id.value;
       const table = window.questionnaireSupabase.from('screening_institutions');
-      const { data, error } = await (id ? table.update(record).eq('id', id) : table.insert(record)).select('id, name, address, aliases').maybeSingle();
+      const { data, error } = await (id ? table.update(record).eq('id', id) : table.insert(record)).select('id, name, address, contact, staff, aliases').maybeSingle();
       if (error || !data) { showStatus(institutionStatus, '儲存失敗，請確認帳號具編輯權限。', true); return; }
       screeningInstitutions = id
         ? screeningInstitutions.map(entry => (entry.id === id ? data : entry))

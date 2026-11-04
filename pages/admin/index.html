@@ -477,12 +477,14 @@ permalink: /admin/
       <section id="screening-institutions-card" class="admin-panel" aria-labelledby="screening-institutions-title" hidden>
         <p class="eyebrow">串接上傳</p>
         <h2 id="screening-institutions-title">機構內篩檢地點</h2>
-        <p class="admin-muted">問卷的篩檢地點包含下列名稱或別名時，串接上傳檔的「篩檢地點類別」填 1（機構內），其餘填 7（外展）。機構搬遷或新增分點時在此更新。</p>
+        <p class="admin-muted">問卷的篩檢地點包含下列名稱、別名或地址時，串接上傳檔的「篩檢地點類別」填 1（機構內），其餘填 7（外展）。機構搬遷或新增分點時在此更新。</p>
         <ul id="screening-institution-list" class="screening-institution-list"></ul>
         <form id="screening-institution-form" class="screening-institution-form">
           <input type="hidden" name="id">
           <label>機構名稱<input name="name" maxlength="80" required autocomplete="off"></label>
-          <label>地址／位置<input name="address" maxlength="200" autocomplete="off"></label>
+          <label>地址／位置（選填，問卷地點符合此地址時也視為機構內）<input name="address" maxlength="200" autocomplete="off"></label>
+          <label>聯絡方式（選填）<input name="contact" maxlength="200" autocomplete="off"></label>
+          <label>工作人員（選填，以逗號分隔）<input name="staff" maxlength="500" autocomplete="off"></label>
           <label>別名（以逗號分隔，用於比對問卷地點）<input name="aliases" maxlength="300" autocomplete="off"></label>
           <div class="cdc-export-actions">
             <button class="admin-button" type="submit">儲存機構</button>
