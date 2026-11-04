@@ -66,13 +66,37 @@
     return null;
   }
 
+  // 機構內篩檢地點由設定頁的機構清單（名稱、別名、地址）比對；其餘為外展（7）
+  function normalizePlace(value) {
+    return String(value || '').normalize('NFKC').toLocaleLowerCase().replace(/[\s,，、]+/g, '');
+  }
+
+  function siteCategory(place, institutions) {
+    const text = normalizePlace(place);
+    if (!text) return 7;
+    const matched = (institutions || []).some(institution => {
+      if ([institution.name, ...(institution.aliases || [])].map(normalizePlace).some(name => name && text.includes(name))) return true;
+      const address = normalizePlace(institution.address);
+      // 地點文字含完整地址，或問卷地點是地址的一部分（至少 6 字，避免誤判）
+      return Boolean(address) && (text.includes(address) || (text.length >= 6 && address.includes(text)));
+    });
+    return matched ? 1 : 7;
+  }
+
+  // 一個月空窗期試劑為 4（Ag/Ab combo），三個月空窗期為 5（抗體快篩）
+  function rapidItem(windowPeriod) {
+    if (windowPeriod === '1_month') return 4;
+    if (windowPeriod === '3_months') return 5;
+    return null;
+  }
+
   function cleanText(value) {
     return String(value ?? '').replace(/[,，\r\n]+/g, ' ').trim();
   }
 
   /*
    * 每個尚未上傳到指定單位的諮詢代碼產生一列。
-   * options: { unit, includeUploaded, screeningUnitCode, siteCategory, method('rapid'|'initial'), rapidItem, initialItem, told, cooperation }
+   * options: { unit, includeUploaded, screeningUnitCode, institutions[{name,aliases}], method('rapid'|'initial'; 預設快篩), initialItem, told, cooperation }
    */
   function buildImportRows(responses, options) {
     const rows = [];
@@ -92,23 +116,25 @@
         if (!cleanText(data.screening_place)) reasons.push('缺少篩檢地點');
         const result = hivResult(data);
         if (result === null) reasons.push('缺少 HIV 篩檢判讀');
+        const rapid = options.method === 'rapid';
+        const item = rapidItem(data.hiv_window_period);
+        if (rapid && item === null) reasons.push('快篩需有 HIV 空窗期（一個月或三個月）才能判斷檢驗項目');
         if (reasons.length) {
           skipped.push({ id: response.id, code: entry.code, reason: reasons.join('；') });
           return;
         }
-        const rapid = options.method === 'rapid';
         rows.push({
           responseId: response.id,
           code: entry.code,
           cells: {
             A: code,
             B: options.screeningUnitCode,
-            C: String(options.siteCategory),
+            C: String(siteCategory(data.screening_place, options.institutions)),
             D: cleanText(data.screening_place),
             E: serial,
             F: rapid ? '1' : '2',
             G: '',
-            H: rapid ? String(options.rapidItem) : '',
+            H: rapid ? String(item) : '',
             I: rapid ? result : '',
             J: rapid ? String(options.told) : '',
             K: rapid ? '' : String(options.initialItem),
@@ -147,6 +173,6 @@
   return {
     UNITS, DEFAULT_UNIT, MAX_ROWS_PER_FILE, FIRST_DATA_ROW,
     splitCodes, normalizeUploads, getCodeEntries, getUploadState, stateLabel,
-    excelDateSerial, buildImportRows, chunkRows, validateOptions, markUploaded
+    excelDateSerial, buildImportRows, siteCategory, rapidItem, chunkRows, validateOptions, markUploaded
   };
 });

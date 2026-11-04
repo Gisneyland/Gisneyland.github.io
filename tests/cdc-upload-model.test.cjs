@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const model = require('../assets/js/cdc-upload-model.js');
 
 const base = { screening_at: '2026-11-03', screening_place: 'OO三溫暖', screening_interpretation: ['hiv_negative'] };
-const options = { unit: 'cdc', screeningUnitCode: '9801181045', siteCategory: 7, method: 'initial', initialItem: 3, cooperation: '' };
+const options = { unit: 'cdc', screeningUnitCode: '9801181045', method: 'initial', initialItem: 3, cooperation: '' };
 
 test('upload state follows draft, code and per-code upload progress', () => {
   assert.equal(model.getUploadState({ status: 'draft' }).key, 'draft');
@@ -45,8 +45,8 @@ test('import rows are per code, per unit, and skip uploaded or invalid entries',
 });
 
 test('rapid tests fill the rapid columns only, and files are capped at 500 rows', () => {
-  const { rows } = model.buildImportRows([{ id: 1, anonymous_consult_code: '123456', response_data: { ...base, screening_interpretation: ['hiv_positive'] } }],
-    { ...options, method: 'rapid', rapidItem: 4, told: 1 });
+  const { rows } = model.buildImportRows([{ id: 1, anonymous_consult_code: '123456', response_data: { ...base, hiv_window_period: '1_month', screening_interpretation: ['hiv_positive'] } }],
+    { ...options, method: 'rapid', told: 1 });
   assert.deepEqual([rows[0].cells.F, rows[0].cells.H, rows[0].cells.I, rows[0].cells.J, rows[0].cells.K, rows[0].cells.L], ['1', '4', 1, '1', '', '']);
   assert.deepEqual(model.chunkRows(Array(1001).fill(0)).map(chunk => chunk.length), [500, 500, 1]);
 });
@@ -56,4 +56,26 @@ test('markUploaded only touches the exported codes for that unit', () => {
   const next = model.markUploaded(response, ['111111', '222222'], 'cdc', 'now', 'u1');
   assert.equal(next.find(item => item.code === '111111').uploaded_at, 'now');
   assert.equal(next.find(item => item.code === '222222').uploaded_at, null);
+});
+
+test('site category uses the configured institutions and rapid item follows the window period', () => {
+  const institutions = [{ name: '財團法人台灣紅絲帶基金會', aliases: ['紅絲帶基金會'] }, { name: '風城部屋' }, { name: '諸羅部屋' }];
+  assert.equal(model.siteCategory('紅絲帶基金會（台北）', institutions), 1);
+  assert.equal(model.siteCategory('風城部屋', institutions), 1);
+  assert.equal(model.siteCategory('諸羅部屋 ', institutions), 1);
+  assert.equal(model.siteCategory('竹螺單位', institutions), 7);
+  assert.equal(model.siteCategory('風城部屋', []), 7);
+  const withAddress = [{ name: '新據點', address: '新竹市東區民族路 25 號 6 樓' }];
+  assert.equal(model.siteCategory('新竹市東區民族路25號6樓', withAddress), 1);
+  assert.equal(model.siteCategory('某店（新竹市東區民族路 25 號 6 樓）', withAddress), 1);
+  assert.equal(model.siteCategory('民族路 25 號 6 樓', withAddress), 1);
+  assert.equal(model.siteCategory('民族路', withAddress), 7);
+  assert.equal(model.siteCategory('新竹市北區中正路 1 號', withAddress), 7);
+  assert.equal(model.rapidItem('1_month'), 4);
+  assert.equal(model.rapidItem('3_months'), 5);
+  const rapid = { ...options, method: 'rapid', told: 1, institutions };
+  const make = (place, windowPeriod) => ({ id: 1, anonymous_consult_code: '123456', response_data: { ...base, screening_place: place, hiv_window_period: windowPeriod } });
+  const ok = model.buildImportRows([make('風城部屋', '3_months')], rapid).rows[0].cells;
+  assert.deepEqual([ok.C, ok.H], ['1', '5']);
+  assert.equal(model.buildImportRows([make('OO寺', undefined)], rapid).skipped.length, 1);
 });
