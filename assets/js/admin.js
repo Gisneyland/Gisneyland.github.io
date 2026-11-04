@@ -193,6 +193,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const cdcExportForm = document.getElementById('cdc-export-form');
   const selectedResponseIds = new Set();
   let screeningInstitutions = [];
+  let externalLinks = [];
+  let selectedMapPlace = null;
+  const taskFilter = document.getElementById('task-filter');
+  const placeFilterChip = document.getElementById('place-filter-chip');
+  const externalLinkCard = document.getElementById('external-links-card');
+  const externalLinkList = document.getElementById('external-link-list');
+  const externalLinkForm = document.getElementById('external-link-form');
+  const externalLinkStatus = document.getElementById('external-link-status');
   const institutionCard = document.getElementById('screening-institutions-card');
   const institutionList = document.getElementById('screening-institution-list');
   const institutionForm = document.getElementById('screening-institution-form');
@@ -924,16 +932,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   initializeCdcExport();
   initializeInstitutionSettings();
-  mapModeControls.forEach(control => control.addEventListener('change', () => {
-    renderScreeningAnalytics(getFilteredResponses());
-  }));
+  initializeExternalLinkSettings();
+  mapModeControls.forEach(control => control.addEventListener('change', renderResponses));
   [screeningRangeStart, screeningRangeEnd].forEach(input => {
-    input.addEventListener('change', () => renderScreeningAnalytics(getFilteredResponses()));
+    input.addEventListener('change', () => { currentPage = 1; renderResponses(); });
   });
   resetScreeningRangeButton.addEventListener('click', () => {
     resetScreeningDateRange();
-    renderScreeningAnalytics(getFilteredResponses());
+    currentPage = 1;
+    renderResponses();
   });
+  taskFilter?.addEventListener('change', () => { currentPage = 1; renderResponses(); });
+  document.getElementById('place-filter-clear')?.addEventListener('click', () => selectMapPlace(null));
   closeDialogButton.addEventListener('click', () => dialog.close());
   accountProfileForm.addEventListener('submit', saveAccountProfile);
   screeningPlanForm.addEventListener('submit', saveScreeningPlan);
@@ -1015,6 +1025,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadScreenerNumber(data.session);
     if (window.StaffAccess.canAccess(profile, 'questionnaire.read')) {
       await loadScreeningInstitutions();
+      await loadExternalLinks();
       await loadResponses();
     }
   }
@@ -1872,7 +1883,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadResponses() {
     showStatus(dashboardStatus, '資料載入中。');
-    const fields = 'id, created_at, language, schema_version, response_data, anonymous_consult_code, consult_uploads, status, updated_at';
+    const fields = 'id, created_at, language, schema_version, response_data, anonymous_consult_code, consult_uploads, task_progress, status, updated_at';
     const isPendingView = consultationFilter.value === 'pending';
     let loadedResponses = [];
 
@@ -1924,7 +1935,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderResponses() {
     const filtered = getFilteredResponses();
-    renderScreeningAnalytics(filtered);
+    renderScreeningAnalytics(filtered, getFilteredResponses({ ignorePlace: true }));
+    renderTaskFilterOptions();
+    renderPlaceFilterChip();
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     currentPage = Math.min(currentPage, totalPages);
@@ -1953,7 +1966,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td class="admin-select-cell"><input type="checkbox" data-select-response aria-label="選取 ${escapeHtml(formatDate(response.created_at))} 的資料"${selectedResponseIds.has(response.id) ? ' checked' : ''}></td>
         <td>${escapeHtml(formatDate(response.created_at))}</td>
         <td>${consultationCodeCell}</td>
-        <td>${renderUploadStatusCell(response, uploadState)}</td>
+        <td>${renderUploadStatusCell(response, uploadState)}${renderTaskChips(response)}</td>
         <td>${escapeHtml(data.screener || '未填寫')}</td>
         <td>${escapeHtml(data.screening_place || '未填寫')}</td>
         <td>${escapeHtml(nationalities.join('、') || '未填寫')}</td>
@@ -1999,6 +2012,235 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!entries.length) return badge;
     const details = entries.map(entry => `<span class="upload-code-entry ${entry.uploaded_at ? 'is-uploaded' : 'is-pending'}" title="${entry.uploaded_at ? `已於 ${escapeHtml(formatDate(entry.uploaded_at))} 上傳` : '尚未上傳'}">${escapeHtml(entry.code)}→${escapeHtml(CdcUploadModel.UNITS[entry.unit])}${entry.uploaded_at ? ' ✓' : ''}</span>`).join('');
     return `${badge}<div class="upload-code-list">${details}</div>`;
+  }
+
+  function getResponseTasks(response) {
+    return ExternalTasksModel.getTasks(response, externalLinks, item => {
+      const place = findScreeningPlace(item);
+      return [item.response_data?.screening_place, place?.label, place?.name].filter(Boolean).join(' ');
+    });
+  }
+
+  function matchesTaskFilter(response) {
+    const value = taskFilter?.value || 'all';
+    if (value === 'all') return true;
+    const tasks = getResponseTasks(response);
+    if (value === 'pending') return tasks.some(task => !task.done);
+    if (value === 'done') return tasks.length > 0 && tasks.every(task => task.done);
+    return tasks.some(task => task.link.id === value.slice('link:'.length) && !task.done);
+  }
+
+  function renderTaskFilterOptions() {
+    if (!taskFilter) return;
+    const current = taskFilter.value;
+    taskFilter.replaceChildren(
+      new Option('全部', 'all'),
+      new Option('有未完成待辦', 'pending'),
+      new Option('待辦已全部完成', 'done'),
+      ...externalLinks.map(link => new Option(`未完成：${link.label}`, `link:${link.id}`))
+    );
+    taskFilter.value = [...taskFilter.options].some(option => option.value === current) ? current : 'all';
+  }
+
+  function renderTaskChips(response) {
+    const tasks = getResponseTasks(response);
+    if (!tasks.length) return '';
+    return `<div class="task-chip-list">${tasks.map(task => `<span class="task-chip ${task.done ? 'is-done' : 'is-pending'}" title="${task.done ? '已完成' : '尚未完成'}">${task.done ? '✓' : '○'} ${escapeHtml(task.link.label)}</span>`).join('')}</div>`;
+  }
+
+  async function loadExternalLinks() {
+    const { data, error } = await window.questionnaireSupabase
+      .from('external_links')
+      .select('id, kind, nationality, match_keywords, label, url')
+      .order('created_at', { ascending: true });
+    if (error) {
+      showStatus(externalLinkStatus, '無法載入待辦連結，請確認已執行最新資料庫更新。', true);
+      return;
+    }
+    externalLinks = data || [];
+    renderExternalLinks();
+  }
+
+  function countryChoices() {
+    const names = new Intl.DisplayNames(['zh-TW'], { type: 'region' });
+    const choices = [];
+    for (let first = 65; first <= 90; first += 1) {
+      for (let second = 65; second <= 90; second += 1) {
+        const code = String.fromCharCode(first, second);
+        let name = '';
+        try { name = names.of(code); } catch { /* 非有效區域碼 */ }
+        if (name && name !== code) choices.push({ code, name });
+      }
+    }
+    return choices;
+  }
+
+  function resolveCountry(input) {
+    const text = ExternalTasksModel.norm(input);
+    if (!text) return '';
+    const match = countryChoices().find(choice => ExternalTasksModel.norm(choice.code) === text || ExternalTasksModel.norm(choice.name) === text);
+    return match ? match.code : String(input).trim();
+  }
+
+  function describeNationality(value) {
+    const match = countryChoices().find(choice => choice.code === String(value).toUpperCase());
+    return match ? `${match.name} (${match.code})` : value;
+  }
+
+  function renderExternalLinks() {
+    if (!externalLinkCard) return;
+    externalLinkCard.hidden = !window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.read');
+    const canEdit = window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation');
+    externalLinkForm.hidden = !canEdit;
+    externalLinkList.replaceChildren(...externalLinks.map(link => {
+      const item = document.createElement('li');
+      const text = document.createElement('span');
+      const target = link.kind === 'nationality_questionnaire'
+        ? describeNationality(link.nationality)
+        : ((link.match_keywords || []).join('、') || '全部地點');
+      text.append(`${ExternalTasksModel.KINDS[link.kind]}｜${target}｜${link.label}｜`);
+      if (ExternalTasksModel.isSafeUrl(link.url)) {
+        const anchor = document.createElement('a');
+        anchor.href = link.url;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        anchor.textContent = link.url;
+        text.append(anchor);
+      }
+      item.append(text);
+      if (canEdit) {
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'admin-button secondary';
+        edit.textContent = '編輯';
+        edit.addEventListener('click', () => {
+          const values = externalLinkForm.elements;
+          values.id.value = link.id;
+          values.kind.value = link.kind;
+          values.nationality.value = link.nationality || '';
+          values.keywords.value = (link.match_keywords || []).join(', ');
+          values.label.value = link.label;
+          values.url.value = link.url;
+          syncExternalLinkKind();
+          document.getElementById('external-link-cancel').hidden = false;
+          values.label.focus();
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'admin-button secondary';
+        remove.textContent = '刪除';
+        remove.addEventListener('click', async () => {
+          if (!window.confirm(`確定刪除「${link.label}」？已記錄的完成狀態也會一併失效。`)) return;
+          const { error } = await window.questionnaireSupabase.from('external_links').delete().eq('id', link.id);
+          if (error) { showStatus(externalLinkStatus, '刪除失敗，請確認帳號具編輯權限。', true); return; }
+          externalLinks = externalLinks.filter(entry => entry.id !== link.id);
+          renderExternalLinks();
+          renderResponses();
+          showStatus(externalLinkStatus, '已刪除。');
+        });
+        item.append(edit, remove);
+      }
+      return item;
+    }));
+  }
+
+  function syncExternalLinkKind() {
+    const kind = externalLinkForm.elements.kind.value;
+    externalLinkForm.querySelectorAll('[data-kind]').forEach(label => { label.hidden = label.dataset.kind !== kind; });
+  }
+
+  function initializeExternalLinkSettings() {
+    if (!externalLinkForm) return;
+    const datalist = document.getElementById('external-link-countries');
+    datalist.replaceChildren(...countryChoices().map(choice => new Option(`${choice.name} (${choice.code})`, choice.name)));
+    const cancel = document.getElementById('external-link-cancel');
+    const reset = () => { externalLinkForm.reset(); externalLinkForm.elements.id.value = ''; cancel.hidden = true; syncExternalLinkKind(); };
+    externalLinkForm.elements.kind.addEventListener('change', syncExternalLinkKind);
+    cancel.addEventListener('click', reset);
+    externalLinkForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const values = externalLinkForm.elements;
+      const kind = values.kind.value;
+      const record = {
+        kind,
+        nationality: kind === 'nationality_questionnaire' ? resolveCountry(values.nationality.value) : '',
+        match_keywords: kind === 'agency_site'
+          ? [...new Set(values.keywords.value.split(/[,，、;；]+/).map(word => word.trim()).filter(Boolean))]
+          : [],
+        label: values.label.value.trim(),
+        url: values.url.value.trim()
+      };
+      if (kind === 'nationality_questionnaire' && !record.nationality) { showStatus(externalLinkStatus, '請填寫國籍。', true); return; }
+      if (!ExternalTasksModel.isSafeUrl(record.url)) { showStatus(externalLinkStatus, '網址需以 http:// 或 https:// 開頭。', true); return; }
+      const id = values.id.value;
+      const table = window.questionnaireSupabase.from('external_links');
+      const { data, error } = await (id ? table.update(record).eq('id', id) : table.insert(record))
+        .select('id, kind, nationality, match_keywords, label, url').maybeSingle();
+      if (error || !data) { showStatus(externalLinkStatus, '儲存失敗，請確認帳號具編輯權限。', true); return; }
+      externalLinks = id ? externalLinks.map(entry => (entry.id === id ? data : entry)) : [...externalLinks, data];
+      reset();
+      renderExternalLinks();
+      renderResponses();
+      showStatus(externalLinkStatus, '已儲存連結。');
+    });
+    syncExternalLinkKind();
+  }
+
+  function buildTasksPanel(response) {
+    const tasks = getResponseTasks(response);
+    if (!tasks.length) return null;
+    const canEdit = window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation');
+    const section = document.createElement('section');
+    section.className = 'response-section task-panel';
+    const heading = document.createElement('h3');
+    heading.className = 'response-section-title';
+    const summary = ExternalTasksModel.summarize(tasks);
+    heading.textContent = `待辦事項（${summary.done} / ${summary.total} 已完成）`;
+    const list = document.createElement('ul');
+    list.className = 'task-list';
+    const status = document.createElement('p');
+    status.className = 'admin-status';
+    status.setAttribute('role', 'status');
+    status.hidden = true;
+    tasks.forEach(task => {
+      const item = document.createElement('li');
+      item.className = task.done ? 'is-done' : 'is-pending';
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = task.done;
+      box.disabled = !canEdit;
+      label.append(box, ` ${task.link.label}`);
+      const open = document.createElement('a');
+      open.className = 'admin-button secondary';
+      open.target = '_blank';
+      open.rel = 'noopener noreferrer';
+      if (ExternalTasksModel.isSafeUrl(task.link.url)) open.href = task.link.url;
+      open.textContent = '開啟 ↗';
+      box.addEventListener('change', async () => {
+        box.disabled = true;
+        const nextProgress = ExternalTasksModel.setDone(response.task_progress, task.link.id, box.checked, new Date().toISOString(), activeUser?.id);
+        const { data, error } = await window.questionnaireSupabase
+          .from('questionnaire_responses')
+          .update({ task_progress: nextProgress })
+          .eq('id', response.id)
+          .select('id')
+          .maybeSingle();
+        if (error || !data) {
+          box.checked = !box.checked;
+          box.disabled = false;
+          showStatus(status, '儲存失敗，請確認資料庫已更新且帳號具編輯權限。', true);
+          return;
+        }
+        response.task_progress = nextProgress;
+        renderResponses();
+        section.replaceWith(buildTasksPanel(response));
+      });
+      item.append(label, open);
+      list.append(item);
+    });
+    section.append(heading, list, status);
+    return section;
   }
 
   async function loadScreeningInstitutions() {
@@ -2239,7 +2481,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return response.status === 'draft';
   }
 
-  function getFilteredResponses() {
+  function getFilteredResponses({ ignorePlace = false } = {}) {
+    const rangeStart = parseTaipeiDateTime(screeningRangeStart.value, false);
+    const rangeEnd = parseTaipeiDateTime(screeningRangeEnd.value, true);
+    const rangeValid = rangeStart !== null && rangeEnd !== null && rangeEnd >= rangeStart;
     const keyword = searchInput.value.trim().toLowerCase();
     return responses.filter(response => {
       const data = response.response_data || {};
@@ -2259,12 +2504,19 @@ document.addEventListener('DOMContentLoaded', () => {
         || (uploadFilter.value === 'needs-upload' && uploadState.key === 'needs-upload')
         || (/^needs-upload-/.test(uploadFilter.value) && uploadState.key === 'needs-upload'
           && uploadState.pending.some(entry => entry.unit === uploadFilter.value.slice('needs-upload-'.length)));
+      const submittedAt = new Date(response.created_at).getTime();
+      const matchesRange = !rangeValid || (Number.isFinite(submittedAt) && submittedAt >= rangeStart && submittedAt <= rangeEnd);
+      const matchesPlace = ignorePlace || !selectedMapPlace || findScreeningPlace(response)?.name === selectedMapPlace;
+      const matchesTask = matchesTaskFilter(response);
       const matchesStatus = !statusFilter || statusFilter.value === 'all'
         || (statusFilter.value === 'draft') === isDraftResponse(response);
       return (!keyword || searchable.includes(keyword))
         && matchesNationality
         && matchesStatus
         && matchesUpload
+        && matchesRange
+        && matchesPlace
+        && matchesTask
         && (consultationFilter.value === 'all'
           || (consultationFilter.value === 'completed' && hasConsultCode)
           || (consultationFilter.value === 'pending' && !hasConsultCode));
@@ -2347,7 +2599,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderScreeningAnalytics(filteredResponses) {
+  function renderScreeningAnalytics(filteredResponses, mapBaseResponses = filteredResponses) {
     const screeningCounts = {
       hivScreenings: 0,
       hivPositive: 0,
@@ -2376,7 +2628,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('consultation-fill-ratio').textContent = `${consultationFilledCount} / ${filteredResponses.length}`;
 
     const mapMode = document.querySelector('input[name="screening-map-mode"]:checked')?.value || 'all';
-    const mapResponses = filterResponsesForMap(filteredResponses, mapMode);
+    const taskTotals = filteredResponses.reduce((total, response) => {
+      const summary = ExternalTasksModel.summarize(getResponseTasks(response));
+      return { done: total.done + summary.done, total: total.total + summary.total };
+    }, { done: 0, total: 0 });
+    document.getElementById('task-progress-ratio').textContent = `${taskTotals.done} / ${taskTotals.total}`;
+
+    const mapResponses = filterResponsesForMap(mapBaseResponses, mapMode);
     if (!mapResponses) {
       renderScreeningMap([]);
       return;
@@ -2388,15 +2646,7 @@ document.addEventListener('DOMContentLoaded', () => {
       0
     );
     mapResponses.forEach(response => {
-      const location = String(response.response_data?.screening_place || '').trim();
-      const normalizedLocation = normalizePlace(location);
-      const matchedPlace = normalizedLocation && screeningPlaces.find(place => {
-        const aliases = [place.name, place.label, ...(place.aliases || [])]
-          .map(normalizePlace)
-          .filter(Boolean);
-        return aliases.some(alias => normalizedLocation.includes(alias));
-      });
-
+      const matchedPlace = findScreeningPlace(response);
       if (!matchedPlace) return;
       const positiveCount = getPositiveResultCountForMap(response, mapMode);
       const previousLocation = locationCounts.get(matchedPlace.name);
@@ -2423,6 +2673,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mapMode === 'hiv') return Number(hivPositive);
     if (mapMode === 'syphilis') return Number(syphilisPositive);
     return Number(hivPositive) + Number(syphilisPositive);
+  }
+
+  function findScreeningPlace(response) {
+    const normalizedLocation = normalizePlace(String(response.response_data?.screening_place || '').trim());
+    if (!normalizedLocation) return null;
+    return screeningPlaces.find(place => [place.name, place.label, ...(place.aliases || [])]
+      .map(normalizePlace)
+      .filter(Boolean)
+      .some(alias => normalizedLocation.includes(alias))) || null;
+  }
+
+  function selectMapPlace(name) {
+    selectedMapPlace = name && name !== selectedMapPlace ? name : null;
+    currentPage = 1;
+    renderResponses();
+    if (selectedMapPlace) document.querySelector('.questionnaire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderPlaceFilterChip() {
+    placeFilterChip.hidden = !selectedMapPlace;
+    document.getElementById('place-filter-name').textContent = screeningPlaces.find(place => place.name === selectedMapPlace)?.label || selectedMapPlace || '';
   }
 
   function filterResponsesForMap(filteredResponses, mapMode) {
@@ -2536,7 +2807,13 @@ document.addEventListener('DOMContentLoaded', () => {
       placeName.textContent = place.label || place.name;
       placeCount.textContent = `${positiveCount} 件陽性 / ${count} 筆篩檢；篩檢量占比 ${Math.round(screeningShare * 100)}%，陽性占比 ${Math.round(positiveShare * 100)}%`;
       popup.append(placeName, placeCount);
+      const isSelected = selectedMapPlace === place.name;
+      if (isSelected) marker.setStyle({ color: '#1b3a57', weight: 4 });
+      const hint = document.createElement('p');
+      hint.textContent = isSelected ? '已篩選此地點，再點一次取消。' : '點選可只看此地點的紀錄。';
+      popup.append(hint);
       marker.bindPopup(popup).addTo(screeningHotspotLayer);
+      marker.on('click', () => selectMapPlace(place.name));
     });
 
     if (locations.length === 1) {
@@ -2650,6 +2927,8 @@ document.addEventListener('DOMContentLoaded', () => {
     responseDetails.replaceChildren();
     dialog.classList.remove('is-split');
     const data = response.response_data || {};
+    const tasksPanel = buildTasksPanel(response);
+    if (tasksPanel) responseDetails.append(tasksPanel);
     appendResponseEditor(response, editorOpen);
     appendConsultationWorkflow(response);
     const knownFields = new Set(RESPONSE_DETAIL_GROUPS.flatMap(group => group.fields));
