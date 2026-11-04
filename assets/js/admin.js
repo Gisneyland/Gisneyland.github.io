@@ -2032,7 +2032,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      ['screeningUnitCode', 'siteCategory', 'method', 'rapidItem', 'told', 'initialItem', 'cooperation', 'unit'].forEach(name => {
+      ['screeningUnitCode', 'method', 'told', 'initialItem', 'cooperation', 'unit'].forEach(name => {
         if (saved[name] !== undefined && cdcExportForm.elements[name]) cdcExportForm.elements[name].value = saved[name];
       });
     } catch { /* 無法讀取先前設定時使用預設值 */ }
@@ -2065,7 +2065,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setButtonBusy(generateButton, true, '產生中');
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(
-          ['screeningUnitCode', 'siteCategory', 'method', 'rapidItem', 'told', 'initialItem', 'cooperation', 'unit']
+          ['screeningUnitCode', 'method', 'told', 'initialItem', 'cooperation', 'unit']
             .map(name => [name, options[name]])
         )));
       } catch { /* 無法儲存設定時仍可繼續匯出 */ }

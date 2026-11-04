@@ -684,22 +684,10 @@ permalink: /admin/
       <label>篩檢單位（醫事機構 10 碼或統編 8 碼）
         <input name="screeningUnitCode" inputmode="numeric" pattern="(\d{10}|\d{8})" maxlength="10" required autocomplete="off">
       </label>
-      <label>篩檢地點類別
-        <select name="siteCategory">
-          <option value="7">7：外展</option>
-          <option value="1">1：機構內</option>
-        </select>
-      </label>
       <label>篩檢方式
         <select name="method">
           <option value="rapid">1：快篩</option>
           <option value="initial">2：初篩</option>
-        </select>
-      </label>
-      <label data-method="rapid">快篩檢驗項目
-        <select name="rapidItem">
-          <option value="4">4：HIV Ag/Ab combo 快篩</option>
-          <option value="5">5：HIV 抗體快篩</option>
         </select>
       </label>
       <label data-method="rapid">快篩當場告知結果
@@ -720,7 +708,7 @@ permalink: /admin/
       </label>
     </div>
     <label class="cdc-export-check"><input name="includeUploaded" type="checkbox"> 包含已標記上傳過的代碼</label>
-    <p class="admin-muted">同一諮詢代碼只能選一種篩檢方式；快篩與初篩並行者請改用單筆登錄。每個檔案最多 500 筆，超過會自動分成多個檔案。</p>
+    <p class="admin-muted">篩檢地點類別與快篩檢驗項目由紀錄自動判斷：紅絲帶基金會、風城、紅屋、竹螺單位為 1（機構內），其餘為 7（外展）；一個月空窗期試劑為 4（Ag/Ab combo），三個月空窗期為 5（抗體快篩）。同一諮詢代碼只能選一種篩檢方式；快篩與初篩並行者請改用單筆登錄。每個檔案最多 500 筆，超過會自動分成多個檔案。</p>
     <ul id="cdc-export-skipped" class="cdc-export-skipped" hidden></ul>
     <p id="cdc-export-status" class="admin-status" role="status" hidden></p>
     <div class="cdc-export-actions">

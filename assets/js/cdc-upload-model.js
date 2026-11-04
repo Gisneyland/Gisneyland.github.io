@@ -66,13 +66,27 @@
     return null;
   }
 
+  // 紅絲帶基金會、風城、紅屋、竹螺單位視為機構內（1），其餘為外展（7）
+  const INSTITUTION_PATTERN = /紅絲帶|風城|紅屋|[竹築]螺|zhuluo/i;
+
+  function siteCategory(place) {
+    return INSTITUTION_PATTERN.test(String(place || '').normalize('NFKC')) ? 1 : 7;
+  }
+
+  // 一個月空窗期試劑為 4（Ag/Ab combo），三個月空窗期為 5（抗體快篩）
+  function rapidItem(windowPeriod) {
+    if (windowPeriod === '1_month') return 4;
+    if (windowPeriod === '3_months') return 5;
+    return null;
+  }
+
   function cleanText(value) {
     return String(value ?? '').replace(/[,，\r\n]+/g, ' ').trim();
   }
 
   /*
    * 每個尚未上傳到指定單位的諮詢代碼產生一列。
-   * options: { unit, includeUploaded, screeningUnitCode, siteCategory, method('rapid'|'initial'), rapidItem, initialItem, told, cooperation }
+   * options: { unit, includeUploaded, screeningUnitCode, method('rapid'|'initial'), initialItem, told, cooperation }
    */
   function buildImportRows(responses, options) {
     const rows = [];
@@ -92,23 +106,25 @@
         if (!cleanText(data.screening_place)) reasons.push('缺少篩檢地點');
         const result = hivResult(data);
         if (result === null) reasons.push('缺少 HIV 篩檢判讀');
+        const rapid = options.method === 'rapid';
+        const item = rapidItem(data.hiv_window_period);
+        if (rapid && item === null) reasons.push('快篩需有 HIV 空窗期（一個月或三個月）才能判斷檢驗項目');
         if (reasons.length) {
           skipped.push({ id: response.id, code: entry.code, reason: reasons.join('；') });
           return;
         }
-        const rapid = options.method === 'rapid';
         rows.push({
           responseId: response.id,
           code: entry.code,
           cells: {
             A: code,
             B: options.screeningUnitCode,
-            C: String(options.siteCategory),
+            C: String(siteCategory(data.screening_place)),
             D: cleanText(data.screening_place),
             E: serial,
             F: rapid ? '1' : '2',
             G: '',
-            H: rapid ? String(options.rapidItem) : '',
+            H: rapid ? String(item) : '',
             I: rapid ? result : '',
             J: rapid ? String(options.told) : '',
             K: rapid ? '' : String(options.initialItem),
@@ -147,6 +163,6 @@
   return {
     UNITS, DEFAULT_UNIT, MAX_ROWS_PER_FILE, FIRST_DATA_ROW,
     splitCodes, normalizeUploads, getCodeEntries, getUploadState, stateLabel,
-    excelDateSerial, buildImportRows, chunkRows, validateOptions, markUploaded
+    excelDateSerial, buildImportRows, siteCategory, rapidItem, chunkRows, validateOptions, markUploaded
   };
 });
