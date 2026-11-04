@@ -933,7 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeCdcExport();
   initializeInstitutionSettings();
   initializeExternalLinkSettings();
-  mapModeControls.forEach(control => control.addEventListener('change', renderResponses));
+  mapModeControls.forEach(control => control.addEventListener('change', () => { currentPage = 1; renderResponses(); }));
   [screeningRangeStart, screeningRangeEnd].forEach(input => {
     input.addEventListener('change', () => { currentPage = 1; renderResponses(); });
   });
@@ -2484,6 +2484,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function getFilteredResponses({ ignorePlace = false } = {}) {
     const rangeStart = parseTaipeiDateTime(screeningRangeStart.value, false);
     const rangeEnd = parseTaipeiDateTime(screeningRangeEnd.value, true);
+    const mapMode = document.querySelector('input[name="screening-map-mode"]:checked')?.value || 'all';
     const rangeValid = rangeStart !== null && rangeEnd !== null && rangeEnd >= rangeStart;
     const keyword = searchInput.value.trim().toLowerCase();
     return responses.filter(response => {
@@ -2508,6 +2509,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const matchesRange = !rangeValid || (Number.isFinite(submittedAt) && submittedAt >= rangeStart && submittedAt <= rangeEnd);
       const matchesPlace = ignorePlace || !selectedMapPlace || findScreeningPlace(response)?.name === selectedMapPlace;
       const matchesTask = matchesTaskFilter(response);
+      const matchesMode = matchesScreeningMode(response, mapMode);
       const matchesStatus = !statusFilter || statusFilter.value === 'all'
         || (statusFilter.value === 'draft') === isDraftResponse(response);
       return (!keyword || searchable.includes(keyword))
@@ -2517,6 +2519,7 @@ document.addEventListener('DOMContentLoaded', () => {
         && matchesRange
         && matchesPlace
         && matchesTask
+        && matchesMode
         && (consultationFilter.value === 'all'
           || (consultationFilter.value === 'completed' && hasConsultCode)
           || (consultationFilter.value === 'pending' && !hasConsultCode));
@@ -2673,6 +2676,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mapMode === 'hiv') return Number(hivPositive);
     if (mapMode === 'syphilis') return Number(syphilisPositive);
     return Number(hivPositive) + Number(syphilisPositive);
+  }
+
+  // 地圖類型同時決定紀錄列表：HIV／梅毒只列出有該項篩檢結果的紀錄
+  function matchesScreeningMode(response, mode) {
+    if (mode !== 'hiv' && mode !== 'syphilis') return true;
+    const values = Array.isArray(response.response_data?.screening_interpretation)
+      ? response.response_data.screening_interpretation
+      : [response.response_data?.screening_interpretation];
+    return values.some(value => typeof value === 'string' && value.startsWith(`${mode}_`));
   }
 
   function findScreeningPlace(response) {
