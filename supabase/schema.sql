@@ -70,6 +70,7 @@ grant insert on table public.questionnaire_responses to anon;
 
 -- 受檢者可先送出「草稿」，由篩檢員稍後在後台補完篩檢結果。
 alter table public.questionnaire_responses
+  add column if not exists consult_uploads jsonb not null default '[]'::jsonb,
   add column if not exists status text not null default 'submitted',
   add column if not exists updated_at timestamptz,
   add column if not exists updated_by uuid references auth.users(id) on delete set null;
@@ -78,6 +79,12 @@ alter table public.questionnaire_responses
   drop constraint if exists questionnaire_status_check;
 alter table public.questionnaire_responses
   add constraint questionnaire_status_check check (status in ('draft', 'submitted'));
+
+alter table public.questionnaire_responses
+  drop constraint if exists questionnaire_consult_uploads_check;
+alter table public.questionnaire_responses
+  add constraint questionnaire_consult_uploads_check
+  check (jsonb_typeof(consult_uploads) = 'array' and jsonb_array_length(consult_uploads) <= 20);
 
 create index if not exists questionnaire_draft_idx
   on public.questionnaire_responses (created_at, id)
@@ -102,7 +109,7 @@ with check (
 );
 
 -- 篩檢員可在後台修正問卷內容與篩檢結果，並將草稿轉為已完成。
-grant update (response_data, status, anonymous_consult_code, updated_at, updated_by)
+grant update (response_data, status, anonymous_consult_code, consult_uploads, updated_at, updated_by)
   on table public.questionnaire_responses to authenticated;
 
 create or replace function public.touch_questionnaire_response()
@@ -166,7 +173,7 @@ revoke all on table public.admin_profiles from anon, authenticated;
 grant select on table public.admin_profiles to authenticated;
 grant update (screener_number) on table public.admin_profiles to authenticated;
 grant select on table public.questionnaire_responses to authenticated;
-grant update (response_data, status, anonymous_consult_code, updated_at, updated_by) on table public.questionnaire_responses to authenticated;
+grant update (response_data, status, anonymous_consult_code, consult_uploads, updated_at, updated_by) on table public.questionnaire_responses to authenticated;
 
 drop policy if exists "Admins can view their own profile"
 on public.admin_profiles;

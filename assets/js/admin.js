@@ -186,6 +186,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectedNationalityContainer = document.getElementById('nationality-filter-selected');
   const consultationFilter = document.getElementById('consultation-filter');
   const statusFilter = document.getElementById('status-filter');
+  const uploadFilter = document.getElementById('upload-filter');
+  const selectAllResponses = document.getElementById('select-all-responses');
+  const cdcExportButton = document.getElementById('cdc-export-button');
+  const cdcExportDialog = document.getElementById('cdc-export-dialog');
+  const cdcExportForm = document.getElementById('cdc-export-form');
+  const selectedResponseIds = new Set();
   const responseBody = document.getElementById('responses-body');
   const emptyState = document.getElementById('empty-state');
   const dialog = document.getElementById('response-dialog');
@@ -903,6 +909,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   consultationFilter.addEventListener('change', () => { currentPage = 1; loadResponses(); });
   statusFilter?.addEventListener('change', () => { currentPage = 1; renderResponses(); });
+  uploadFilter?.addEventListener('change', () => { currentPage = 1; renderResponses(); });
+  selectAllResponses?.addEventListener('change', () => {
+    getFilteredResponses().forEach(response => {
+      if (selectAllResponses.checked) selectedResponseIds.add(response.id);
+      else selectedResponseIds.delete(response.id);
+    });
+    renderResponses();
+  });
+  initializeCdcExport();
   mapModeControls.forEach(control => control.addEventListener('change', () => {
     renderScreeningAnalytics(getFilteredResponses());
   }));
@@ -1848,7 +1863,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadResponses() {
     showStatus(dashboardStatus, '資料載入中。');
-    const fields = 'id, created_at, language, schema_version, response_data, anonymous_consult_code, status, updated_at';
+    const fields = 'id, created_at, language, schema_version, response_data, anonymous_consult_code, consult_uploads, status, updated_at';
     const isPendingView = consultationFilter.value === 'pending';
     let loadedResponses = [];
 
@@ -1919,14 +1934,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const consultationCode = consultationCodes.join('、');
       const row = document.createElement('tr');
       row.tabIndex = 0;
-      row.setAttribute('aria-label', `${formatDate(response.created_at)}，${isDraftResponse(response) ? '草稿待篩檢員完成，' : ''}${consultationCode ? `諮詢代碼 ${consultationCode}` : '諮詢待處理'}。雙擊或按 Enter 查看詳細資料。`);
+      const uploadState = CdcUploadModel.getUploadState(response);
+      row.setAttribute('aria-label', `${formatDate(response.created_at)}，${CdcUploadModel.stateLabel(uploadState)}，${consultationCode ? `諮詢代碼 ${consultationCode}` : '諮詢待處理'}。雙擊或按 Enter 查看詳細資料。`);
       row.classList.add(consultationCode ? 'is-consultation-complete' : 'is-consultation-pending');
       const consultationCodeCell = consultationCode
         ? `<span class="consultation-code-badge is-complete">${escapeHtml(consultationCode)}</span>`
         : '<span class="consultation-code-badge is-pending">待處理</span>';
       row.innerHTML = `
-        <td>${escapeHtml(formatDate(response.created_at))}${isDraftResponse(response) ? ' <span class="response-status-badge is-draft">草稿</span>' : ''}</td>
+        <td class="admin-select-cell"><input type="checkbox" data-select-response aria-label="選取 ${escapeHtml(formatDate(response.created_at))} 的資料"${selectedResponseIds.has(response.id) ? ' checked' : ''}></td>
+        <td>${escapeHtml(formatDate(response.created_at))}</td>
         <td>${consultationCodeCell}</td>
+        <td>${renderUploadStatusCell(response, uploadState)}</td>
         <td>${escapeHtml(data.screener || '未填寫')}</td>
         <td>${escapeHtml(data.screening_place || '未填寫')}</td>
         <td>${escapeHtml(nationalities.join('、') || '未填寫')}</td>
@@ -1935,6 +1953,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const openDetails = () => {
         if (!dialog.open) showResponse(response);
       };
+      const selectCell = row.querySelector('.admin-select-cell');
+      ['click', 'dblclick', 'keydown', 'pointerdown'].forEach(type => selectCell.addEventListener(type, event => event.stopPropagation()));
+      selectCell.querySelector('input').addEventListener('change', event => {
+        if (event.target.checked) selectedResponseIds.add(response.id);
+        else selectedResponseIds.delete(response.id);
+        updateSelectAllState();
+      });
       row.addEventListener('pointerdown', event => { lastPointerType = event.pointerType; });
       row.addEventListener('click', () => {
         if (lastPointerType === 'touch' || window.matchMedia('(pointer: coarse)').matches) openDetails();
@@ -1947,6 +1972,173 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       responseBody.appendChild(row);
     });
+    updateSelectAllState();
+  }
+
+  function updateSelectAllState() {
+    if (!selectAllResponses) return;
+    const filtered = getFilteredResponses();
+    const selectedCount = filtered.filter(response => selectedResponseIds.has(response.id)).length;
+    selectAllResponses.checked = filtered.length > 0 && selectedCount === filtered.length;
+    selectAllResponses.indeterminate = selectedCount > 0 && selectedCount < filtered.length;
+    cdcExportButton?.setAttribute('title', selectedResponseIds.size ? `產生串接上傳檔（已選 ${selectedResponseIds.size} 筆）` : '產生串接上傳檔');
+  }
+
+  function renderUploadStatusCell(response, state) {
+    const badge = `<span class="response-status-badge is-${state.key}">${escapeHtml(CdcUploadModel.stateLabel(state))}</span>`;
+    const entries = CdcUploadModel.getCodeEntries(response);
+    if (!entries.length) return badge;
+    const details = entries.map(entry => `<span class="upload-code-entry ${entry.uploaded_at ? 'is-uploaded' : 'is-pending'}" title="${entry.uploaded_at ? `已於 ${escapeHtml(formatDate(entry.uploaded_at))} 上傳` : '尚未上傳'}">${escapeHtml(entry.code)}→${escapeHtml(CdcUploadModel.UNITS[entry.unit])}${entry.uploaded_at ? ' ✓' : ''}</span>`).join('');
+    return `${badge}<div class="upload-code-list">${details}</div>`;
+  }
+
+  function initializeCdcExport() {
+    if (!cdcExportButton || !cdcExportDialog || !cdcExportForm) return;
+    const STORAGE_KEY = 'cdcExportSettings';
+    const statusElement = document.getElementById('cdc-export-status');
+    const skippedList = document.getElementById('cdc-export-skipped');
+    const scopeElement = document.getElementById('cdc-export-scope');
+    const markButton = document.getElementById('cdc-export-mark');
+    const generateButton = document.getElementById('cdc-export-generate');
+    let lastExport = null;
+
+    const readOptions = () => {
+      const values = Object.fromEntries(new FormData(cdcExportForm).entries());
+      return { ...values, includeUploaded: cdcExportForm.elements.includeUploaded.checked };
+    };
+    const getTargets = () => {
+      if (selectedResponseIds.size) return responses.filter(response => selectedResponseIds.has(response.id));
+      return getFilteredResponses();
+    };
+    const syncMethodFields = () => {
+      const method = cdcExportForm.elements.method.value;
+      cdcExportForm.querySelectorAll('[data-method]').forEach(label => { label.hidden = label.dataset.method !== method; });
+    };
+    const refreshPreview = () => {
+      const targets = getTargets();
+      const options = readOptions();
+      const { rows, skipped } = CdcUploadModel.buildImportRows(targets, options);
+      const files = Math.ceil(rows.length / CdcUploadModel.MAX_ROWS_PER_FILE);
+      scopeElement.textContent = `${selectedResponseIds.size ? `已選取 ${targets.length} 筆問卷` : `未選取資料，將使用目前篩選的 ${targets.length} 筆問卷`}；`
+        + `可匯出 ${rows.length} 組送往${CdcUploadModel.UNITS[options.unit]}的諮詢代碼${files > 1 ? `（將分成 ${files} 個檔案）` : ''}。`;
+      skippedList.replaceChildren(...skipped.map(item => {
+        const li = document.createElement('li');
+        li.textContent = `代碼 ${item.code}：${item.reason}`;
+        return li;
+      }));
+      skippedList.hidden = skipped.length === 0;
+      return { rows, skipped };
+    };
+
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      ['screeningUnitCode', 'siteCategory', 'method', 'rapidItem', 'told', 'initialItem', 'cooperation', 'unit'].forEach(name => {
+        if (saved[name] !== undefined && cdcExportForm.elements[name]) cdcExportForm.elements[name].value = saved[name];
+      });
+    } catch { /* 無法讀取先前設定時使用預設值 */ }
+
+    cdcExportButton.addEventListener('click', () => {
+      lastExport = null;
+      markButton.hidden = true;
+      statusElement.hidden = true;
+      syncMethodFields();
+      refreshPreview();
+      if (!cdcExportDialog.open) cdcExportDialog.showModal();
+    });
+    document.getElementById('cdc-export-close').addEventListener('click', () => cdcExportDialog.close());
+    cdcExportForm.addEventListener('change', () => {
+      syncMethodFields();
+      lastExport = null;
+      markButton.hidden = true;
+      refreshPreview();
+    });
+
+    cdcExportForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const options = readOptions();
+      const optionError = CdcUploadModel.validateOptions(options);
+      if (optionError) { showStatus(statusElement, optionError, true); return; }
+      const { rows } = refreshPreview();
+      if (!rows.length) { showStatus(statusElement, '沒有可匯出的諮詢代碼。', true); return; }
+      if (!window.JSZip) { showStatus(statusElement, 'XLSX 元件尚未載入，請檢查網路後重新整理。', true); return; }
+
+      setButtonBusy(generateButton, true, '產生中');
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(
+          ['screeningUnitCode', 'siteCategory', 'method', 'rapidItem', 'told', 'initialItem', 'cooperation', 'unit']
+            .map(name => [name, options[name]])
+        )));
+      } catch { /* 無法儲存設定時仍可繼續匯出 */ }
+      try {
+        const response = await fetch(cdcExportForm.dataset.templateUrl);
+        if (!response.ok) throw new Error('template');
+        const template = await response.arrayBuffer();
+        const chunks = CdcUploadModel.chunkRows(rows);
+        const stamp = new Date().toISOString().slice(0, 10);
+        for (const [index, chunk] of chunks.entries()) {
+          const blob = await CdcUploadXlsx.buildWorkbook(window.JSZip, template, chunk, CdcUploadModel.FIRST_DATA_ROW);
+          downloadBlob(blob, `cdc-upload-${options.unit}-${stamp}${chunks.length > 1 ? `-${index + 1}` : ''}.xlsx`);
+          await new Promise(resolve => window.setTimeout(resolve, 300));
+        }
+        lastExport = { unit: options.unit, rows };
+        markButton.textContent = `標記這 ${rows.length} 組代碼為已上傳${CdcUploadModel.UNITS[options.unit]}`;
+        markButton.hidden = false;
+        showStatus(statusElement, `已產生 ${chunks.length} 個檔案。請上傳至${CdcUploadModel.UNITS[options.unit]}系統，完成後按「標記為已上傳」。`);
+      } catch {
+        showStatus(statusElement, '無法產生檔案，請確認範例檔可讀取後再試一次。', true);
+      }
+      setButtonBusy(generateButton, false, '產生 XLSX');
+    });
+
+    markButton.addEventListener('click', async () => {
+      if (!lastExport) return;
+      const markLabel = markButton.textContent.trim();
+      setButtonBusy(markButton, true, '標記中');
+      const at = new Date().toISOString();
+      const codesByResponse = new Map();
+      lastExport.rows.forEach(row => {
+        if (!codesByResponse.has(row.responseId)) codesByResponse.set(row.responseId, []);
+        codesByResponse.get(row.responseId).push(row.code);
+      });
+      let failed = 0;
+      for (const [id, codes] of codesByResponse) {
+        const target = responses.find(response => response.id === id);
+        if (!target) continue;
+        const nextUploads = CdcUploadModel.markUploaded(target, codes, lastExport.unit, at, activeUser?.id);
+        const { data: updated, error } = await window.questionnaireSupabase
+          .from('questionnaire_responses')
+          .update({ consult_uploads: nextUploads })
+          .eq('id', id)
+          .select('id')
+          .maybeSingle();
+        if (error || !updated) failed += 1;
+        else target.consult_uploads = nextUploads;
+      }
+      setButtonBusy(markButton, false, markLabel);
+      renderResponses();
+      if (failed) {
+        showStatus(statusElement, `${failed} 筆標記失敗。請確認資料庫已更新且帳號具管理權限。`, true);
+        return;
+      }
+      lastExport = null;
+      markButton.hidden = true;
+      refreshPreview();
+      showStatus(statusElement, '已標記為已上傳。');
+    });
+  }
+
+  function downloadBlob(blob, filename) {
+    const link = document.createElement('a');
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
+    link.download = filename;
+    link.hidden = true;
+    document.body.append(link);
+    link.click();
+    window.setTimeout(() => {
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    }, 1000);
   }
 
   function isDraftResponse(response) {
@@ -1966,11 +2158,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasConsultCode = Boolean(getConsultationCode(response));
       const matchesNationality = selectedNationalities.size === 0
         || nationalities.some(country => selectedNationalities.has(country));
+      const uploadState = CdcUploadModel.getUploadState(response);
+      const matchesUpload = !uploadFilter || uploadFilter.value === 'all'
+        || (uploadFilter.value === 'needs-code' && uploadState.key === 'needs-code')
+        || (uploadFilter.value === 'uploaded' && uploadState.key === 'uploaded')
+        || (uploadFilter.value === 'needs-upload' && uploadState.key === 'needs-upload')
+        || (/^needs-upload-/.test(uploadFilter.value) && uploadState.key === 'needs-upload'
+          && uploadState.pending.some(entry => entry.unit === uploadFilter.value.slice('needs-upload-'.length)));
       const matchesStatus = !statusFilter || statusFilter.value === 'all'
         || (statusFilter.value === 'draft') === isDraftResponse(response);
       return (!keyword || searchable.includes(keyword))
         && matchesNationality
         && matchesStatus
+        && matchesUpload
         && (consultationFilter.value === 'all'
           || (consultationFilter.value === 'completed' && hasConsultCode)
           || (consultationFilter.value === 'pending' && !hasConsultCode));
@@ -2866,17 +3066,55 @@ document.addEventListener('DOMContentLoaded', () => {
     codeInput.autocomplete = 'off';
     let consultationCodes = [...new Set(getConsultationCode(response).split(',').map(code => code.trim()).filter(Boolean))];
 
+    const codeMeta = new Map(CdcUploadModel.getCodeEntries(response).map(entry => [entry.code, entry]));
+    const metaFor = code => {
+      if (!codeMeta.has(code)) {
+        // 新代碼預設為尚未使用的單位，方便同一份問卷同時上傳地方衛生局與疾管署
+        const used = new Set([...codeMeta.values()].map(entry => entry.unit));
+        const unit = ['cdc', 'local'].find(key => !used.has(key)) || CdcUploadModel.DEFAULT_UNIT;
+        codeMeta.set(code, { code, unit, uploaded_at: null, uploaded_by: null });
+      }
+      return codeMeta.get(code);
+    };
+
     const renderConsultationCodeTags = () => {
       codeTags.replaceChildren();
       codeTags.hidden = consultationCodes.length === 0;
       consultationCodes.forEach((code, index) => {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'selected-value consultation-code-chip';
-        chip.dataset.codeIndex = index;
-        chip.setAttribute('aria-label', `移除諮詢代碼 ${code}`);
-        chip.textContent = `${code} ×`;
-        codeTags.append(chip);
+        const meta = metaFor(code);
+        const row = document.createElement('div');
+        row.className = 'consultation-code-row';
+        const label = document.createElement('span');
+        label.className = 'consultation-code-text';
+        label.textContent = code;
+        const unitSelect = document.createElement('select');
+        unitSelect.setAttribute('aria-label', `諮詢代碼 ${code} 上傳單位`);
+        Object.entries(CdcUploadModel.UNITS).forEach(([value, text]) => unitSelect.add(new Option(text, value, false, value === meta.unit)));
+        unitSelect.addEventListener('change', () => {
+          meta.unit = unitSelect.value;
+          meta.uploaded_at = null;
+          meta.uploaded_by = null;
+          renderConsultationCodeTags();
+        });
+        const uploadedLabel = document.createElement('label');
+        uploadedLabel.className = 'consultation-code-uploaded';
+        const uploaded = document.createElement('input');
+        uploaded.type = 'checkbox';
+        uploaded.checked = Boolean(meta.uploaded_at);
+        uploaded.addEventListener('change', () => {
+          meta.uploaded_at = uploaded.checked ? new Date().toISOString() : null;
+          meta.uploaded_by = uploaded.checked ? activeUser?.id || null : null;
+          renderConsultationCodeTags();
+        });
+        uploadedLabel.append(uploaded, meta.uploaded_at ? ` 已上傳 ${formatDate(meta.uploaded_at)}` : ' 已上傳');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'selected-value consultation-code-chip';
+        remove.dataset.codeIndex = index;
+        remove.setAttribute('aria-label', `移除諮詢代碼 ${code}`);
+        remove.textContent = '×';
+        row.append(label, unitSelect, uploadedLabel, remove);
+        codeTags.append(row);
       });
     };
 
@@ -2978,10 +3216,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!codeInput.reportValidity()) return;
 
       const code = codes.join(',');
+      const uploads = codes.map(item => metaFor(item));
       setButtonBusy(saveButton, true, '儲存中');
       const { data: updated, error } = await window.questionnaireSupabase
         .from('questionnaire_responses')
-        .update({ anonymous_consult_code: code })
+        .update({ anonymous_consult_code: code, consult_uploads: uploads })
         .eq('id', response.id)
         .select('id')
         .maybeSingle();
@@ -2993,6 +3232,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       response.anonymous_consult_code = code;
+      response.consult_uploads = uploads;
       response.response_data = { ...response.response_data, anonymous_consult_code: code };
       renderResponses();
       showStatus(saveStatus, `已儲存 ${codes.length} 組諮詢代碼。`);
