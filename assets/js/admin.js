@@ -3158,8 +3158,9 @@ document.addEventListener('DOMContentLoaded', () => {
     form.className = 'response-edit-form';
     const note = document.createElement('p');
     note.className = 'admin-muted';
-    note.textContent = '可修正受檢者的問卷填答與篩檢結果；空白欄位會移除該筆答案。陽性轉介聯絡方式與試劑照片需由受檢者端送出，此處不會變更。';
+    note.textContent = '可修正受檢者的問卷填答與篩檢結果；空白欄位會移除該筆答案。陽性轉介聯絡方式需由受檢者端送出，此處不會變更。';
     form.append(note);
+    const photoPicks = new Map();
 
     const fieldsByGroup = new Map();
     responseEditFields(data).forEach(({ group, key }) => {
@@ -3186,6 +3187,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       form.append(fieldset);
     });
+
+    form.append(buildPhotoUploadFieldset(data, photoPicks));
 
     const actions = document.createElement('div');
     actions.className = 'response-edit-actions';
@@ -3229,7 +3232,22 @@ document.addEventListener('DOMContentLoaded', () => {
         showStatus(status, '標示為已完成前，請先填寫篩檢員編號。', true);
         return;
       }
+      const results = Array.isArray(nextData.screening_interpretation) ? nextData.screening_interpretation : [];
+      for (const kind of photoPicks.keys()) {
+        if (!results.includes(`${kind}_positive`)) {
+          showStatus(status, `${SCREENING_PHOTO_LABELS[kind]}只能用於該項目為陽性的紀錄，請先選擇陽性結果或清除照片。`, true);
+          return;
+        }
+      }
       setButtonBusy(save, true, '儲存中');
+      try {
+        nextData.screening_photos = await uploadScreeningPhotos(response, nextData.screening_photos, photoPicks);
+        if (!Object.keys(nextData.screening_photos).length) delete nextData.screening_photos;
+      } catch (error) {
+        setButtonBusy(save, false, '儲存變更');
+        showStatus(status, error.message || '照片上傳失敗。請確認資料庫已套用最新 migration 且帳號具編輯權限。', true);
+        return;
+      }
       const update = { response_data: nextData };
       if (markComplete) update.status = 'submitted';
       const { data: updated, error } = await window.questionnaireSupabase
@@ -3254,6 +3272,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
     section.append(summary, form);
     responseDetails.append(section);
+  }
+
+  function buildPhotoUploadFieldset(data, photoPicks) {
+    const fieldset = document.createElement('fieldset');
+    fieldset.className = 'response-edit-group';
+    const legend = document.createElement('legend');
+    legend.textContent = '陽性試劑照片';
+    fieldset.append(legend);
+    Object.entries(SCREENING_PHOTO_LABELS).forEach(([kind, label]) => {
+      const field = document.createElement('div');
+      field.className = 'response-edit-field';
+      const inputId = `response-edit-photo-${kind}`;
+      const labelElement = document.createElement('label');
+      labelElement.htmlFor = inputId;
+      labelElement.textContent = label;
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.id = inputId;
+      input.accept = 'image/*';
+      const hint = document.createElement('p');
+      hint.className = 'admin-muted';
+      hint.setAttribute('role', 'status');
+      hint.textContent = data.screening_photos?.[kind] ? '已有照片；選擇新照片會取代。' : '尚未上傳。';
+      input.addEventListener('change', async () => {
+        photoPicks.delete(kind);
+        const file = input.files?.[0];
+        if (!file) return;
+        hint.textContent = '正在壓縮照片至 500 KB 以下…';
+        try {
+          const blob = await window.ScreeningPhoto.compress(file);
+          photoPicks.set(kind, blob);
+          hint.textContent = `照片已壓縮：${Math.ceil(blob.size / 1000)} KB，儲存後上傳。`;
+        } catch (error) {
+          input.value = '';
+          hint.textContent = error.message || '無法處理這張照片，請改選另一張。';
+        }
+      });
+      field.append(labelElement, input, hint);
+      fieldset.append(field);
+    });
+    return fieldset;
+  }
+
+  async function uploadScreeningPhotos(response, current, photoPicks) {
+    const photos = { ...(current && typeof current === 'object' ? current : {}) };
+    const bucket = window.questionnaireSupabase.storage.from(SCREENING_PHOTO_BUCKET);
+    for (const [kind, blob] of photoPicks) {
+      const path = `${response.id}/${kind}.jpg`;
+      const { error } = await bucket.upload(path, blob, { contentType: 'image/jpeg', cacheControl: '0', upsert: true });
+      if (error) throw new Error(`${SCREENING_PHOTO_LABELS[kind]}上傳失敗。請確認資料庫已套用最新 migration 且帳號具編輯權限。`);
+      const previous = photos[kind];
+      if (previous && previous !== path && SCREENING_PHOTO_PATH.test(String(previous))) {
+        await bucket.remove([previous]).catch(() => {});
+      }
+      photos[kind] = path;
+    }
+    return photos;
   }
 
   function appendConsultationWorkflow(response) {

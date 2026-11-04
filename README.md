@@ -167,3 +167,7 @@ psql "$DISPOSABLE_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/site-editor-componen
 ## 待辦連結與地圖／紀錄共用篩選
 
 設定頁「外國問卷與衛生局／疾管署網站」可不限數量新增連結：外國問卷依受檢者國籍（可複選）自動列入該筆紀錄的待辦，同一國籍可有多份；衛生局／疾管署網站可填縣市關鍵字，篩檢地點包含關鍵字才列入（留空為全部）。紀錄列表會以標籤顯示各項待辦完成與否，詳細資料中可勾選完成或開啟連結，並可用「外部待辦」篩選未完成項目。篩檢時間範圍現為地圖與紀錄共用，點選地圖據點會同步只顯示該地點的紀錄。使用前請執行 [202611040005_external_links.sql](supabase/migrations/202611040005_external_links.sql)。
+
+## 後台補傳陽性試劑照片
+
+具「編輯匿名諮詢與問卷資料」權限的人員可在詳細資料的編輯區為 HIV／梅毒陽性紀錄補傳或取代試劑照片。照片沿用問卷填寫頁相同的壓縮函式（`assets/js/screening-photo.js`，JPEG、500 KB 以下、移除 EXIF）後再上傳。使用前請執行 [202611040006_admin_screening_photos.sql](supabase/migrations/202611040006_admin_screening_photos.sql)。
