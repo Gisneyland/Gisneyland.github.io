@@ -122,6 +122,7 @@ permalink: /admin/
         <div class="stat-card"><span>HIV 陽性 / 篩檢</span><strong id="hiv-screening-ratio">0 / 0</strong></div>
         <div class="stat-card"><span>梅毒陽性 / 篩檢</span><strong id="syphilis-screening-ratio">0 / 0</strong></div>
         <div class="stat-card"><span>諮詢回填 / 問卷</span><strong id="consultation-fill-ratio">0 / 0</strong></div>
+        <div class="stat-card"><span>外部待辦 完成 / 應完成</span><strong id="task-progress-ratio">0 / 0</strong></div>
       </div>
       <div class="screening-analytics-grid">
         <section class="analytics-panel screening-map-panel" aria-labelledby="screening-map-title">
@@ -131,6 +132,7 @@ permalink: /admin/
               <p>依篩檢類型與送出時間範圍彙總；時間使用台北時區。</p>
             </div>
           </div>
+          <p class="admin-muted map-filter-note">時間範圍與篩檢類型（總篩檢／HIV／梅毒）皆與下方篩檢紀錄共用；點選地圖上的據點可只看該地點的紀錄。</p>
           <div class="screening-map-controls">
             <fieldset class="map-mode-control">
               <legend class="sr-only">地圖篩檢類型</legend>
@@ -138,20 +140,6 @@ permalink: /admin/
               <label><input type="radio" name="screening-map-mode" value="hiv"><span>HIV</span></label>
               <label><input type="radio" name="screening-map-mode" value="syphilis"><span>梅毒</span></label>
             </fieldset>
-            <div class="map-range-controls">
-              <div class="filter-field">
-                <label for="screening-range-start">開始時間</label>
-                <input id="screening-range-start" type="datetime-local" step="60">
-              </div>
-              <span class="map-range-separator" aria-hidden="true">至</span>
-              <div class="filter-field">
-                <label for="screening-range-end">結束時間</label>
-                <input id="screening-range-end" type="datetime-local" step="60">
-              </div>
-              <button id="reset-screening-range" class="admin-button secondary icon-only map-range-reset" type="button" aria-label="重設時間範圍" title="重設時間範圍">
-                <span class="material-icons notranslate" translate="no" aria-hidden="true">restart_alt</span>
-              </button>
-            </div>
           </div>
           <p id="screening-map-summary" class="map-summary" role="status"></p>
           <div id="screening-map" class="screening-map" role="region" aria-label="篩檢地點熱區地圖"></div>
@@ -197,6 +185,27 @@ permalink: /admin/
         </div>
       </div>
       <div class="admin-filters">
+        <div class="filter-field filter-range">
+          <span class="filter-range-title">時間範圍（地圖與紀錄共用）</span>
+          <div class="map-range-controls">
+              <div class="filter-field">
+                <label for="screening-range-start">開始時間</label>
+                <input id="screening-range-start" type="datetime-local" step="60">
+              </div>
+              <span class="map-range-separator" aria-hidden="true">至</span>
+              <div class="filter-field">
+                <label for="screening-range-end">結束時間</label>
+                <input id="screening-range-end" type="datetime-local" step="60">
+              </div>
+              <button id="reset-screening-range" class="admin-button secondary icon-only map-range-reset" type="button" aria-label="重設時間範圍" title="重設時間範圍">
+                <span class="material-icons notranslate" translate="no" aria-hidden="true">restart_alt</span>
+              </button>
+            </div>
+        </div>
+        <div id="place-filter-chip" class="filter-field place-filter-chip" hidden>
+          <span>地點：<strong id="place-filter-name"></strong></span>
+          <button id="place-filter-clear" class="admin-button secondary" type="button">清除地點</button>
+        </div>
         <div class="filter-field filter-search">
           <label for="search-responses">搜尋篩檢員、地點或諮詢代碼</label>
           <input id="search-responses" type="search" placeholder="輸入關鍵字">
@@ -221,6 +230,14 @@ permalink: /admin/
             <option value="all">全部</option>
             <option value="draft">草稿（待篩檢員完成）</option>
             <option value="submitted">已完成</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="task-filter">外部待辦</label>
+          <select id="task-filter">
+            <option value="all">全部</option>
+            <option value="pending">有未完成待辦</option>
+            <option value="done">待辦已全部完成</option>
           </select>
         </div>
         <div class="filter-field">
@@ -473,6 +490,35 @@ permalink: /admin/
           </form>
           <p id="screener-number-status" class="admin-status" role="status" hidden></p>
         </section>
+      </section>
+      <section id="external-links-card" class="admin-panel" aria-labelledby="external-links-title" hidden>
+        <p class="eyebrow">待辦連結</p>
+        <h2 id="external-links-title">外國問卷與衛生局／疾管署網站</h2>
+        <p class="admin-muted">每筆連結數量不限。「外國問卷」依受檢者國籍（可複選）自動出現在該筆紀錄的待辦；同一國籍可新增多份。「衛生局／疾管署網站」可填縣市關鍵字，篩檢地點包含關鍵字才會列入，留空代表全部適用。網址每年變動時直接編輯即可。</p>
+        <ul id="external-link-list" class="screening-institution-list"></ul>
+        <form id="external-link-form" class="screening-institution-form">
+          <input type="hidden" name="id">
+          <label>類型
+            <select name="kind">
+              <option value="nationality_questionnaire">外國問卷（依國籍）</option>
+              <option value="agency_site">衛生局／疾管署網站</option>
+            </select>
+          </label>
+          <label data-kind="nationality_questionnaire">國籍（輸入國名或國碼，如 泰國、TH）
+            <input name="nationality" list="external-link-countries" maxlength="80" autocomplete="off">
+            <datalist id="external-link-countries"></datalist>
+          </label>
+          <label data-kind="agency_site" hidden>適用地點關鍵字（以逗號分隔，如 新竹市、新竹縣；留空代表全部）
+            <input name="keywords" maxlength="300" autocomplete="off">
+          </label>
+          <label>名稱<input name="label" maxlength="120" required autocomplete="off" placeholder="例：泰國問卷 2026"></label>
+          <label>網址<input name="url" type="url" maxlength="2000" required autocomplete="off" placeholder="https://"></label>
+          <div class="cdc-export-actions">
+            <button class="admin-button" type="submit">儲存連結</button>
+            <button id="external-link-cancel" class="admin-button secondary" type="button" hidden>取消編輯</button>
+          </div>
+        </form>
+        <p id="external-link-status" class="admin-status" role="status" hidden></p>
       </section>
       <section id="screening-institutions-card" class="admin-panel" aria-labelledby="screening-institutions-title" hidden>
         <p class="eyebrow">串接上傳</p>
