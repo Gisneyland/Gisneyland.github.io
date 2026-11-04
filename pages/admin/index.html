@@ -212,6 +212,14 @@ permalink: /admin/
             <option value="completed">已完成</option>
           </select>
         </div>
+        <div class="filter-field">
+          <label for="status-filter">處理狀態</label>
+          <select id="status-filter">
+            <option value="all">全部</option>
+            <option value="draft">草稿（待篩檢員完成）</option>
+            <option value="submitted">已完成</option>
+          </select>
+        </div>
       </div>
       <p id="dashboard-status" class="admin-status" role="status" hidden></p>
       <div class="admin-table-wrap" role="region" aria-label="篩檢紀錄表格，可左右捲動" tabindex="0">

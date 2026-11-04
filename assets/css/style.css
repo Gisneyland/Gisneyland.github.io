@@ -1748,6 +1748,11 @@ textarea:focus {
   min-height: 2.75rem;
 }
 
+.profile-draft-status {
+  margin: 0.75rem 0 0;
+  font-weight: 600;
+}
+
 .profile-review-answers {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

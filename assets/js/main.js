@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
     applyPreferredScreeningPlace(staffSessionReady);
     initializeQuestionnaire(questionnaireForm);
     initializeAnonymousConsult(questionnaireForm);
+    initializeDraftSubmission(questionnaireForm);
     questionnaireForm.addEventListener('submit', async function(event) {
       event.preventDefault();
       const status = document.getElementById('form-status');
@@ -129,7 +130,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const payload = {
           response_data: responseData,
           language: document.documentElement.dataset.contentLanguage || 'zh-TW',
-          schema_version: 1
+          schema_version: 1,
+          status: 'submitted'
         };
         let error;
         let body = payload;
@@ -2407,4 +2409,68 @@ function applyGoogleTranslation(language, attempts = 20, menuOpened = false) {
   if (attempts > 0) {
     window.setTimeout(() => applyGoogleTranslation(language, attempts - 1, menuOpened), 250);
   }
+}
+
+/* 受檢者先送出為草稿，篩檢員之後在後台補完篩檢結果。 */
+const draftScreenerFields = [
+  'screener', 'screening_at', 'screening_place', 'screening_interpretation', 'hiv_window_period',
+  'hiv_positive_appointment', 'hiv_positive_address', 'hiv_positive_notes', 'hiv_positive_contact_phone'
+];
+
+function initializeDraftSubmission(form) {
+  const button = document.getElementById('draft-submit-button');
+  const status = document.getElementById('draft-status');
+  const handoffButton = document.getElementById('handoff-screening-button');
+  if (!button) return;
+  const label = key => i18n[selectedPageLanguage]?.[key];
+  const setBusy = busy => {
+    button.disabled = busy;
+    if (handoffButton) handoffButton.disabled = busy;
+    button.setAttribute('aria-busy', String(busy));
+    button.textContent = busy ? (label('draft_sending') || '資料傳送中…') : (label('draft_submit') || '先送出，由篩檢員稍後完成');
+  };
+
+  button.addEventListener('click', async () => {
+    if (!window.questionnaireSupabase) {
+      showFormStatus(status, label('draft_failed') || '送出失敗，請稍後重試或交給篩檢員。', true);
+      return;
+    }
+    const screenerPanel = document.getElementById('screener-panel');
+    const invalid = Array.from(form.elements).find(element => !screenerPanel?.contains(element) && element.willValidate && !element.checkValidity());
+    if (invalid) {
+      invalid.focus();
+      invalid.reportValidity();
+      return;
+    }
+
+    setBusy(true);
+    status.hidden = true;
+    try {
+      const responseData = collectFormData(form);
+      draftScreenerFields.forEach(key => { delete responseData[key]; });
+      const payload = {
+        response_data: responseData,
+        language: document.documentElement.dataset.contentLanguage || 'zh-TW',
+        schema_version: 1,
+        status: 'draft'
+      };
+      let error;
+      if (window.SUPABASE_FUNCTION_NAME) {
+        ({ error } = await window.questionnaireSupabase.functions.invoke(window.SUPABASE_FUNCTION_NAME, { body: payload }));
+      } else {
+        ({ error } = await window.questionnaireSupabase.from('questionnaire_responses').insert(payload));
+      }
+      if (error) throw error;
+      form.reset();
+      button.hidden = true;
+      if (handoffButton) handoffButton.hidden = true;
+      showFormStatus(status, label('draft_success') || '已送出，篩檢員會在後台繼續處理，謝謝填答。');
+      status.dataset.i18n = 'draft_success';
+    } catch (error) {
+      console.error('問卷草稿送出失敗:', error);
+      showFormStatus(status, label('draft_failed') || '送出失敗，請稍後重試或交給篩檢員。', true);
+      status.dataset.i18n = 'draft_failed';
+      setBusy(false);
+    }
+  });
 }
