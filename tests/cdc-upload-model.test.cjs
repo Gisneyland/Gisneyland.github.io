@@ -58,15 +58,18 @@ test('markUploaded only touches the exported codes for that unit', () => {
   assert.equal(next.find(item => item.code === '222222').uploaded_at, null);
 });
 
-test('site category and rapid item are derived from the record', () => {
-  ['紅絲帶基金會', '風城部屋', '紅屋單位', '竹螺單位'].forEach(place => assert.equal(model.siteCategory(place), 1));
-  assert.equal(model.siteCategory('OO三溫暖'), 7);
+test('site category uses the configured institutions and rapid item follows the window period', () => {
+  const institutions = [{ name: '財團法人台灣紅絲帶基金會', aliases: ['紅絲帶基金會'] }, { name: '風城部屋' }, { name: '諸羅部屋' }];
+  assert.equal(model.siteCategory('紅絲帶基金會（台北）', institutions), 1);
+  assert.equal(model.siteCategory('風城部屋', institutions), 1);
+  assert.equal(model.siteCategory('諸羅部屋 ', institutions), 1);
+  assert.equal(model.siteCategory('竹螺單位', institutions), 7);
+  assert.equal(model.siteCategory('風城部屋', []), 7);
   assert.equal(model.rapidItem('1_month'), 4);
   assert.equal(model.rapidItem('3_months'), 5);
-  const rapid = { ...options, method: 'rapid', told: 1 };
+  const rapid = { ...options, method: 'rapid', told: 1, institutions };
   const make = (place, windowPeriod) => ({ id: 1, anonymous_consult_code: '123456', response_data: { ...base, screening_place: place, hiv_window_period: windowPeriod } });
   const ok = model.buildImportRows([make('風城部屋', '3_months')], rapid).rows[0].cells;
   assert.deepEqual([ok.C, ok.H], ['1', '5']);
   assert.equal(model.buildImportRows([make('OO寺', undefined)], rapid).skipped.length, 1);
-}
-);
+});

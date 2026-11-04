@@ -192,6 +192,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const cdcExportDialog = document.getElementById('cdc-export-dialog');
   const cdcExportForm = document.getElementById('cdc-export-form');
   const selectedResponseIds = new Set();
+  let screeningInstitutions = [];
+  const institutionCard = document.getElementById('screening-institutions-card');
+  const institutionList = document.getElementById('screening-institution-list');
+  const institutionForm = document.getElementById('screening-institution-form');
+  const institutionStatus = document.getElementById('screening-institution-status');
   const responseBody = document.getElementById('responses-body');
   const emptyState = document.getElementById('empty-state');
   const dialog = document.getElementById('response-dialog');
@@ -918,6 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderResponses();
   });
   initializeCdcExport();
+  initializeInstitutionSettings();
   mapModeControls.forEach(control => control.addEventListener('change', () => {
     renderScreeningAnalytics(getFilteredResponses());
   }));
@@ -1007,7 +1013,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.dispatchEvent(new CustomEvent('staff-profile-ready', { detail: profile }));
     if (profile.approval_status !== 'approved' || !profile.privacy_consent_at) return;
     await loadScreenerNumber(data.session);
-    if (window.StaffAccess.canAccess(profile, 'questionnaire.read')) await loadResponses();
+    if (window.StaffAccess.canAccess(profile, 'questionnaire.read')) {
+      await loadScreeningInstitutions();
+      await loadResponses();
+    }
   }
 
   function showAuthForm(activeForm) {
@@ -1992,6 +2001,87 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${badge}<div class="upload-code-list">${details}</div>`;
   }
 
+  async function loadScreeningInstitutions() {
+    const { data, error } = await window.questionnaireSupabase
+      .from('screening_institutions')
+      .select('id, name, address, aliases')
+      .order('created_at', { ascending: true });
+    if (error) {
+      showStatus(institutionStatus, '無法載入機構清單，請確認已執行最新資料庫更新。', true);
+      return;
+    }
+    screeningInstitutions = data || [];
+    renderInstitutions();
+  }
+
+  function renderInstitutions() {
+    if (!institutionCard) return;
+    institutionCard.hidden = !window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.read');
+    const canEdit = window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation');
+    institutionForm.hidden = !canEdit;
+    institutionList.replaceChildren(...screeningInstitutions.map(institution => {
+      const item = document.createElement('li');
+      const text = document.createElement('span');
+      text.textContent = [institution.name, institution.address, (institution.aliases || []).length ? `別名：${institution.aliases.join('、')}` : '']
+        .filter(Boolean).join('｜');
+      item.append(text);
+      if (canEdit) {
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'admin-button secondary';
+        edit.textContent = '編輯';
+        edit.addEventListener('click', () => {
+          institutionForm.elements.id.value = institution.id;
+          institutionForm.elements.name.value = institution.name;
+          institutionForm.elements.address.value = institution.address || '';
+          institutionForm.elements.aliases.value = (institution.aliases || []).join(', ');
+          document.getElementById('screening-institution-cancel').hidden = false;
+          institutionForm.elements.name.focus();
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'admin-button secondary';
+        remove.textContent = '刪除';
+        remove.addEventListener('click', async () => {
+          if (!window.confirm(`確定刪除「${institution.name}」？`)) return;
+          const { error } = await window.questionnaireSupabase.from('screening_institutions').delete().eq('id', institution.id);
+          if (error) { showStatus(institutionStatus, '刪除失敗，請確認帳號具編輯權限。', true); return; }
+          screeningInstitutions = screeningInstitutions.filter(entry => entry.id !== institution.id);
+          renderInstitutions();
+          showStatus(institutionStatus, '已刪除。');
+        });
+        item.append(edit, remove);
+      }
+      return item;
+    }));
+  }
+
+  function initializeInstitutionSettings() {
+    if (!institutionForm) return;
+    const cancel = document.getElementById('screening-institution-cancel');
+    const reset = () => { institutionForm.reset(); institutionForm.elements.id.value = ''; cancel.hidden = true; };
+    cancel.addEventListener('click', reset);
+    institutionForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const values = institutionForm.elements;
+      const record = {
+        name: values.name.value.trim(),
+        address: values.address.value.trim(),
+        aliases: [...new Set(values.aliases.value.split(/[,，、;；]+/).map(alias => alias.trim()).filter(Boolean))]
+      };
+      const id = values.id.value;
+      const table = window.questionnaireSupabase.from('screening_institutions');
+      const { data, error } = await (id ? table.update(record).eq('id', id) : table.insert(record)).select('id, name, address, aliases').maybeSingle();
+      if (error || !data) { showStatus(institutionStatus, '儲存失敗，請確認帳號具編輯權限。', true); return; }
+      screeningInstitutions = id
+        ? screeningInstitutions.map(entry => (entry.id === id ? data : entry))
+        : [...screeningInstitutions, data];
+      reset();
+      renderInstitutions();
+      showStatus(institutionStatus, '已儲存機構。');
+    });
+  }
+
   function initializeCdcExport() {
     if (!cdcExportButton || !cdcExportDialog || !cdcExportForm) return;
     const STORAGE_KEY = 'cdcExportSettings';
@@ -2017,7 +2107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshPreview = () => {
       const targets = getTargets();
       const options = readOptions();
-      const { rows, skipped } = CdcUploadModel.buildImportRows(targets, options);
+      const { rows, skipped } = CdcUploadModel.buildImportRows(targets, { ...options, institutions: screeningInstitutions });
       const files = Math.ceil(rows.length / CdcUploadModel.MAX_ROWS_PER_FILE);
       scopeElement.textContent = `${selectedResponseIds.size ? `已選取 ${targets.length} 筆問卷` : `未選取資料，將使用目前篩選的 ${targets.length} 筆問卷`}；`
         + `可匯出 ${rows.length} 組送往${CdcUploadModel.UNITS[options.unit]}的諮詢代碼${files > 1 ? `（將分成 ${files} 個檔案）` : ''}。`;
@@ -2032,7 +2122,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      ['screeningUnitCode', 'method', 'told', 'initialItem', 'cooperation', 'unit'].forEach(name => {
+      ['screeningUnitCode', 'told', 'initialItem', 'cooperation', 'unit'].forEach(name => {
         if (saved[name] !== undefined && cdcExportForm.elements[name]) cdcExportForm.elements[name].value = saved[name];
       });
     } catch { /* 無法讀取先前設定時使用預設值 */ }
@@ -2065,7 +2155,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setButtonBusy(generateButton, true, '產生中');
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(
-          ['screeningUnitCode', 'method', 'told', 'initialItem', 'cooperation', 'unit']
+          ['screeningUnitCode', 'told', 'initialItem', 'cooperation', 'unit']
             .map(name => [name, options[name]])
         )));
       } catch { /* 無法儲存設定時仍可繼續匯出 */ }

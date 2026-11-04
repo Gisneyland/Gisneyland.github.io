@@ -474,6 +474,23 @@ permalink: /admin/
           <p id="screener-number-status" class="admin-status" role="status" hidden></p>
         </section>
       </section>
+      <section id="screening-institutions-card" class="admin-panel" aria-labelledby="screening-institutions-title" hidden>
+        <p class="eyebrow">串接上傳</p>
+        <h2 id="screening-institutions-title">機構內篩檢地點</h2>
+        <p class="admin-muted">問卷的篩檢地點包含下列名稱或別名時，串接上傳檔的「篩檢地點類別」填 1（機構內），其餘填 7（外展）。機構搬遷或新增分點時在此更新。</p>
+        <ul id="screening-institution-list" class="screening-institution-list"></ul>
+        <form id="screening-institution-form" class="screening-institution-form">
+          <input type="hidden" name="id">
+          <label>機構名稱<input name="name" maxlength="80" required autocomplete="off"></label>
+          <label>地址／位置<input name="address" maxlength="200" autocomplete="off"></label>
+          <label>別名（以逗號分隔，用於比對問卷地點）<input name="aliases" maxlength="300" autocomplete="off"></label>
+          <div class="cdc-export-actions">
+            <button class="admin-button" type="submit">儲存機構</button>
+            <button id="screening-institution-cancel" class="admin-button secondary" type="button" hidden>取消編輯</button>
+          </div>
+        </form>
+        <p id="screening-institution-status" class="admin-status" role="status" hidden></p>
+      </section>
       <section id="screening-plan-card" class="admin-panel screening-plan-card" aria-labelledby="screening-plan-title">
         <div class="screening-plan-card-heading">
           <div>
@@ -708,7 +725,7 @@ permalink: /admin/
       </label>
     </div>
     <label class="cdc-export-check"><input name="includeUploaded" type="checkbox"> 包含已標記上傳過的代碼</label>
-    <p class="admin-muted">篩檢地點類別與快篩檢驗項目由紀錄自動判斷：紅絲帶基金會、風城、紅屋、竹螺單位為 1（機構內），其餘為 7（外展）；一個月空窗期試劑為 4（Ag/Ab combo），三個月空窗期為 5（抗體快篩）。同一諮詢代碼只能選一種篩檢方式；快篩與初篩並行者請改用單筆登錄。每個檔案最多 500 筆，超過會自動分成多個檔案。</p>
+    <p class="admin-muted">篩檢地點類別與快篩檢驗項目由紀錄自動判斷：設定頁「機構內篩檢地點」清單中的機構為 1（機構內），其餘為 7（外展）；一個月空窗期試劑為 4（Ag/Ab combo），三個月空窗期為 5（抗體快篩）。同一諮詢代碼只能選一種篩檢方式；快篩與初篩並行者請改用單筆登錄。每個檔案最多 500 筆，超過會自動分成多個檔案。</p>
     <ul id="cdc-export-skipped" class="cdc-export-skipped" hidden></ul>
     <p id="cdc-export-status" class="admin-status" role="status" hidden></p>
     <div class="cdc-export-actions">
