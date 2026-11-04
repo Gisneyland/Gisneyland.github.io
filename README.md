@@ -155,3 +155,7 @@ psql "$DISPOSABLE_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/site-editor-componen
 ## 問卷草稿與後台補填
 
 受檢者檢視填答內容後，可選擇「確認並交給篩檢員」繼續在同一裝置填寫，或「先送出，由篩檢員稍後完成」，後者會以 `status = 'draft'` 儲存（不含篩檢員欄位）。使用前請在 Supabase SQL Editor 執行 [202611040001_questionnaire_drafts.sql](supabase/migrations/202611040001_questionnaire_drafts.sql)，並重新部署 `submit-questionnaire`。具「編輯匿名諮詢與問卷資料」權限的工作人員可在後台詳細資料中修正任何填答與篩檢結果、將草稿標示為已完成；後台也可依處理狀態篩選草稿。匿名諮詢網改為在詳細資料中以 iframe 內嵌，與填答資料並排對照；若對方網站禁止被內嵌，請使用旁邊的「新視窗開啟」。
+
+## 串接上傳檔（疾管署／地方衛生局）
+
+後台「篩檢紀錄」每筆問卷會顯示串接狀態：草稿、待填諮詢代碼、待上傳串接（標示單位）、已上傳串接。可用「串接上傳」篩選器過濾，勾選資料後按上方「產生串接上傳檔」，依 [範例檔 V2503](assets/templates/cdc-anonymous-screening-import-V2503.xlsx) 格式（保留第 1–10 列、從第 11 列起、每檔最多 500 筆、日期為 yyyy/MM/dd、諮詢代碼不含開頭 E）下載 XLSX；若未勾選則使用目前篩選結果。每組諮詢代碼可在問卷詳細資料中指定上傳單位（疾管署或地方衛生局）並標記是否已上傳，同一份問卷因此可有多組代碼分別上傳。使用前請執行 [202611040002_consult_uploads.sql](supabase/migrations/202611040002_consult_uploads.sql)。篩檢單位代碼、篩檢方式等設定只儲存在該瀏覽器。

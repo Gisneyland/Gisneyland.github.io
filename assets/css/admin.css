@@ -3231,3 +3231,98 @@ button.calendar-stream-event { cursor: pointer; }
 .staff-save-button {
   min-width: 4rem;
 }
+
+.response-status-badge.is-needs-code {
+  color: #754e08;
+  background: #ffedbd;
+}
+
+.response-status-badge.is-needs-upload {
+  color: #0b4f7a;
+  background: #d6ebfa;
+}
+
+.response-status-badge.is-uploaded {
+  color: #155b3b;
+  background: #dcefe3;
+}
+
+.admin-select-cell {
+  width: 2.5rem;
+  text-align: center;
+}
+
+.upload-code-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.upload-code-entry {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.upload-code-entry.is-pending {
+  color: #0b4f7a;
+  background: #eaf4fb;
+}
+
+.upload-code-entry.is-uploaded {
+  color: #155b3b;
+  background: #e8f4ec;
+}
+
+.consultation-code-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.consultation-code-text {
+  min-width: 6rem;
+  font-weight: 700;
+}
+
+.consultation-code-uploaded {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cdc-export-form,
+.cdc-export-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cdc-export-grid {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.cdc-export-grid label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cdc-export-grid label[hidden] {
+  display: none;
+}
+
+.cdc-export-skipped {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: #8a2f1f;
+  font-size: 0.9rem;
+}
+
+.cdc-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
