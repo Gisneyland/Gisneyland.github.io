@@ -1551,6 +1551,120 @@ html[data-theme="dark"] .admin-body .content-switch-track::after { background: v
   border-radius: 0.65rem;
 }
 
+.response-dialog.is-split {
+  width: min(1500px, calc(100% - 1rem));
+  max-height: 92vh;
+}
+
+@media (min-width: 1000px) {
+  .response-dialog.is-split .response-sections {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    align-items: start;
+    gap: 0.75rem 1rem;
+  }
+
+  .response-dialog.is-split .response-sections > * {
+    grid-column: 1;
+  }
+
+  .response-dialog.is-split .response-sections > .consultation-frame-panel {
+    grid-column: 2;
+    grid-row: 1 / span 40;
+    position: sticky;
+    top: 0;
+  }
+}
+
+.consultation-frame-panel {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.consultation-frame-panel[hidden] {
+  display: none;
+}
+
+.consultation-frame {
+  width: 100%;
+  height: min(75vh, 900px);
+  min-height: 24rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.consultation-frame-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.response-status-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.response-status-badge.is-draft {
+  color: #7a4b00;
+  background: #fff1cc;
+  border: 1px solid #e0b24a;
+}
+
+.response-editor {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.8rem;
+}
+
+.response-edit-form,
+.response-edit-group {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.response-edit-group {
+  margin: 0;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  min-width: 0;
+}
+
+.response-edit-group legend {
+  padding: 0 0.3rem;
+  font-weight: 700;
+}
+
+.response-edit-field {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.response-edit-field input,
+.response-edit-field select,
+.response-edit-field textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.response-edit-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+}
+
+.response-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
 .response-dialog::backdrop {
   background: rgb(16 26 40 / 0.62);
 }

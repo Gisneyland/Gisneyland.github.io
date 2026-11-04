@@ -104,6 +104,17 @@ const RESPONSE_CONDITIONAL_GROUPS = [
   }
 ];
 
+const RESPONSE_EDIT_SKIP_FIELDS = new Set(['screening_photos', 'hiv_positive_contacts', 'anonymous_consult_code']);
+const RESPONSE_EDIT_INPUT_TYPES = {
+  screening_at: 'date', last_screening_at: 'month', hiv_positive_appointment: 'datetime-local', birth: 'number'
+};
+const RESPONSE_EDIT_TEXTAREA_FIELDS = new Set(['hiv_positive_notes']);
+const RESPONSE_BOOLEAN_FIELD_PATTERN = /^(agreement|needle_consent|privacy_consent|std_(?!aids_reason|others)|drug_(?!others)).*/;
+const RESPONSE_EXTRA_OPTIONS = {
+  frequency_closed_relationship: { yes: '是', no: '否', none: '沒有固定性伴侶' }
+};
+const CONSULTATION_SITE_URL = 'https://hiva.cdc.gov.tw/';
+
 const STAFF_PRIVACY_NOTICE_VERSION = 'staff-privacy-2026-10-v1';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -174,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const nationalityOptions = document.getElementById('nationality-filter-options');
   const selectedNationalityContainer = document.getElementById('nationality-filter-selected');
   const consultationFilter = document.getElementById('consultation-filter');
+  const statusFilter = document.getElementById('status-filter');
   const responseBody = document.getElementById('responses-body');
   const emptyState = document.getElementById('empty-state');
   const dialog = document.getElementById('response-dialog');
@@ -890,6 +902,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderResponses();
   });
   consultationFilter.addEventListener('change', () => { currentPage = 1; loadResponses(); });
+  statusFilter?.addEventListener('change', () => { currentPage = 1; renderResponses(); });
   mapModeControls.forEach(control => control.addEventListener('change', () => {
     renderScreeningAnalytics(getFilteredResponses());
   }));
@@ -1835,7 +1848,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadResponses() {
     showStatus(dashboardStatus, '資料載入中。');
-    const fields = 'id, created_at, language, schema_version, response_data, anonymous_consult_code';
+    const fields = 'id, created_at, language, schema_version, response_data, anonymous_consult_code, status, updated_at';
     const isPendingView = consultationFilter.value === 'pending';
     let loadedResponses = [];
 
@@ -1906,13 +1919,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const consultationCode = consultationCodes.join('、');
       const row = document.createElement('tr');
       row.tabIndex = 0;
-      row.setAttribute('aria-label', `${formatDate(response.created_at)}，${consultationCode ? `諮詢代碼 ${consultationCode}` : '諮詢待處理'}。雙擊或按 Enter 查看詳細資料。`);
+      row.setAttribute('aria-label', `${formatDate(response.created_at)}，${isDraftResponse(response) ? '草稿待篩檢員完成，' : ''}${consultationCode ? `諮詢代碼 ${consultationCode}` : '諮詢待處理'}。雙擊或按 Enter 查看詳細資料。`);
       row.classList.add(consultationCode ? 'is-consultation-complete' : 'is-consultation-pending');
       const consultationCodeCell = consultationCode
         ? `<span class="consultation-code-badge is-complete">${escapeHtml(consultationCode)}</span>`
         : '<span class="consultation-code-badge is-pending">待處理</span>';
       row.innerHTML = `
-        <td>${escapeHtml(formatDate(response.created_at))}</td>
+        <td>${escapeHtml(formatDate(response.created_at))}${isDraftResponse(response) ? ' <span class="response-status-badge is-draft">草稿</span>' : ''}</td>
         <td>${consultationCodeCell}</td>
         <td>${escapeHtml(data.screener || '未填寫')}</td>
         <td>${escapeHtml(data.screening_place || '未填寫')}</td>
@@ -1936,6 +1949,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function isDraftResponse(response) {
+    return response.status === 'draft';
+  }
+
   function getFilteredResponses() {
     const keyword = searchInput.value.trim().toLowerCase();
     return responses.filter(response => {
@@ -1949,8 +1966,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasConsultCode = Boolean(getConsultationCode(response));
       const matchesNationality = selectedNationalities.size === 0
         || nationalities.some(country => selectedNationalities.has(country));
+      const matchesStatus = !statusFilter || statusFilter.value === 'all'
+        || (statusFilter.value === 'draft') === isDraftResponse(response);
       return (!keyword || searchable.includes(keyword))
         && matchesNationality
+        && matchesStatus
         && (consultationFilter.value === 'all'
           || (consultationFilter.value === 'completed' && hasConsultCode)
           || (consultationFilter.value === 'pending' && !hasConsultCode));
@@ -2332,9 +2352,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return `"${safeText.replaceAll('"', '""')}"`;
   }
 
-  function showResponse(response) {
+  function showResponse(response, { editorOpen = false } = {}) {
     responseDetails.replaceChildren();
+    dialog.classList.remove('is-split');
     const data = response.response_data || {};
+    appendResponseEditor(response, editorOpen);
     appendConsultationWorkflow(response);
     const knownFields = new Set(RESPONSE_DETAIL_GROUPS.flatMap(group => group.fields));
     const groups = [
@@ -2344,7 +2366,8 @@ document.addEventListener('DOMContentLoaded', () => {
           ['record_id', '資料編號', response.id],
           ['created_at', '送出時間', formatDate(response.created_at)],
           ['language', '填答語言', response.language === 'en' ? 'English' : '繁體中文'],
-          ['schema_version', '問卷版本', response.schema_version ? `第 ${response.schema_version} 版` : '']
+          ['schema_version', '問卷版本', response.schema_version ? `第 ${response.schema_version} 版` : ''],
+          ['status', '處理狀態', isDraftResponse(response) ? '草稿（待篩檢員完成）' : '已完成']
         ]
       },
       ...RESPONSE_DETAIL_GROUPS.map(group => ({
@@ -2434,7 +2457,7 @@ document.addEventListener('DOMContentLoaded', () => {
       responseDetails.append(section);
       sectionIndex += 1;
     });
-    dialog.showModal();
+    if (!dialog.open) dialog.showModal();
     appendScreeningPhotos(data.screening_photos).catch(() => {});
   }
 
@@ -2443,6 +2466,209 @@ document.addEventListener('DOMContentLoaded', () => {
       return response.anonymous_consult_code || '';
     }
     return response.response_data?.anonymous_consult_code || '';
+  }
+
+  function responseEditFields(data) {
+    const known = new Set();
+    const fields = [];
+    RESPONSE_DETAIL_GROUPS.forEach(group => group.fields.forEach(key => {
+      if (RESPONSE_EDIT_SKIP_FIELDS.has(key) || known.has(key)) return;
+      known.add(key);
+      fields.push({ group: group.title, key });
+    }));
+    Object.keys(data).sort((left, right) => left.localeCompare(right, 'zh-TW')).forEach(key => {
+      if (RESPONSE_EDIT_SKIP_FIELDS.has(key) || known.has(key)) return;
+      const value = data[key];
+      if (value && typeof value === 'object' && !Array.isArray(value)) return;
+      fields.push({ group: '其他資料', key });
+    });
+    return fields;
+  }
+
+  function createResponseFieldControl(key, value) {
+    const id = `response-edit-${key}`;
+    const optionLabels = { ...(RESPONSE_VALUE_LABELS[key] || {}), ...(RESPONSE_EXTRA_OPTIONS[key] || {}) };
+    if (key === 'screening_interpretation') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'response-edit-checks';
+      const selected = new Set(Array.isArray(value) ? value : value ? [value] : []);
+      Object.entries(RESPONSE_VALUE_LABELS.screening_interpretation).forEach(([optionValue, label]) => {
+        const item = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = optionValue;
+        input.checked = selected.has(optionValue);
+        item.append(input, ` ${label}`);
+        wrapper.append(item);
+      });
+      wrapper.dataset.editKind = 'checks';
+      wrapper.dataset.editKey = key;
+      return wrapper;
+    }
+    const isBoolean = typeof value === 'boolean'
+      || (value === undefined && RESPONSE_BOOLEAN_FIELD_PATTERN.test(key));
+    const isYesNo = !isBoolean && (RESPONSE_YES_NO_FIELDS.has(key) || value === 'yes' || value === 'no');
+    if (isBoolean || isYesNo || Object.keys(optionLabels).length) {
+      const select = document.createElement('select');
+      select.id = id;
+      const options = isBoolean
+        ? { true: '是', false: '否' }
+        : isYesNo ? { yes: '是', no: '否', ...(RESPONSE_EXTRA_OPTIONS[key] || {}) } : optionLabels;
+      const empty = new Option('（未填）', '');
+      select.append(empty);
+      const current = value === undefined || value === null ? '' : String(value);
+      Object.entries(options).forEach(([optionValue, label]) => select.append(new Option(label, optionValue)));
+      if (current && !Object.hasOwn(options, current)) select.append(new Option(current, current));
+      select.value = current;
+      select.dataset.editKind = isBoolean ? 'boolean' : 'string';
+      select.dataset.editKey = key;
+      return select;
+    }
+    const control = document.createElement(RESPONSE_EDIT_TEXTAREA_FIELDS.has(key) ? 'textarea' : 'input');
+    control.id = id;
+    if (control.tagName === 'INPUT') control.type = RESPONSE_EDIT_INPUT_TYPES[key] || 'text';
+    else control.rows = 3;
+    control.maxLength = key === 'hiv_positive_notes' ? 1000 : 300;
+    const isList = Array.isArray(value);
+    control.value = isList ? value.join(', ') : value === undefined || value === null ? '' : String(value);
+    control.dataset.editKind = isList ? 'list' : control.type === 'number' ? 'number' : 'string';
+    control.dataset.editKey = key;
+    return control;
+  }
+
+  function readResponseFieldControl(control) {
+    const kind = control.dataset.editKind;
+    if (kind === 'checks') {
+      return [...control.querySelectorAll('input:checked')].map(input => input.value);
+    }
+    const value = control.value.trim();
+    if (value === '') return undefined;
+    if (kind === 'boolean') return value === 'true';
+    if (kind === 'number') return Number(value);
+    if (kind === 'list') return value.split(/[,，、]/).map(item => item.trim()).filter(Boolean);
+    return value;
+  }
+
+  async function lookupOwnScreenerNumber() {
+    if (!activeUser) return '';
+    const { data } = await window.questionnaireSupabase
+      .from('admin_profiles')
+      .select('screener_number')
+      .eq('user_id', activeUser.id)
+      .maybeSingle();
+    return data?.screener_number || '';
+  }
+
+  function appendResponseEditor(response, keepOpen = false) {
+    if (!window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation')) return;
+    const draft = isDraftResponse(response);
+    const data = response.response_data || {};
+    const section = document.createElement('details');
+    section.className = 'response-editor';
+    section.open = draft || keepOpen;
+    const summary = document.createElement('summary');
+    summary.className = 'response-section-title';
+    summary.textContent = draft ? '草稿：補完篩檢結果並修正填答' : '修正填答與篩檢結果';
+    const form = document.createElement('form');
+    form.className = 'response-edit-form';
+    const note = document.createElement('p');
+    note.className = 'admin-muted';
+    note.textContent = '可修正受檢者的問卷填答與篩檢結果；空白欄位會移除該筆答案。陽性轉介聯絡方式與試劑照片需由受檢者端送出，此處不會變更。';
+    form.append(note);
+
+    const fieldsByGroup = new Map();
+    responseEditFields(data).forEach(({ group, key }) => {
+      if (!fieldsByGroup.has(group)) fieldsByGroup.set(group, []);
+      fieldsByGroup.get(group).push(key);
+    });
+    fieldsByGroup.forEach((keys, title) => {
+      const fieldset = document.createElement('fieldset');
+      fieldset.className = 'response-edit-group';
+      const legend = document.createElement('legend');
+      legend.textContent = title;
+      fieldset.append(legend);
+      keys.forEach(key => {
+        const field = document.createElement('div');
+        field.className = 'response-edit-field';
+        const control = createResponseFieldControl(key, data[key]);
+        const label = document.createElement('label');
+        label.textContent = RESPONSE_FIELD_LABELS[key] || humanizeFieldName(key);
+        if (control.id) label.htmlFor = control.id;
+        else label.id = `response-edit-label-${key}`;
+        if (control.dataset.editKind === 'checks') control.setAttribute('aria-labelledby', label.id);
+        field.append(label, control);
+        fieldset.append(field);
+      });
+      form.append(fieldset);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'response-edit-actions';
+    const completeLabel = document.createElement('label');
+    completeLabel.className = 'response-edit-complete';
+    const complete = document.createElement('input');
+    complete.type = 'checkbox';
+    complete.checked = draft;
+    complete.hidden = !draft;
+    completeLabel.hidden = !draft;
+    completeLabel.append(complete, ' 儲存後標示為已完成（需有篩檢員編號）');
+    const save = document.createElement('button');
+    save.type = 'submit';
+    save.className = 'admin-button';
+    save.textContent = '儲存變更';
+    const status = document.createElement('p');
+    status.className = 'admin-status';
+    status.setAttribute('role', 'status');
+    status.hidden = true;
+    actions.append(completeLabel, save);
+    form.append(actions, status);
+
+    if (draft && !hasResponseValue(data.screener)) {
+      lookupOwnScreenerNumber().then(number => {
+        const input = form.querySelector('[data-edit-key="screener"]');
+        if (number && input && !input.value) input.value = number;
+      }).catch(() => {});
+    }
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const nextData = { ...response.response_data };
+      form.querySelectorAll('[data-edit-key]').forEach(control => {
+        const key = control.dataset.editKey;
+        const value = readResponseFieldControl(control);
+        if (value === undefined || (Array.isArray(value) && !value.length)) delete nextData[key];
+        else nextData[key] = value;
+      });
+      const markComplete = draft && complete.checked;
+      if (markComplete && !hasResponseValue(nextData.screener)) {
+        showStatus(status, '標示為已完成前，請先填寫篩檢員編號。', true);
+        return;
+      }
+      setButtonBusy(save, true, '儲存中');
+      const update = { response_data: nextData };
+      if (markComplete) update.status = 'submitted';
+      const { data: updated, error } = await window.questionnaireSupabase
+        .from('questionnaire_responses')
+        .update(update)
+        .eq('id', response.id)
+        .select('id, status, updated_at')
+        .maybeSingle();
+      setButtonBusy(save, false, '儲存變更');
+      if (error || !updated) {
+        showStatus(status, '儲存失敗。請確認資料庫已套用最新 migration 且帳號具編輯權限。', true);
+        return;
+      }
+      response.response_data = nextData;
+      response.status = updated.status || response.status;
+      response.updated_at = updated.updated_at;
+      renderResponses();
+      showResponse(response, { editorOpen: true });
+      const refreshed = responseDetails.querySelector('.response-editor .admin-status');
+      if (refreshed) showStatus(refreshed, '已儲存變更。');
+    });
+
+    section.append(summary, form);
+    responseDetails.append(section);
   }
 
   function appendConsultationWorkflow(response) {
@@ -2566,12 +2792,17 @@ document.addEventListener('DOMContentLoaded', () => {
       answerList.append(groupSection);
     });
 
+    const frameToggle = document.createElement('button');
+    frameToggle.className = 'admin-button secondary';
+    frameToggle.type = 'button';
+    frameToggle.setAttribute('aria-expanded', 'false');
+    frameToggle.textContent = '開啟匿名諮詢網';
     const openLink = document.createElement('a');
     openLink.className = 'admin-button secondary';
-    openLink.href = 'https://hiva.cdc.gov.tw/';
+    openLink.href = CONSULTATION_SITE_URL;
     openLink.target = '_blank';
     openLink.rel = 'noopener noreferrer';
-    openLink.textContent = '匿名諮詢網';
+    openLink.textContent = '新視窗開啟';
     const copyButton = document.createElement('button');
     copyButton.className = 'admin-button secondary icon-only';
     copyButton.type = 'button';
@@ -2701,8 +2932,32 @@ document.addEventListener('DOMContentLoaded', () => {
     saveStatus.className = 'admin-status';
     saveStatus.setAttribute('role', 'status');
     saveStatus.hidden = true;
-    openLink.classList.add('consultation-code-link');
-    codeForm.append(codeLabel, codeField, openLink);
+    const framePanel = document.createElement('section');
+    framePanel.className = 'consultation-frame-panel';
+    framePanel.hidden = true;
+    framePanel.setAttribute('aria-label', '匿名諮詢網（內嵌）');
+    const frameNote = document.createElement('p');
+    frameNote.className = 'admin-muted';
+    frameNote.textContent = '可對照左側填答資料，直接在此填寫匿名諮詢網。若下方空白或顯示被拒絕連線，代表該網站不允許內嵌，請改用「新視窗開啟」。';
+    const frame = document.createElement('iframe');
+    frame.className = 'consultation-frame';
+    frame.title = '匿名諮詢網';
+    frame.referrerPolicy = 'no-referrer';
+    frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox');
+    frame.loading = 'lazy';
+    framePanel.append(frameNote, frame);
+    frameToggle.addEventListener('click', () => {
+      const open = framePanel.hidden;
+      if (open && !frame.getAttribute('src')) frame.src = CONSULTATION_SITE_URL;
+      framePanel.hidden = !open;
+      frameToggle.setAttribute('aria-expanded', String(open));
+      frameToggle.textContent = open ? '收合匿名諮詢網' : '開啟匿名諮詢網';
+      dialog.classList.toggle('is-split', open);
+    });
+    const frameActions = document.createElement('div');
+    frameActions.className = 'consultation-frame-actions';
+    frameActions.append(frameToggle, openLink);
+    codeForm.append(codeLabel, codeField, frameActions);
     codeForm.addEventListener('submit', async event => {
       event.preventDefault();
       if (codeInput.value.trim() && !commitCodeInput()) return;
@@ -2733,7 +2988,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     section.append(headingRow, copyStatus, note, codeForm, saveStatus, answerList);
-    responseDetails.append(section);
+    responseDetails.append(section, framePanel);
   }
 
   async function appendScreeningPhotos(photos) {

@@ -86,18 +86,30 @@ Deno.serve(async request => {
     const responseData = payload?.response_data;
     const language = payload?.language;
     const schemaVersion = payload?.schema_version;
+    const status = payload?.status ?? 'submitted';
 
     if (
       !responseData ||
       typeof responseData !== 'object' ||
       Array.isArray(responseData) ||
-      typeof responseData.screener !== 'string' ||
-      responseData.screener.trim().length === 0 ||
+      !['draft', 'submitted'].includes(status) ||
+      (status === 'submitted' &&
+        (typeof responseData.screener !== 'string' || responseData.screener.trim().length === 0)) ||
       !['zh-TW', 'en'].includes(language) ||
       schemaVersion !== 1 ||
       JSON.stringify(responseData).length > 100_000
     ) {
       return jsonResponse({ error: 'Invalid questionnaire payload' }, 400);
+    }
+
+    // 草稿交由篩檢員在後台補完，不接受受檢者端的篩檢結果與照片。
+    if (status === 'draft') {
+      for (const key of [
+        'screener', 'screening_at', 'screening_place', 'screening_interpretation', 'hiv_window_period',
+        'hiv_positive_contacts', 'hiv_positive_contact_phone', 'hiv_positive_appointment',
+        'hiv_positive_address', 'hiv_positive_notes', 'anonymous_consult_code'
+      ]) delete responseData[key];
+      if (photoFiles.size > 0) return jsonResponse({ error: 'Invalid photo' }, 400);
     }
 
     // 照片路徑只能由伺服器寫入，避免前端指定任意儲存路徑。
@@ -165,7 +177,7 @@ Deno.serve(async request => {
 
     const { error } = await supabase
       .from('questionnaire_responses')
-      .insert({ response_data: responseData, language, schema_version: schemaVersion });
+      .insert({ response_data: responseData, language, schema_version: schemaVersion, status });
 
     if (error) {
       console.error('Database insert failed:', error.message);

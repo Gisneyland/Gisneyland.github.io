@@ -151,3 +151,7 @@ values ('YOUR_AUTH_USER_UUID', 'YOUR_ASSIGNED_SCREENER_NUMBER');
 ```bash
 psql "$DISPOSABLE_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/site-editor-components-database.sql
 ```
+
+## 問卷草稿與後台補填
+
+受檢者檢視填答內容後，可選擇「確認並交給篩檢員」繼續在同一裝置填寫，或「先送出，由篩檢員稍後完成」，後者會以 `status = 'draft'` 儲存（不含篩檢員欄位）。使用前請在 Supabase SQL Editor 執行 [202611040001_questionnaire_drafts.sql](supabase/migrations/202611040001_questionnaire_drafts.sql)，並重新部署 `submit-questionnaire`。具「編輯匿名諮詢與問卷資料」權限的工作人員可在後台詳細資料中修正任何填答與篩檢結果、將草稿標示為已完成；後台也可依處理狀態篩選草稿。匿名諮詢網改為在詳細資料中以 iframe 內嵌，與填答資料並排對照；若對方網站禁止被內嵌，請使用旁邊的「新視窗開啟」。

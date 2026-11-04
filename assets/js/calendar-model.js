@@ -70,9 +70,9 @@
   function navigationLabels(view, selectedDate, now = new Date()) {
     const current = localParts(now);
     const [year, month] = selectedDate.slice(0, 10).split('-');
-    if (view === 'dayGridMonth') return { title: `${year}年`, today: `${Number(current.month)}月` };
-    if (view === 'listWeek') return { title: `${year}年${Number(month)}月`, today: `第${calendarWeek(dateKey(now))}週` };
-    if (view === 'timeGridDay') return { title: `${year}年${Number(month)}月`, today: `${Number(current.day)}日` };
+    if (view === 'dayGridMonth') return { title: `${year}年`, today: `${Number(month)}月` };
+    if (view === 'listWeek') return { title: `${year}年${Number(month)}月`, today: `第${calendarWeek(selectedDate)}週` };
+    if (view === 'timeGridDay') return { title: `${year}年${Number(month)}月`, today: `${Number(selectedDate.slice(8, 10))}日` };
     return { title: `${year}年${Number(month)}月${Number(selectedDate.slice(8, 10))}日`, today: `${Number(current.hour)}時${Number(current.minute)}分` };
   }
 

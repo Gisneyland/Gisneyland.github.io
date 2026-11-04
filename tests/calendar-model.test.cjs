@@ -29,12 +29,12 @@ test('single-day closures and extra opening override schedule and holidays', () 
   assert.equal(model.openingForDate('2026-10-20', [], [], true).closed, true);
 });
 
-test('navigation uses current clock while heading follows selected period', () => {
+test('navigation labels follow the selected period; stream time uses the current clock', () => {
   const now = new Date('2026-10-18T05:03:00+08:00');
-  assert.deepEqual(model.navigationLabels('dayGridMonth', '2028-03-01', now), { title: '2028年', today: '10月' });
-  assert.equal(model.navigationLabels('timeGridDay', '2028-03-01', now).today, '18日');
+  assert.deepEqual(model.navigationLabels('dayGridMonth', '2028-03-01', now), { title: '2028年', today: '3月' });
+  assert.equal(model.navigationLabels('timeGridDay', '2028-03-01', now).today, '1日');
   assert.equal(model.navigationLabels('listMonth', '2026-10-18', now).today, '5時3分');
-  assert.equal(model.navigationLabels('listWeek', '2026-10-18', now).today, '第43週');
+  assert.equal(model.navigationLabels('listWeek', '2028-03-01', now).today, '第10週');
   assert.equal(model.calendarWeek('2026-10-19'), 43);
   assert.equal(model.calendarWeek('2026-10-18'), 43);
 });
