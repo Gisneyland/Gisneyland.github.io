@@ -3715,11 +3715,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const photos = { ...(current && typeof current === 'object' ? current : {}) };
     const bucket = window.questionnaireSupabase.storage.from(SCREENING_PHOTO_BUCKET);
     for (const [kind, blob] of photoPicks) {
-      const path = `${response.id}/${kind}.jpg`;
-      const { error } = await bucket.upload(path, blob, { contentType: 'image/jpeg', cacheControl: '0', upsert: true });
+      // Record ids are numeric, so use a UUID folder like the questionnaire server does.
+      const folder = crypto.randomUUID();
+      const path = `${folder}/${kind}.jpg`;
+      const { error } = await bucket.upload(path, blob, { contentType: 'image/jpeg', cacheControl: '0', upsert: false });
       if (error) throw new Error(`${SCREENING_PHOTO_LABELS[kind]}上傳失敗（${error.message || '權限不足'}）。請確認已執行 202611040006 migration 且帳號具編輯權限。`);
       const previous = photos[kind];
-      if (previous && previous !== path && SCREENING_PHOTO_PATH.test(String(previous))) {
+      if (typeof previous === 'string' && previous !== path && !previous.includes('..')) {
         await bucket.remove([previous]).catch(() => {});
       }
       photos[kind] = path;
