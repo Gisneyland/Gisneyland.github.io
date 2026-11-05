@@ -3811,3 +3811,35 @@ html[data-theme="dark"] .admin-body .task-list li.is-done { background: #24382f;
 html[data-theme="dark"] .admin-body .task-list label { color: var(--text); overflow-wrap: anywhere; }
 html[data-theme="dark"] .admin-body .task-chip.is-pending { color: #ffe0a0; background: #4a3920; }
 html[data-theme="dark"] .admin-body .task-chip.is-done { color: #b7e9c8; background: #243e35; }
+
+/* Consultation code row: icon actions */
+.consultation-code-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.consultation-code-action .material-icons { font-size: 1.2rem; }
+.consultation-code-action:hover,
+.consultation-code-action:focus-visible { color: var(--accent-strong); background: var(--accent-soft); }
+.consultation-code-uploaded.is-on { color: #155b3b; background: #e8f4ec; border-color: #6fa47c; }
+.consultation-code-action.is-danger:hover,
+.consultation-code-action.is-danger:focus-visible { color: #9f2525; background: #f9dddd; border-color: #e0a0a0; }
+.consultation-code-row .consultation-code-uploaded { margin-inline-start: auto; }
+.consultation-frame-actions .admin-button.icon-only {
+  color: var(--accent-strong);
+  background: transparent;
+  border-color: var(--border);
+}
+.consultation-frame-actions .admin-button.icon-only:hover,
+.consultation-frame-actions .admin-button.icon-only:focus-visible { background: var(--accent-soft); }
+html[data-theme="dark"] .admin-body .consultation-code-uploaded.is-on { color: #b7e9c8; background: #243e35; border-color: #6fa47c; }
+html[data-theme="dark"] .admin-body .consultation-code-action.is-danger:hover,
+html[data-theme="dark"] .admin-body .consultation-code-action.is-danger:focus-visible { color: #ffb8bf; background: #502d38; border-color: #a8636f; }
