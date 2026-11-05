@@ -2094,21 +2094,40 @@ document.addEventListener('DOMContentLoaded', () => {
     externalLinkForm.hidden = !canEdit;
     externalLinkList.replaceChildren(...externalLinks.map(link => {
       const item = document.createElement('li');
-      const text = document.createElement('span');
+      item.className = 'external-link-item';
+      const text = document.createElement('div');
+      text.className = 'external-link-text';
       const target = link.kind === 'nationality_questionnaire'
         ? describeNationality(link.nationality)
         : ((link.match_keywords || []).join('、') || '全部地點');
-      text.append(`${ExternalTasksModel.KINDS[link.kind]}｜${target}｜${link.label}｜`);
+      const badge = document.createElement('span');
+      badge.className = 'external-link-kind';
+      badge.textContent = ExternalTasksModel.KINDS[link.kind] || link.kind;
+      const title = document.createElement('strong');
+      title.textContent = link.label;
+      const meta = document.createElement('span');
+      meta.className = 'admin-muted';
+      meta.textContent = target;
+      text.append(badge, title, meta);
       if (ExternalTasksModel.isSafeUrl(link.url)) {
         const anchor = document.createElement('a');
+        anchor.className = 'external-link-url';
         anchor.href = link.url;
         anchor.target = '_blank';
         anchor.rel = 'noopener noreferrer';
+        anchor.title = link.url;
         anchor.textContent = link.url;
         text.append(anchor);
+      } else {
+        const raw = document.createElement('span');
+        raw.className = 'external-link-url admin-muted';
+        raw.textContent = link.url || '（無網址）';
+        text.append(raw);
       }
       item.append(text);
       if (canEdit) {
+        const actions = document.createElement('div');
+        actions.className = 'external-link-actions';
         const edit = document.createElement('button');
         edit.type = 'button';
         edit.className = 'admin-button secondary';
@@ -2123,7 +2142,8 @@ document.addEventListener('DOMContentLoaded', () => {
           values.url.value = link.url;
           syncExternalLinkKind();
           document.getElementById('external-link-cancel').hidden = false;
-          values.label.focus();
+          externalLinkForm.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          values.label.focus({ preventScroll: true });
         });
         const remove = document.createElement('button');
         remove.type = 'button';
@@ -2131,14 +2151,15 @@ document.addEventListener('DOMContentLoaded', () => {
         remove.textContent = '刪除';
         remove.addEventListener('click', async () => {
           if (!window.confirm(`確定刪除「${link.label}」？已記錄的完成狀態也會一併失效。`)) return;
-          const { error } = await window.questionnaireSupabase.from('external_links').delete().eq('id', link.id);
-          if (error) { showStatus(externalLinkStatus, '刪除失敗，請確認帳號具編輯權限。', true); return; }
+          const { data, error } = await window.questionnaireSupabase.from('external_links').delete().eq('id', link.id).select('id');
+          if (error || !data?.length) { showStatus(externalLinkStatus, '刪除失敗，請確認帳號具編輯權限。', true); return; }
           externalLinks = externalLinks.filter(entry => entry.id !== link.id);
           renderExternalLinks();
           renderResponses();
           showStatus(externalLinkStatus, '已刪除。');
         });
-        item.append(edit, remove);
+        actions.append(edit, remove);
+        item.append(actions);
       }
       return item;
     }));
