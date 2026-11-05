@@ -4107,31 +4107,41 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function appendScreeningPhotos(photos) {
-    if (!photos || typeof photos !== 'object') return;
-    const entries = Object.entries(photos)
+    const stored = photos && typeof photos === 'object' ? photos : {};
+    const entries = Object.entries(stored)
       .filter(([kind, path]) => SCREENING_PHOTO_LABELS[kind] && SCREENING_PHOTO_PATH.test(String(path)) && String(path).includes(`/${kind}.`));
-    if (!entries.length) return;
+    const canEdit = window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation');
+    if (!entries.length && !canEdit && !Object.keys(stored).length) return;
 
-    const section = document.createElement('details');
-    section.className = 'response-section';
-    const heading = document.createElement('summary');
+    const section = document.createElement('section');
+    section.className = 'response-section photo-gallery';
+    const heading = document.createElement('h3');
     heading.className = 'response-section-title';
-    heading.textContent = '陽性試劑照片';
+    heading.textContent = '已上傳的陽性試劑照片';
     const content = document.createElement('div');
     content.className = 'response-photos';
-    content.textContent = '照片載入中。';
     section.append(heading, content);
-    section.open = true;
     section.dataset.tab = 'photos';
-    responseDetails.append(section);
+    // Show saved photos above the uploader so they are never pushed below the fold.
+    const uploader = responseDetails.querySelector(':scope > .photo-uploader');
+    if (uploader) uploader.before(section);
+    else responseDetails.append(section);
     applyDialogTab();
+
+    if (!entries.length) {
+      content.textContent = Object.keys(stored).length
+        ? '紀錄中的照片路徑格式不正確，無法顯示。請重新上傳。'
+        : '尚未上傳照片。';
+      return;
+    }
+    content.textContent = '照片載入中。';
 
     const { data, error } = await window.questionnaireSupabase.storage
       .from(SCREENING_PHOTO_BUCKET)
       .createSignedUrls(entries.map(([, path]) => path), 300);
     if (!section.isConnected) return;
     if (error || !data) {
-      content.textContent = '無法載入照片，請確認資料庫已更新且帳號具管理權限。';
+      content.textContent = `無法載入照片（${error?.message || '無回應'}）。請確認已套用 202611040006 migration 且帳號具讀取權限。`;
       return;
     }
 
@@ -4156,7 +4166,9 @@ document.addEventListener('DOMContentLoaded', () => {
       figure.append(link, caption);
       content.append(figure);
     });
-    if (!content.children.length) content.textContent = '無法載入照片。';
+    if (!content.children.length) {
+      content.textContent = `照片檔案不存在或無法讀取（${data.map(item => item?.error).filter(Boolean).join('、') || '未知原因'}）。請重新上傳。`;
+    }
   }
 
   function showStatus(element, message, isError = false) {

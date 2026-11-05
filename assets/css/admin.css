@@ -3804,3 +3804,10 @@ button.calendar-stream-event { cursor: pointer; }
 
 .photo-uploader-field { display: grid; gap: 0.5rem; margin-block: 0.75rem; }
 .photo-uploader-field input[type=file] { max-width: 100%; }
+
+html[data-theme="dark"] .admin-body .task-list li { color: var(--text); border: 1px solid var(--border); }
+html[data-theme="dark"] .admin-body .task-list li.is-pending { background: #3b3224; }
+html[data-theme="dark"] .admin-body .task-list li.is-done { background: #24382f; }
+html[data-theme="dark"] .admin-body .task-list label { color: var(--text); overflow-wrap: anywhere; }
+html[data-theme="dark"] .admin-body .task-chip.is-pending { color: #ffe0a0; background: #4a3920; }
+html[data-theme="dark"] .admin-body .task-chip.is-done { color: #b7e9c8; background: #243e35; }
