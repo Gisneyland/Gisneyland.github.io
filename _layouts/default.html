@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% include asset-version.html %}<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="utf-8">
@@ -20,8 +20,8 @@
   {% endif %}
 
   <!-- Custom Style -->
-  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}?v=questionnaire-draft-20261104-1">
-  <link rel="stylesheet" href="{{ '/assets/css/site-editor.css' | relative_url }}?v=20261022-1">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}?v={{ asset_v }}">
+  <link rel="stylesheet" href="{{ '/assets/css/site-editor.css' | relative_url }}?v={{ asset_v }}">
   
 </head>
 <body data-site-editor-page="{{ page.url | escape }}" data-site-editor-url="{{ page.url | relative_url | escape }}"{% if page.url == '/hiva/' %} class="questionnaire-page"{% endif %}>
@@ -40,11 +40,11 @@
     {% include site-editor.html %}
 
   <!-- Capture static editable nodes before any runtime translation/feed/widget changes. -->
-  <script src="{{ '/assets/js/site-editor-model.js' | relative_url }}?v=20261020-3"></script>
-  <script src="{{ '/assets/js/site-editor-rich.js' | relative_url }}?v=20261020-3"></script>
-  <script src="{{ '/assets/js/site-editor-dom.js' | relative_url }}?v=20261020-3"></script>
-  <script src="{{ '/assets/js/site-editor-inline.js' | relative_url }}?v=20261020-3"></script>
-  <script src="{{ '/assets/js/site-editor.js' | relative_url }}?v=20261022-1"></script>
+  <script src="{{ '/assets/js/site-editor-model.js' | relative_url }}?v={{ asset_v }}"></script>
+  <script src="{{ '/assets/js/site-editor-rich.js' | relative_url }}?v={{ asset_v }}"></script>
+  <script src="{{ '/assets/js/site-editor-dom.js' | relative_url }}?v={{ asset_v }}"></script>
+  <script src="{{ '/assets/js/site-editor-inline.js' | relative_url }}?v={{ asset_v }}"></script>
+  <script src="{{ '/assets/js/site-editor.js' | relative_url }}?v={{ asset_v }}"></script>
 
   <!-- CDN JS -->
   <!-- Materialize JS -->
@@ -53,26 +53,26 @@
   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" defer></script>
 
   <!-- Supabase browser client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
-  <script src="{{ '/assets/js/supabase-config.js' | relative_url }}?v=supabase-calendar-feed-1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0" crossorigin="anonymous"></script>
+  <script src="{{ '/assets/js/supabase-config.js' | relative_url }}?v={{ asset_v }}"></script>
 
   <!-- JavaScript i18n.js -->
-  <script src="{{ '/assets/js/i18n.js' | relative_url }}?v=questionnaire-draft-20261104-1"></script>
-  <script src="{{ '/assets/js/site-chrome.js' | relative_url }}?v=20261022-1"></script>
+  <script src="{{ '/assets/js/i18n.js' | relative_url }}?v={{ asset_v }}"></script>
+  <script src="{{ '/assets/js/site-chrome.js' | relative_url }}?v={{ asset_v }}"></script>
   {% if page.url == '/hiva/' %}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" crossorigin="anonymous"></script>
   {% endif %}
   {% if page.url == '/activity/' %}
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   {% endif %}
-  <script src="{{ '/assets/js/staff-access.js' | relative_url }}?v=staff-otp-20261019-2"></script>
+  <script src="{{ '/assets/js/staff-access.js' | relative_url }}?v={{ asset_v }}"></script>
   {% if page.url == '/' or page.url == '/activity/' or page.url == '/news/' %}
-  <script src="{{ '/assets/js/calendar-model.js' | relative_url }}?v=scheduling-20261018-2"></script>
-  <script src="{{ '/assets/js/content.js' | relative_url }}?v=frontend-editor-20261020-1"></script>
+  <script src="{{ '/assets/js/calendar-model.js' | relative_url }}?v={{ asset_v }}"></script>
+  <script src="{{ '/assets/js/content.js' | relative_url }}?v={{ asset_v }}"></script>
   {% endif %}
   <!-- Main JS assets -->
-  <script src="{{ '/assets/js/screening-photo.js' | relative_url }}?v=admin-photos-20261104-1"></script>
-  <script src="{{ '/assets/js/main.js' | relative_url }}?v=admin-photos-20261104-1"></script>
+  <script src="{{ '/assets/js/screening-photo.js' | relative_url }}?v={{ asset_v }}"></script>
+  <script src="{{ '/assets/js/main.js' | relative_url }}?v={{ asset_v }}"></script>
   
 </body>
 </html>

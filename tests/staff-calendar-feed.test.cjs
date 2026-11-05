@@ -32,7 +32,10 @@ function handler({ feed, profile, user, records }) {
           if (table === 'admin_profiles') return { data: profile, error: null };
           return { data: null, error: null };
         },
-        async range() { return { data: records, error: null }; }
+        async range() {
+          const published = filters.is_published;
+          return { data: records.filter(record => published === undefined || record.is_published === published), error: null };
+        }
       };
       return query;
     }
@@ -45,6 +48,7 @@ function handler({ feed, profile, user, records }) {
     Response,
     Request,
     Headers,
+    URL,
     Intl,
     Date,
     console

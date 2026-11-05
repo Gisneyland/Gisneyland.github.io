@@ -1,0 +1,6 @@
+{%- comment -%}Cache-busting token: commit SHA on GitHub Pages builds, build time elsewhere.{%- endcomment -%}
+{%- if site.github.build_revision -%}
+  {%- assign asset_v = site.github.build_revision | slice: 0, 10 -%}
+{%- else -%}
+  {%- assign asset_v = site.time | date: '%s' -%}
+{%- endif -%}
