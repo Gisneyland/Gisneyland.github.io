@@ -3801,3 +3801,6 @@ button.calendar-stream-event { cursor: pointer; }
   justify-content: space-between;
   gap: 0.75rem;
 }
+
+.photo-uploader-field { display: grid; gap: 0.5rem; margin-block: 0.75rem; }
+.photo-uploader-field input[type=file] { max-width: 100%; }
