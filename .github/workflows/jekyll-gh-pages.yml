@@ -65,6 +65,7 @@ jobs:
       - name: Minify JS and CSS
         shell: bash
         run: |
+          sudo chown -R "$USER" _site
           npm install --no-save --no-audit --no-fund terser@5 clean-css-cli@5
           for f in _site/assets/js/*.js; do npx terser "$f" --compress --mangle --output "$f"; done
           for f in _site/assets/css/*.css; do npx cleancss -o "$f" "$f"; done
