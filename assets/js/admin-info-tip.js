@@ -49,7 +49,7 @@
     button.className = 'info-tip-button';
     button.setAttribute('aria-label', label);
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-controls', `info-tip-${counter}`);
+    button.setAttribute('aria-describedby', `info-tip-${counter}`);
     button.textContent = 'i';
     const body = document.createElement('span');
     body.id = `info-tip-${counter}`;

@@ -218,7 +218,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const activeFiltersBar = document.getElementById('active-filters');
   let currentDialogResponse = null;
   let activeDialogTab = 'overview';
-  let dialogDirty = false;
+  const dirtyDialogForms = new Set();
+  const isDialogDirty = () => dirtyDialogForms.size > 0;
+  const markDialogDirty = source => dirtyDialogForms.add(source);
+  const isCurrentDialog = response => dialog.open && currentDialogResponse?.id === response.id;
   const accountProfileForm = document.getElementById('account-profile-form');
   const accountNicknameInput = document.getElementById('account-nickname');
   const accountEmailInput = document.getElementById('account-email');
@@ -957,7 +960,7 @@ document.addEventListener('DOMContentLoaded', () => {
   responsePrevButton.addEventListener('click', () => navigateResponse(-1));
   responseNextButton.addEventListener('click', () => navigateResponse(1));
   dialog.addEventListener('cancel', event => {
-    if (dialogDirty && !window.confirm('尚有未儲存的修改，確定要關閉？')) event.preventDefault();
+    if (isDialogDirty() && !window.confirm('尚有未儲存的修改，確定要關閉？')) event.preventDefault();
   });
   // On document so shortcuts still work after navigating disables the focused button.
   document.addEventListener('keydown', event => {
@@ -2280,7 +2283,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         response.task_progress = nextProgress;
         renderResponses();
+        if (!isCurrentDialog(response) || !section.isConnected) return;
         section.replaceWith(buildTasksPanel(response));
+        applyDialogTab();
+        refreshDialogMeta(response);
       });
       item.append(label, open);
       list.append(item);
@@ -3078,7 +3084,7 @@ document.addEventListener('DOMContentLoaded', () => {
     responseDetails.replaceChildren();
     dialog.classList.remove('is-split');
     currentDialogResponse = response;
-    dialogDirty = false;
+    dirtyDialogForms.clear();
     window.AdminInfoTip?.closeAll();
     const data = response.response_data || {};
     const tasksPanel = buildTasksPanel(response);
@@ -3201,9 +3207,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function requestCloseDialog() {
-    if (dialogDirty && !window.confirm('尚有未儲存的修改，確定要關閉？')) return;
-    dialogDirty = false;
+    if (isDialogDirty() && !window.confirm('尚有未儲存的修改，確定要關閉？')) return;
+    dirtyDialogForms.clear();
     dialog.close();
+  }
+
+  function refreshDialogMeta(response) {
+    updateDialogHeader(response);
+    const overview = responseDetails.querySelector(':scope > [data-tab="overview"]');
+    if (overview) {
+      overview.replaceWith(buildOverviewPanel(response));
+      applyDialogTab();
+    }
   }
 
   function updateDialogHeader(response) {
@@ -3227,7 +3242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const index = list.findIndex(entry => entry.id === currentDialogResponse.id);
     const next = list[index + delta];
     if (index < 0 || !next) return;
-    if (dialogDirty && !window.confirm('尚有未儲存的修改，仍要切換到其他紀錄？')) return;
+    if (isDialogDirty() && !window.confirm('尚有未儲存的修改，仍要切換到其他紀錄？')) return;
     const page = Math.floor((index + delta) / pageSize) + 1;
     if (page !== currentPage) {
       currentPage = page;
@@ -3513,8 +3528,8 @@ document.addEventListener('DOMContentLoaded', () => {
     note.className = 'response-edit-note';
     note.append('修正填答與篩檢結果 ', window.AdminInfoTip.create('可修正受檢者的問卷填答與篩檢結果；空白欄位會移除該筆答案。陽性轉介聯絡方式需由受檢者端送出，此處不會變更；試劑照片請到「照片」分頁上傳。', '編輯說明'));
     form.append(note);
-    form.addEventListener('input', () => { dialogDirty = true; });
-    form.addEventListener('change', () => { dialogDirty = true; });
+    form.addEventListener('input', () => markDialogDirty('editor'));
+    form.addEventListener('change', () => markDialogDirty('editor'));
 
     const fieldsByGroup = new Map();
     responseEditFields(data).forEach(({ group, key }) => {
@@ -3595,13 +3610,14 @@ document.addEventListener('DOMContentLoaded', () => {
         .maybeSingle();
       setButtonBusy(save, false, '儲存變更');
       if (error || !updated) {
-        showStatus(status, '儲存失敗。請確認資料庫已套用最新 migration 且帳號具編輯權限。', true);
+        if (status.isConnected) showStatus(status, '儲存失敗。請確認資料庫已套用最新 migration 且帳號具編輯權限。', true);
         return;
       }
       response.response_data = nextData;
       response.status = updated.status || response.status;
       response.updated_at = updated.updated_at;
       renderResponses();
+      if (!isCurrentDialog(response)) return;
       showResponse(response, { editorOpen: true });
       const refreshed = responseDetails.querySelector('.response-editor .admin-status');
       if (refreshed) showStatus(refreshed, '已儲存變更。');
@@ -3679,6 +3695,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if (error || !updated) throw new Error('照片已上傳，但無法寫入紀錄。請確認帳號具編輯權限後重試。');
           response.response_data = nextData;
           response.updated_at = updated.updated_at;
+          renderResponses();
+          if (!isCurrentDialog(response)) return;
           showResponse(response, { keepTab: true });
           const refreshed = responseDetails.querySelector('.photo-uploader .admin-status');
           if (refreshed) showStatus(refreshed, `${label}已上傳並儲存。`);
@@ -3967,6 +3985,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
       }
       consultationCodes = nextCodes;
+      markDialogDirty('consult');
       renderConsultationCodeTags();
       codeInput.value = '';
       return true;
@@ -3977,6 +3996,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return addConsultationCodes(codeInput.value);
     };
 
+    codeForm.addEventListener('input', () => markDialogDirty('consult'));
+    codeForm.addEventListener('change', () => markDialogDirty('consult'));
     codeInput.addEventListener('input', () => codeInput.setCustomValidity(''));
     codeInput.addEventListener('keydown', event => {
       if (event.isComposing) return;
@@ -3986,6 +4007,7 @@ document.addEventListener('DOMContentLoaded', () => {
         commitCodeInput();
       } else if (event.key === 'Backspace' && !codeInput.value && consultationCodes.length) {
         consultationCodes.pop();
+        markDialogDirty('consult');
         renderConsultationCodeTags();
       }
     });
@@ -3999,6 +4021,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const chip = event.target.closest('[data-code-index]');
       if (!chip) return;
       consultationCodes.splice(Number(chip.dataset.codeIndex), 1);
+      markDialogDirty('consult');
       renderConsultationCodeTags();
       codeInput.focus();
     });
@@ -4064,6 +4087,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setButtonBusy(saveButton, false, '儲存代碼');
 
       if (error || !updated) {
+        if (!saveStatus.isConnected) return;
         showStatus(saveStatus, '儲存失敗。請確認資料庫已更新且帳號具管理權限。', true);
         return;
       }
@@ -4072,6 +4096,9 @@ document.addEventListener('DOMContentLoaded', () => {
       response.consult_uploads = uploads;
       response.response_data = { ...response.response_data, anonymous_consult_code: code };
       renderResponses();
+      if (!isCurrentDialog(response)) return;
+      dirtyDialogForms.delete('consult');
+      refreshDialogMeta(response);
       showStatus(saveStatus, `已儲存 ${codes.length} 組諮詢代碼。`);
     });
 
