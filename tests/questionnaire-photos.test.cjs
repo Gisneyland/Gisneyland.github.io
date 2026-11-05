@@ -7,6 +7,7 @@ const { stripTypeScriptTypes } = require('node:module');
 
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'assets/js/main.js'), 'utf8');
+const compressSource = fs.readFileSync(path.join(root, 'assets/js/screening-photo.js'), 'utf8');
 const photoCode = source.slice(source.indexOf('function initializeScreeningPhotos()'),
   source.indexOf('function validateScreeningInterpretation('));
 
@@ -25,15 +26,16 @@ function client(overrides = {}) {
     document: { createElement: () => canvas },
     ...overrides
   });
+  context.window ||= {};
+  vm.runInContext(compressSource.replace('})(window);', '})(globalThis.window);'), context);
   vm.runInContext(`
     const screeningPhotos = new Map();
     const screeningPhotoJobs = new Map();
     const screeningPhotoErrors = new Set();
-    const maxScreeningPhotoBytes = 500_000;
     ${photoCode}
   `, context);
   return { context, canvas, draws, urls, closed: () => closed,
-    compress: file => context.compressScreeningPhoto(file) };
+    compress: file => context.window.ScreeningPhoto.compress(file) };
 }
 
 const input = { type: 'image/jpeg', size: 10_000_000 };
@@ -121,7 +123,7 @@ test('clear, replace, hide and reset invalidate pending photo work', async () =>
     window: { setTimeout: callback => callback() }
   });
   const completions = [];
-  fixture.context.compressScreeningPhoto = () => new Promise(resolve => completions.push(resolve));
+  fixture.context.window.ScreeningPhoto.compress = () => new Promise(resolve => completions.push(resolve));
   fixture.context.initializeScreeningPhotos();
   const change = () => listeners['input:change']();
   const count = expression => vm.runInContext(expression, fixture.context);
@@ -149,7 +151,7 @@ test('clear, replace, hide and reset invalidate pending photo work', async () =>
     assert.equal(count('screeningPhotos.size'), 0);
     assert.equal(count('screeningPhotoJobs.size'), 0);
   }
-  fixture.context.compressScreeningPhoto = async () => { throw new Error('Unsupported image'); };
+  fixture.context.window.ScreeningPhoto.compress = async () => { throw new Error('Unsupported image'); };
   await change();
   assert.equal(count('screeningPhotoErrors.size'), 1);
   assert.equal(elements.preview.hidden, false);

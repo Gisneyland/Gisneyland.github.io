@@ -3356,6 +3356,46 @@ button.calendar-stream-event { cursor: pointer; }
   gap: 0.25rem;
 }
 
+.screening-institution-form [hidden] {
+  display: none;
+}
+
+.external-link-item {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.external-link-text {
+  display: grid;
+  flex: 1 1 18rem;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.external-link-kind {
+  justify-self: start;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+}
+
+.external-link-url {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+  color: var(--accent-strong);
+}
+
+.external-link-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.4rem;
+}
+
 .filter-range {
   grid-column: 1 / -1;
 }
