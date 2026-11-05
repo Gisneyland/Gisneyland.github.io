@@ -3430,6 +3430,15 @@ document.addEventListener('DOMContentLoaded', () => {
         item.append(input, ` ${label}`);
         wrapper.append(item);
       });
+      // A test can't be both positive and negative; checking one clears its counterpart.
+      wrapper.addEventListener('change', event => {
+        const changed = event.target;
+        if (!changed.checked) return;
+        const [test, outcome] = changed.value.split('_');
+        const other = `${test}_${outcome === 'positive' ? 'negative' : 'positive'}`;
+        const counterpart = wrapper.querySelector(`input[value="${other}"]`);
+        if (counterpart) counterpart.checked = false;
+      });
       wrapper.dataset.editKind = 'checks';
       wrapper.dataset.editKey = key;
       return wrapper;
