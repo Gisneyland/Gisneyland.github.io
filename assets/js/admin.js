@@ -3848,21 +3848,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const frameToggle = document.createElement('button');
-    frameToggle.className = 'admin-button secondary';
+    frameToggle.className = 'admin-button secondary icon-only';
     frameToggle.type = 'button';
     frameToggle.setAttribute('aria-expanded', 'false');
-    frameToggle.textContent = '開啟匿名諮詢網';
+    frameToggle.title = '在本頁內嵌開啟匿名諮詢網';
+    frameToggle.setAttribute('aria-label', '在本頁內嵌開啟匿名諮詢網');
+    frameToggle.append(createMaterialIcon('web'));
     const openLink = document.createElement('a');
-    openLink.className = 'admin-button secondary';
+    openLink.className = 'admin-button secondary icon-only';
     openLink.href = CONSULTATION_SITE_URL;
     openLink.target = '_blank';
     openLink.rel = 'noopener noreferrer';
-    openLink.textContent = '新視窗開啟';
+    openLink.title = '以新分頁開啟匿名諮詢網';
+    openLink.setAttribute('aria-label', '以新分頁開啟匿名諮詢網');
+    openLink.append(createMaterialIcon('open_in_new'));
     const sideButton = document.createElement('button');
-    sideButton.className = 'admin-button secondary';
+    sideButton.className = 'admin-button secondary icon-only';
     sideButton.type = 'button';
-    sideButton.textContent = '並排視窗開啟';
-    sideButton.title = '在螢幕右半邊開啟匿名諮詢網，左半邊保留填答資料';
+    sideButton.title = '並排視窗：在螢幕右半邊開啟匿名諮詢網，左半邊保留填答資料';
+    sideButton.setAttribute('aria-label', '並排視窗開啟匿名諮詢網');
+    sideButton.append(createMaterialIcon('vertical_split'));
     sideButton.addEventListener('click', () => {
       const availLeft = window.screen.availLeft || 0;
       const availTop = window.screen.availTop || 0;
@@ -3951,24 +3956,31 @@ document.addEventListener('DOMContentLoaded', () => {
           meta.uploaded_by = null;
           renderConsultationCodeTags();
         });
-        const uploadedLabel = document.createElement('label');
-        uploadedLabel.className = 'consultation-code-uploaded';
-        const uploaded = document.createElement('input');
-        uploaded.type = 'checkbox';
-        uploaded.checked = Boolean(meta.uploaded_at);
-        uploaded.addEventListener('change', () => {
-          meta.uploaded_at = uploaded.checked ? new Date().toISOString() : null;
-          meta.uploaded_by = uploaded.checked ? activeUser?.id || null : null;
+        const uploaded = document.createElement('button');
+        uploaded.type = 'button';
+        uploaded.className = 'consultation-code-action consultation-code-uploaded';
+        const isUploaded = Boolean(meta.uploaded_at);
+        uploaded.setAttribute('aria-pressed', String(isUploaded));
+        uploaded.classList.toggle('is-on', isUploaded);
+        const uploadedText = isUploaded ? `已上傳（${formatDate(meta.uploaded_at)}），點擊取消` : '尚未上傳，點擊標示為已上傳';
+        uploaded.title = uploadedText;
+        uploaded.setAttribute('aria-label', `諮詢代碼 ${code}：${uploadedText}`);
+        uploaded.append(createMaterialIcon(isUploaded ? 'cloud_done' : 'cloud_upload'));
+        uploaded.addEventListener('click', () => {
+          const next = !meta.uploaded_at;
+          meta.uploaded_at = next ? new Date().toISOString() : null;
+          meta.uploaded_by = next ? activeUser?.id || null : null;
+          markDialogDirty('consult');
           renderConsultationCodeTags();
         });
-        uploadedLabel.append(uploaded, meta.uploaded_at ? ` 已上傳 ${formatDate(meta.uploaded_at)}` : ' 已上傳');
         const remove = document.createElement('button');
         remove.type = 'button';
-        remove.className = 'selected-value consultation-code-chip';
+        remove.className = 'consultation-code-action is-danger';
         remove.dataset.codeIndex = index;
+        remove.title = `移除代碼 ${code}`;
         remove.setAttribute('aria-label', `移除諮詢代碼 ${code}`);
-        remove.textContent = '×';
-        row.append(label, unitSelect, uploadedLabel, remove);
+        remove.append(createMaterialIcon('delete'));
+        row.append(label, unitSelect, uploaded, remove);
         codeTags.append(row);
       });
     };
@@ -4060,7 +4072,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (open && !frame.getAttribute('src')) frame.src = CONSULTATION_SITE_URL;
       framePanel.hidden = !open;
       frameToggle.setAttribute('aria-expanded', String(open));
-      frameToggle.textContent = open ? '收合匿名諮詢網' : '開啟匿名諮詢網';
+      const toggleLabel = open ? '收合內嵌的匿名諮詢網' : '在本頁內嵌開啟匿名諮詢網';
+      frameToggle.title = toggleLabel;
+      frameToggle.setAttribute('aria-label', toggleLabel);
+      frameToggle.querySelector('.material-icons').textContent = open ? 'close_fullscreen' : 'web';
       dialog.classList.toggle('is-split', open);
     });
     const frameActions = document.createElement('div');
@@ -4169,6 +4184,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!content.children.length) {
       content.textContent = `照片檔案不存在或無法讀取（${data.map(item => item?.error).filter(Boolean).join('、') || '未知原因'}）。請重新上傳。`;
     }
+  }
+
+  function createMaterialIcon(name) {
+    const icon = document.createElement('span');
+    icon.className = 'material-icons notranslate';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = name;
+    return icon;
   }
 
   function showStatus(element, message, isError = false) {
