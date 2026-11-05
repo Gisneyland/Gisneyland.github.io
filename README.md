@@ -171,3 +171,7 @@ psql "$DISPOSABLE_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/site-editor-componen
 ## 後台補傳陽性試劑照片
 
 具「編輯匿名諮詢與問卷資料」權限的人員可在詳細資料的編輯區為 HIV／梅毒陽性紀錄補傳或取代試劑照片。照片沿用問卷填寫頁相同的壓縮函式（`assets/js/screening-photo.js`，JPEG、500 KB 以下、移除 EXIF）後再上傳。使用前請執行 [202611040006_admin_screening_photos.sql](supabase/migrations/202611040006_admin_screening_photos.sql)。
+
+## 篩檢分析介面
+
+紀錄詳細資料改為固定標題列加分頁（概覽、問卷答案、編輯、諮詢與上傳、待辦、照片）：概覽會列出下一步與未完成待辦；標題列顯示目前位置，可用「上一筆／下一筆」按鈕或鍵盤 ←／→ 依目前篩選順序切換紀錄（焦點在輸入欄位、分頁列時不會觸發；有未儲存修改會先詢問）。較長的說明文字改為 ⓘ 按鈕（`assets/js/admin-info-tip.js`），滑過、聚焦或點按即顯示，Esc 關閉；靜態說明只要在 `<p>` 加上 `data-info-note`（可用 `data-info-target` 指定標題）。篩選列保留搜尋、時間、處理狀態與串接上傳，其餘收進「更多篩選」，目前生效的條件以可移除的標籤顯示並可一鍵清除；地圖可收合。不需要資料庫更新。

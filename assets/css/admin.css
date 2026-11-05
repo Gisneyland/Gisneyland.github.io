@@ -3471,3 +3471,333 @@ button.calendar-stream-event { cursor: pointer; }
   gap: 0.4rem;
   font-weight: 700;
 }
+
+/* Record dialog: sticky header, tabs, overview */
+.response-dialog-top {
+  position: sticky;
+  top: -1.25rem;
+  z-index: 5;
+  margin: -1.25rem -1.25rem 0;
+  padding: 1rem 1.25rem 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.response-dialog-title-group {
+  min-width: 0;
+}
+
+.response-dialog-title-group h2 {
+  margin: 0 0 0.2rem;
+}
+
+.response-dialog-title-group p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.response-dialog-nav {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.response-dialog-nav .icon-button {
+  width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.response-dialog-nav .icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.response-position {
+  min-width: 3.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.response-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.6rem;
+  overflow-x: auto;
+}
+
+.response-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.85rem;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+
+.response-tab:hover {
+  color: var(--text);
+}
+
+.response-tab.is-active {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent);
+}
+
+.response-tab:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.response-tab-badge {
+  min-width: 1.3rem;
+  padding: 0 0.35rem;
+  color: var(--button-text);
+  font-size: 0.75rem;
+  line-height: 1.3rem;
+  text-align: center;
+  background: var(--button-bg);
+  border-radius: 999px;
+}
+
+.response-sections > .is-tab-hidden {
+  display: none !important;
+}
+
+.response-overview {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.overview-next,
+.overview-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.overview-next strong {
+  flex: 1 1 100%;
+  font-size: 1.05rem;
+}
+
+.overview-next span {
+  flex: 1 1 14rem;
+  overflow-wrap: anywhere;
+}
+
+.overview-next.is-uploaded,
+.overview-tasks.is-done {
+  border-color: #6fa47c;
+}
+
+.overview-next:not(.is-uploaded),
+.overview-tasks.is-pending {
+  border-left: 5px solid var(--accent);
+}
+
+.overview-facts {
+  display: grid;
+  grid-template-columns: minmax(6rem, 0.4fr) minmax(0, 1fr);
+  gap: 0.4rem 0.75rem;
+  margin: 0;
+}
+
+.overview-facts dt {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.overview-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.response-edit-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .response-dialog {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .response-dialog-top .dialog-header {
+    flex-wrap: wrap;
+  }
+
+  .overview-facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Info buttons */
+.info-tip {
+  display: inline-block;
+  margin-inline-start: 0.25rem;
+  vertical-align: middle;
+}
+
+.info-tip-button {
+  position: relative;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  color: var(--accent-strong);
+  font: italic 700 0.85rem/1 Georgia, serif;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  cursor: help;
+}
+
+/* Keeps the touch target at 44px while the icon stays small. */
+.info-tip-button::after {
+  position: absolute;
+  inset: -0.6rem;
+  content: "";
+}
+
+.info-tip-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.info-tip-body {
+  inset: auto;
+  margin: 0;
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  padding: 0.6rem 0.75rem;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.55;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow);
+}
+
+.info-tip-body[hidden] {
+  display: none;
+}
+
+/* Filter bar */
+.filter-more {
+  grid-column: 1 / -1;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.filter-more > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  color: var(--accent-strong);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filter-count {
+  min-width: 1.3rem;
+  padding: 0 0.35rem;
+  color: var(--button-text);
+  font-size: 0.75rem;
+  line-height: 1.3rem;
+  text-align: center;
+  background: var(--button-bg);
+  border-radius: 999px;
+}
+
+.filter-more-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.6rem 0;
+}
+
+.active-filters[hidden] {
+  display: none;
+}
+
+.active-filters-title {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.active-filter-chip {
+  min-height: 2.25rem;
+  padding: 0.2rem 0.7rem;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+  text-align: start;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.active-filter-chip:hover,
+.active-filter-chip:focus-visible {
+  border-color: var(--focus);
+}
+
+.active-filters-clear {
+  min-height: 2.25rem;
+  padding: 0.2rem 0.7rem;
+}
+
+.screening-map-panel.is-collapsed .screening-map,
+.screening-map-panel.is-collapsed .screening-map-legend,
+.screening-map-panel.is-collapsed .screening-map-controls,
+.screening-map-panel.is-collapsed .map-filter-note,
+.screening-map-panel.is-collapsed #screening-map-empty {
+  display: none;
+}
+
+.screening-map-panel .analytics-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}

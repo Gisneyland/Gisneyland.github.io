@@ -131,8 +131,9 @@ permalink: /admin/
               <h2 id="screening-map-title">篩檢地點熱區</h2>
               <p>依篩檢類型與送出時間範圍彙總；時間使用台北時區。</p>
             </div>
+            <button id="screening-map-toggle" class="admin-button secondary" type="button" aria-expanded="true">收合地圖</button>
           </div>
-          <p class="admin-muted map-filter-note">時間範圍與篩檢類型（總篩檢／HIV／梅毒）皆與下方篩檢紀錄共用；點選地圖上的據點可只看該地點的紀錄。</p>
+          <p class="admin-muted map-filter-note" data-info-note data-info-target="#screening-map-title">時間範圍與篩檢類型（總篩檢／HIV／梅毒）皆與下方篩檢紀錄共用；點選地圖上的據點可只看該地點的紀錄。</p>
           <div class="screening-map-controls">
             <fieldset class="map-mode-control">
               <legend class="sr-only">地圖篩檢類型</legend>
@@ -210,6 +211,28 @@ permalink: /admin/
           <label for="search-responses">搜尋篩檢員、地點或諮詢代碼</label>
           <input id="search-responses" type="search" placeholder="輸入關鍵字">
         </div>
+        <div class="filter-field">
+          <label for="status-filter">處理狀態</label>
+          <select id="status-filter">
+            <option value="all">全部</option>
+            <option value="draft">草稿（待篩檢員完成）</option>
+            <option value="submitted">已完成</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="upload-filter">串接上傳</label>
+          <select id="upload-filter">
+            <option value="all">全部</option>
+            <option value="needs-code">待填諮詢代碼</option>
+            <option value="needs-upload">待上傳串接</option>
+            <option value="needs-upload-cdc">待上傳：疾管署</option>
+            <option value="needs-upload-local">待上傳：地方衛生局</option>
+            <option value="uploaded">已上傳串接</option>
+          </select>
+        </div>
+        <details id="filter-more" class="filter-more">
+          <summary>更多篩選<span id="filter-more-count" class="filter-count" hidden></span></summary>
+          <div class="filter-more-grid">
         <div class="filter-field nationality-filter-field">
           <label for="nationality-filter-search">國籍篩選</label>
           <input id="nationality-filter-search" type="search" autocomplete="off" placeholder="搜尋國家或地區">
@@ -225,14 +248,6 @@ permalink: /admin/
           </select>
         </div>
         <div class="filter-field">
-          <label for="status-filter">處理狀態</label>
-          <select id="status-filter">
-            <option value="all">全部</option>
-            <option value="draft">草稿（待篩檢員完成）</option>
-            <option value="submitted">已完成</option>
-          </select>
-        </div>
-        <div class="filter-field">
           <label for="task-filter">外部待辦</label>
           <select id="task-filter">
             <option value="all">全部</option>
@@ -240,18 +255,10 @@ permalink: /admin/
             <option value="done">待辦已全部完成</option>
           </select>
         </div>
-        <div class="filter-field">
-          <label for="upload-filter">串接上傳</label>
-          <select id="upload-filter">
-            <option value="all">全部</option>
-            <option value="needs-code">待填諮詢代碼</option>
-            <option value="needs-upload">待上傳串接</option>
-            <option value="needs-upload-cdc">待上傳：疾管署</option>
-            <option value="needs-upload-local">待上傳：地方衛生局</option>
-            <option value="uploaded">已上傳串接</option>
-          </select>
-        </div>
+          </div>
+        </details>
       </div>
+      <div id="active-filters" class="active-filters" aria-live="polite" hidden></div>
       <p id="dashboard-status" class="admin-status" role="status" hidden></p>
       <div class="admin-table-wrap" role="region" aria-label="篩檢紀錄表格，可左右捲動" tabindex="0">
         <table class="admin-table">
@@ -261,7 +268,7 @@ permalink: /admin/
               <th scope="col" class="admin-select-cell"><input id="select-all-responses" type="checkbox" aria-label="選取目前篩選結果的所有資料"></th>
               <th scope="col">送出時間</th>
               <th scope="col">諮詢代碼</th>
-              <th scope="col">串接狀態</th>
+              <th scope="col">下一步／串接狀態</th>
               <th scope="col">篩檢員</th>
               <th scope="col">地點</th>
               <th scope="col">國籍</th>
@@ -479,7 +486,7 @@ permalink: /admin/
         <section class="account-screener" aria-labelledby="screener-binding-title">
           <div>
             <h3 id="screener-binding-title">篩檢員編號</h3>
-            <p class="admin-muted">設定後，登入此帳號回到問卷時會自動帶入。每個編號只能綁定一個帳號。</p>
+            <p class="admin-muted" data-info-note>設定後，登入此帳號回到問卷時會自動帶入。每個編號只能綁定一個帳號。</p>
           </div>
           <form id="screener-number-form" class="screener-number-form">
             <label for="screener-number-input">篩檢員編號</label>
@@ -494,7 +501,7 @@ permalink: /admin/
       <section id="external-links-card" class="admin-panel" aria-labelledby="external-links-title" hidden>
         <p class="eyebrow">待辦連結</p>
         <h2 id="external-links-title">外國問卷與衛生局／疾管署網站</h2>
-        <p class="admin-muted">每筆連結數量不限。「外國問卷」依受檢者國籍（可複選）自動出現在該筆紀錄的待辦；同一國籍可新增多份。「衛生局／疾管署網站」可填縣市關鍵字，篩檢地點包含關鍵字才會列入，留空代表全部適用。網址每年變動時直接編輯即可。</p>
+        <p class="admin-muted" data-info-note>每筆連結數量不限。「外國問卷」依受檢者國籍（可複選）自動出現在該筆紀錄的待辦；同一國籍可新增多份。「衛生局／疾管署網站」可填縣市關鍵字，篩檢地點包含關鍵字才會列入，留空代表全部適用。網址每年變動時直接編輯即可。</p>
         <ul id="external-link-list" class="screening-institution-list"></ul>
         <form id="external-link-form" class="screening-institution-form">
           <input type="hidden" name="id">
@@ -523,7 +530,7 @@ permalink: /admin/
       <section id="screening-institutions-card" class="admin-panel" aria-labelledby="screening-institutions-title" hidden>
         <p class="eyebrow">串接上傳</p>
         <h2 id="screening-institutions-title">機構內篩檢地點</h2>
-        <p class="admin-muted">問卷的篩檢地點包含下列名稱、別名或地址時，串接上傳檔的「篩檢地點類別」填 1（機構內），其餘填 7（外展）。機構搬遷或新增分點時在此更新。</p>
+        <p class="admin-muted" data-info-note>問卷的篩檢地點包含下列名稱、別名或地址時，串接上傳檔的「篩檢地點類別」填 1（機構內），其餘填 7（外展）。機構搬遷或新增分點時在此更新。</p>
         <ul id="screening-institution-list" class="screening-institution-list"></ul>
         <form id="screening-institution-form" class="screening-institution-form">
           <input type="hidden" name="id">
@@ -773,7 +780,7 @@ permalink: /admin/
       </label>
     </div>
     <label class="cdc-export-check"><input name="includeUploaded" type="checkbox"> 包含已標記上傳過的代碼</label>
-    <p class="admin-muted">篩檢地點類別與快篩檢驗項目由紀錄自動判斷：設定頁「機構內篩檢地點」清單中的機構為 1（機構內），其餘為 7（外展）；一個月空窗期試劑為 4（Ag/Ab combo），三個月空窗期為 5（抗體快篩）。同一諮詢代碼只能選一種篩檢方式；快篩與初篩並行者請改用單筆登錄。每個檔案最多 500 筆，超過會自動分成多個檔案。</p>
+    <p class="admin-muted" data-info-note>篩檢地點類別與快篩檢驗項目由紀錄自動判斷：設定頁「機構內篩檢地點」清單中的機構為 1（機構內），其餘為 7（外展）；一個月空窗期試劑為 4（Ag/Ab combo），三個月空窗期為 5（抗體快篩）。同一諮詢代碼只能選一種篩檢方式；快篩與初篩並行者請改用單筆登錄。每個檔案最多 500 筆，超過會自動分成多個檔案。</p>
     <ul id="cdc-export-skipped" class="cdc-export-skipped" hidden></ul>
     <p id="cdc-export-status" class="admin-status" role="status" hidden></p>
     <div class="cdc-export-actions">
@@ -784,11 +791,26 @@ permalink: /admin/
 </dialog>
 
 <dialog id="response-dialog" class="response-dialog" aria-labelledby="response-dialog-title">
-  <div class="dialog-header">
-    <h2 id="response-dialog-title">問卷詳細資料</h2>
-    <button id="close-dialog-button" class="icon-button" type="button" aria-label="關閉詳細資料">
-      <span class="material-icons notranslate" translate="no" aria-hidden="true">close</span>
-    </button>
+  <div class="response-dialog-top">
+    <div class="dialog-header">
+      <div class="response-dialog-title-group">
+        <h2 id="response-dialog-title">問卷詳細資料</h2>
+        <p id="response-dialog-subtitle" class="admin-muted"></p>
+      </div>
+      <div class="response-dialog-nav">
+        <button id="response-prev" class="icon-button" type="button" aria-label="上一筆" aria-keyshortcuts="ArrowLeft" title="上一筆（←）">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">chevron_left</span>
+        </button>
+        <span id="response-position" class="response-position" aria-live="polite"></span>
+        <button id="response-next" class="icon-button" type="button" aria-label="下一筆" aria-keyshortcuts="ArrowRight" title="下一筆（→）">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">chevron_right</span>
+        </button>
+        <button id="close-dialog-button" class="icon-button" type="button" aria-label="關閉詳細資料">
+          <span class="material-icons notranslate" translate="no" aria-hidden="true">close</span>
+        </button>
+      </div>
+    </div>
+    <div id="response-tabs" class="response-tabs" role="tablist" aria-label="詳細資料分頁"></div>
   </div>
-  <div id="response-details" class="response-sections"></div>
+  <div id="response-details" class="response-sections" role="tabpanel"></div>
 </dialog>
