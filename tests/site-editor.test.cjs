@@ -82,7 +82,7 @@ test('deployment contracts separate public data, RPC-only writes, auth checks an
   const layout = fs.readFileSync(path.join(root, '_layouts/default.html'), 'utf8');
   for (const asset of ['css/site-editor.css', 'js/site-editor-model.js', 'js/site-editor-rich.js',
     'js/site-editor-dom.js', 'js/site-editor-inline.js', 'js/site-editor.js']) {
-    assert.ok(layout.includes(`'/assets/${asset}' | relative_url }}?v=20261020-3`), `${asset} cache version`);
+    assert.ok(layout.includes(`'/assets/${asset}' | relative_url }}?v={{ asset_v }}`), `${asset} cache version`);
   }
   assert.ok(layout.indexOf('site-editor.js') < layout.indexOf('i18n.js'));
   assert.ok(layout.indexOf('site-editor.js') < layout.indexOf("'/assets/js/content.js'"));

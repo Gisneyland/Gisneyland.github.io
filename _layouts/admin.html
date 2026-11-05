@@ -1,16 +1,16 @@
-<!DOCTYPE html>
+{% include asset-version.html %}<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="utf-8">
   <title>{{ page.title }} | {{ site.title }}</title>
   <meta name="description" content="GisneyLand 管理後台">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="{{ '/assets/js/admin-theme.js' | relative_url }}?v=20261022-2"></script>
+  <script src="{{ '/assets/js/admin-theme.js' | relative_url }}?v={{ asset_v }}"></script>
   <link rel="icon" type="image/x-icon" href="{{ '/assets/images/favicon.ico' | relative_url }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
-  <link rel="stylesheet" href="{{ '/assets/css/admin.css' | relative_url }}?v=ui-refresh-20261105-7">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}?v={{ asset_v }}">
+  <link rel="stylesheet" href="{{ '/assets/css/admin.css' | relative_url }}?v={{ asset_v }}">
 </head>
 <body class="admin-body">
   <a class="skip-link" href="#main-content">跳到主要內容</a>
@@ -22,23 +22,23 @@
   <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/cn2t.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" crossorigin="anonymous"></script>
-  <script src="{{ '/assets/js/supabase-config.js' | relative_url }}?v=supabase-calendar-feed-1"></script>
-  <script src="{{ '/assets/js/staff-access.js' | relative_url }}?v=staff-invites-20261019-1"></script>
-  <script src="{{ '/assets/js/admin-staff.js' | relative_url }}?v=staff-invites-20261019-1"></script>
-  <script src="{{ '/assets/js/admin-environment.js' | relative_url }}?v=content-workspace-20261018-1"></script>
-  <script src="{{ '/assets/js/calendar-model.js' | relative_url }}?v=calendar-labels-20261104-1"></script>
-  <script src="{{ '/assets/js/admin-calendar-ui.js' | relative_url }}?v=calendar-labels-20261104-1"></script>
-  <script src="{{ '/assets/js/admin-place-search.js' | relative_url }}?v=place-search-20261020-1"></script>
-  <script src="{{ '/assets/js/admin-event-place.js' | relative_url }}?v=place-search-20261020-1"></script>
-  <script src="{{ '/assets/js/admin-opening-hours.js' | relative_url }}?v=scheduling-20261018-2"></script>
-  <script src="{{ '/assets/js/admin-content.js' | relative_url }}?v=staff-calendar-feed-20261022-1"></script>
-  <script src="{{ '/assets/js/external-tasks-model.js' | relative_url }}?v=external-tasks-20261104-2"></script>
-  <script src="{{ '/assets/js/cdc-upload-model.js' | relative_url }}?v=external-tasks-20261104-2"></script>
-  <script src="{{ '/assets/js/cdc-upload-xlsx.js' | relative_url }}?v=external-tasks-20261104-2"></script>
-  <script src="{{ '/assets/js/admin-info-tip.js' | relative_url }}?v=ui-refresh-20261105-7"></script>
-  <script src="{{ '/assets/js/screening-photo.js' | relative_url }}?v=ui-refresh-20261105-7"></script>
-  <script src="{{ '/assets/js/admin.js' | relative_url }}?v=ui-refresh-20261105-7"></script>
+    <script src="{{ '/assets/js/supabase-config.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/staff-access.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/admin-staff.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/admin-environment.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/calendar-model.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/admin-calendar-ui.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/admin-place-search.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/admin-event-place.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/admin-opening-hours.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/admin-content.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/external-tasks-model.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/cdc-upload-model.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/cdc-upload-xlsx.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/admin-info-tip.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/screening-photo.js' | relative_url }}?v={{ asset_v }}"></script>
+    <script src="{{ '/assets/js/admin.js' | relative_url }}?v={{ asset_v }}"></script>
 </body>
 </html>
