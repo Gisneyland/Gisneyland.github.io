@@ -210,6 +210,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const dialog = document.getElementById('response-dialog');
   const closeDialogButton = document.getElementById('close-dialog-button');
   const responseDetails = document.getElementById('response-details');
+  const responseTabs = document.getElementById('response-tabs');
+  const responsePrevButton = document.getElementById('response-prev');
+  const responseNextButton = document.getElementById('response-next');
+  const responsePosition = document.getElementById('response-position');
+  const responseSubtitle = document.getElementById('response-dialog-subtitle');
+  const activeFiltersBar = document.getElementById('active-filters');
+  let currentDialogResponse = null;
+  let activeDialogTab = 'overview';
+  let dialogDirty = false;
   const accountProfileForm = document.getElementById('account-profile-form');
   const accountNicknameInput = document.getElementById('account-nickname');
   const accountEmailInput = document.getElementById('account-email');
@@ -944,7 +953,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   taskFilter?.addEventListener('change', () => { currentPage = 1; renderResponses(); });
   document.getElementById('place-filter-clear')?.addEventListener('click', () => selectMapPlace(null));
-  closeDialogButton.addEventListener('click', () => dialog.close());
+  closeDialogButton.addEventListener('click', requestCloseDialog);
+  responsePrevButton.addEventListener('click', () => navigateResponse(-1));
+  responseNextButton.addEventListener('click', () => navigateResponse(1));
+  dialog.addEventListener('cancel', event => {
+    if (dialogDirty && !window.confirm('尚有未儲存的修改，確定要關閉？')) event.preventDefault();
+  });
+  // On document so shortcuts still work after navigating disables the focused button.
+  document.addEventListener('keydown', event => {
+    if (!dialog.open || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.isComposing) return;
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    if (event.target.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="tablist"]')) return;
+    if (event.target !== document.body && !dialog.contains(event.target)) return;
+    event.preventDefault();
+    navigateResponse(event.key === 'ArrowLeft' ? -1 : 1);
+  });
+  initializeMapToggle();
+  initializeActiveFilters();
   accountProfileForm.addEventListener('submit', saveAccountProfile);
   screeningPlanForm.addEventListener('submit', saveScreeningPlan);
   screeningCalendarSubscribeButton?.addEventListener('click', openCalendarSubscriptionDialog);
@@ -962,9 +987,7 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshScreeningOutlookButton.addEventListener('click', () => refreshScreeningPlanOutlook(true));
   screenerNumberForm.addEventListener('submit', saveScreenerNumber);
   dialog.addEventListener('click', event => {
-    if (event.target === dialog) {
-      dialog.close();
-    }
+    if (event.target === dialog) requestCloseDialog();
   });
 
   window.questionnaireSupabase.auth.onAuthStateChange(event => {
@@ -1938,6 +1961,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderScreeningAnalytics(filtered, getFilteredResponses({ ignorePlace: true }));
     renderTaskFilterOptions();
     renderPlaceFilterChip();
+    renderActiveFilters();
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     currentPage = Math.min(currentPage, totalPages);
@@ -2213,6 +2237,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canEdit = window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation');
     const section = document.createElement('section');
     section.className = 'response-section task-panel';
+    section.dataset.tab = 'tasks';
     const heading = document.createElement('h3');
     heading.className = 'response-section-title';
     const summary = ExternalTasksModel.summarize(tasks);
@@ -2717,6 +2742,99 @@ document.addEventListener('DOMContentLoaded', () => {
       .some(alias => normalizedLocation.includes(alias))) || null;
   }
 
+  function initializeMapToggle() {
+    const toggle = document.getElementById('screening-map-toggle');
+    const panel = toggle?.closest('.screening-map-panel');
+    if (!toggle || !panel) return;
+    toggle.addEventListener('click', () => {
+      const collapsed = panel.classList.toggle('is-collapsed');
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.textContent = collapsed ? '展開地圖' : '收合地圖';
+      if (!collapsed) window.requestAnimationFrame(() => screeningMap?.invalidateSize());
+    });
+  }
+
+  function activeFilterDescriptors() {
+    const filters = [];
+    const keyword = searchInput.value.trim();
+    if (keyword) filters.push({ label: `搜尋：${keyword}`, clear: () => { searchInput.value = ''; } });
+    if (screeningDateBounds) {
+      const start = formatTaipeiDateTime(screeningDateBounds.start);
+      const end = formatTaipeiDateTime(screeningDateBounds.end);
+      if (screeningRangeStart.value !== start || screeningRangeEnd.value !== end) {
+        filters.push({ label: `時間：${screeningRangeStart.value.replace('T', ' ')} ～ ${screeningRangeEnd.value.replace('T', ' ')}`, clear: resetScreeningDateRange });
+      }
+    }
+    const mode = mapModeControls.find(control => control.checked)?.value;
+    if (mode && mode !== 'all') {
+      filters.push({ label: `篩檢類型：${mode === 'hiv' ? 'HIV' : '梅毒'}`, clear: () => { mapModeControls.find(control => control.value === 'all').checked = true; } });
+    }
+    if (selectedMapPlace) {
+      filters.push({ label: `地點：${screeningPlaces.find(place => place.name === selectedMapPlace)?.label || selectedMapPlace}`, clear: () => { selectedMapPlace = null; } });
+    }
+    selectedNationalities.forEach(country => {
+      filters.push({
+        label: `國籍：${formatNationalityLabel(country)}`,
+        more: true,
+        clear: () => {
+          selectedNationalities.delete(country);
+          const checkbox = [...nationalityOptions.querySelectorAll('input[data-nationality-option]')].find(option => option.value === country);
+          if (checkbox) checkbox.checked = false;
+          renderSelectedNationalities();
+        }
+      });
+    });
+    [[consultationFilter, '匿名諮詢', true, true], [statusFilter, '處理狀態', false, false], [taskFilter, '外部待辦', true, false], [uploadFilter, '串接上傳', false, false]].forEach(([select, name, more, reload]) => {
+      if (!select || select.value === 'all') return;
+      filters.push({ label: `${name}：${select.selectedOptions[0]?.textContent || select.value}`, more, reload, clear: () => { select.value = 'all'; } });
+    });
+    return filters;
+  }
+
+  function applyFilterClear(filters) {
+    filters.forEach(filter => filter.clear());
+    currentPage = 1;
+    if (filters.some(filter => filter.reload)) loadResponses();
+    else renderResponses();
+  }
+
+  function renderActiveFilters() {
+    if (!activeFiltersBar) return;
+    const filters = activeFilterDescriptors();
+    const moreCount = document.getElementById('filter-more-count');
+    const moreActive = filters.filter(filter => filter.more).length;
+    if (moreCount) {
+      moreCount.hidden = !moreActive;
+      moreCount.textContent = String(moreActive);
+    }
+    activeFiltersBar.hidden = !filters.length;
+    activeFiltersBar.replaceChildren();
+    if (!filters.length) return;
+    const title = document.createElement('span');
+    title.className = 'active-filters-title';
+    title.textContent = `目前篩選（${getFilteredResponses().length} 筆）`;
+    activeFiltersBar.append(title);
+    filters.forEach(filter => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'active-filter-chip';
+      chip.textContent = `${filter.label} ✕`;
+      chip.setAttribute('aria-label', `移除篩選：${filter.label}`);
+      chip.addEventListener('click', () => applyFilterClear([filter]));
+      activeFiltersBar.append(chip);
+    });
+    const clearAll = document.createElement('button');
+    clearAll.type = 'button';
+    clearAll.className = 'admin-button secondary active-filters-clear';
+    clearAll.textContent = '清除全部';
+    clearAll.addEventListener('click', () => applyFilterClear(activeFilterDescriptors()));
+    activeFiltersBar.append(clearAll);
+  }
+
+  function initializeActiveFilters() {
+    renderActiveFilters();
+  }
+
   function selectMapPlace(name) {
     selectedMapPlace = name && name !== selectedMapPlace ? name : null;
     currentPage = 1;
@@ -2956,9 +3074,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return `"${safeText.replaceAll('"', '""')}"`;
   }
 
-  function showResponse(response, { editorOpen = false } = {}) {
+  function showResponse(response, { editorOpen = false, keepTab = false } = {}) {
     responseDetails.replaceChildren();
     dialog.classList.remove('is-split');
+    currentDialogResponse = response;
+    dialogDirty = false;
+    window.AdminInfoTip?.closeAll();
     const data = response.response_data || {};
     const tasksPanel = buildTasksPanel(response);
     if (tasksPanel) responseDetails.append(tasksPanel);
@@ -3063,8 +3184,208 @@ document.addEventListener('DOMContentLoaded', () => {
       responseDetails.append(section);
       sectionIndex += 1;
     });
+    responseDetails.querySelectorAll(':scope > .response-section:not(.task-panel)').forEach(section => {
+      section.open = true;
+      section.dataset.tab = 'answers';
+    });
+    responseDetails.querySelectorAll(':scope > .response-editor').forEach(section => { section.dataset.tab = 'edit'; section.open = true; });
+    responseDetails.querySelectorAll(':scope > .consultation-workflow, :scope > .consultation-frame-panel').forEach(section => { section.dataset.tab = 'consult'; });
+    const hasPhotos = Boolean(data.screening_photos && typeof data.screening_photos === 'object' && Object.keys(data.screening_photos).length);
+    setupDialogTabs(response, { hasPhotos, preferred: editorOpen ? 'edit' : (keepTab ? activeDialogTab : 'overview') });
+    updateDialogHeader(response);
     if (!dialog.open) dialog.showModal();
+    dialog.scrollTop = 0;
     appendScreeningPhotos(data.screening_photos).catch(() => {});
+  }
+
+  function requestCloseDialog() {
+    if (dialogDirty && !window.confirm('尚有未儲存的修改，確定要關閉？')) return;
+    dialogDirty = false;
+    dialog.close();
+  }
+
+  function updateDialogHeader(response) {
+    const state = CdcUploadModel.getUploadState(response);
+    const data = response.response_data || {};
+    responseSubtitle.replaceChildren();
+    const badge = document.createElement('span');
+    badge.className = `response-status-badge is-${state.key}`;
+    badge.textContent = CdcUploadModel.stateLabel(state);
+    responseSubtitle.append(badge, ` ${formatDate(response.created_at)}｜${data.screener || '未填篩檢員'}｜${data.screening_place || '未填地點'}`);
+    const list = getFilteredResponses();
+    const index = list.findIndex(entry => entry.id === response.id);
+    responsePosition.textContent = index < 0 ? '不在目前篩選中' : `${index + 1} / ${list.length}`;
+    responsePrevButton.disabled = index <= 0;
+    responseNextButton.disabled = index < 0 || index >= list.length - 1;
+  }
+
+  function navigateResponse(delta) {
+    if (!currentDialogResponse) return;
+    const list = getFilteredResponses();
+    const index = list.findIndex(entry => entry.id === currentDialogResponse.id);
+    const next = list[index + delta];
+    if (index < 0 || !next) return;
+    if (dialogDirty && !window.confirm('尚有未儲存的修改，仍要切換到其他紀錄？')) return;
+    const page = Math.floor((index + delta) / pageSize) + 1;
+    if (page !== currentPage) {
+      currentPage = page;
+      renderResponses();
+    }
+    showResponse(next, { keepTab: true });
+  }
+
+  function dialogTabDefinitions(response, hasPhotos) {
+    const tabs = [{ key: 'overview', label: '概覽' }, { key: 'answers', label: '問卷答案' }];
+    if (responseDetails.querySelector(':scope > [data-tab="edit"]')) tabs.push({ key: 'edit', label: '編輯' });
+    if (responseDetails.querySelector(':scope > [data-tab="consult"]')) tabs.push({ key: 'consult', label: '諮詢與上傳' });
+    const tasks = getResponseTasks(response);
+    if (tasks.length) {
+      const summary = ExternalTasksModel.summarize(tasks);
+      tabs.push({ key: 'tasks', label: '待辦', badge: summary.pending ? String(summary.pending) : '' });
+    }
+    if (hasPhotos) tabs.push({ key: 'photos', label: '照片' });
+    return tabs;
+  }
+
+  function setupDialogTabs(response, { hasPhotos, preferred }) {
+    const tasksPanel = responseDetails.querySelector(':scope > .task-panel');
+    if (tasksPanel) tasksPanel.dataset.tab = 'tasks';
+    const tabs = dialogTabDefinitions(response, hasPhotos);
+    activeDialogTab = tabs.some(tab => tab.key === preferred) ? preferred : 'overview';
+    responseTabs.replaceChildren(...tabs.map(tab => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'response-tab';
+      button.id = `response-tab-${tab.key}`;
+      button.dataset.tab = tab.key;
+      button.setAttribute('role', 'tab');
+      button.append(tab.label);
+      if (tab.badge) {
+        const badge = document.createElement('span');
+        badge.className = 'response-tab-badge';
+        badge.textContent = tab.badge;
+        button.append(badge);
+        button.setAttribute('aria-label', `${tab.label}，${tab.badge} 項未完成`);
+      }
+      button.addEventListener('click', () => selectDialogTab(tab.key));
+      button.addEventListener('keydown', event => {
+        const buttons = [...responseTabs.querySelectorAll('[role="tab"]')];
+        const index = buttons.indexOf(button);
+        const target = { ArrowRight: buttons[(index + 1) % buttons.length], ArrowLeft: buttons[(index - 1 + buttons.length) % buttons.length], Home: buttons[0], End: buttons[buttons.length - 1] }[event.key];
+        if (!target) return;
+        event.preventDefault();
+        target.focus();
+        selectDialogTab(target.dataset.tab);
+      });
+      return button;
+    }));
+    selectDialogTab(activeDialogTab);
+  }
+
+  function selectDialogTab(key) {
+    activeDialogTab = key;
+    window.AdminInfoTip?.closeAll();
+    responseTabs.querySelectorAll('[role="tab"]').forEach(button => {
+      const active = button.dataset.tab === key;
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+      button.classList.toggle('is-active', active);
+    });
+    responseDetails.setAttribute('aria-labelledby', `response-tab-${key}`);
+    responseDetails.querySelector(':scope > .response-overview')?.remove();
+    if (key === 'overview' && currentDialogResponse) responseDetails.prepend(buildOverviewPanel(currentDialogResponse));
+    applyDialogTab();
+  }
+
+  function applyDialogTab() {
+    Array.from(responseDetails.children).forEach(child => {
+      child.classList.toggle('is-tab-hidden', (child.dataset.tab || 'answers') !== activeDialogTab);
+    });
+    const frame = responseDetails.querySelector(':scope > .consultation-frame-panel');
+    dialog.classList.toggle('is-split', activeDialogTab === 'consult' && Boolean(frame) && !frame.hidden);
+  }
+
+  function buildOverviewPanel(response) {
+    const data = response.response_data || {};
+    const state = CdcUploadModel.getUploadState(response);
+    const panel = document.createElement('section');
+    panel.className = 'response-overview';
+    panel.dataset.tab = 'overview';
+
+    const next = document.createElement('div');
+    next.className = `overview-next is-${state.key}`;
+    const nextTitle = document.createElement('strong');
+    const nextText = document.createElement('span');
+    const nextAction = document.createElement('button');
+    nextAction.type = 'button';
+    nextAction.className = 'admin-button';
+    const canEdit = window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation');
+    const goto = tab => () => {
+      selectDialogTab(tab);
+      responseTabs.querySelector(`[data-tab="${tab}"]`)?.focus();
+    };
+    if (state.key === 'draft') {
+      nextTitle.textContent = '下一步：完成草稿';
+      nextText.textContent = '補完篩檢結果與篩檢員編號後，標示為已完成。';
+      nextAction.textContent = '前往編輯';
+      nextAction.addEventListener('click', goto('edit'));
+    } else if (state.key === 'needs-code') {
+      nextTitle.textContent = '下一步：填寫諮詢代碼';
+      nextText.textContent = '到匿名諮詢網完成諮詢，並將代碼存回此筆紀錄。';
+      nextAction.textContent = '前往諮詢與上傳';
+      nextAction.addEventListener('click', goto('consult'));
+    } else if (state.key === 'needs-upload') {
+      nextTitle.textContent = `下一步：${CdcUploadModel.stateLabel(state)}`;
+      nextText.textContent = state.pending.map(entry => `${entry.code}→${CdcUploadModel.UNITS[entry.unit]}`).join('、');
+      nextAction.textContent = '前往諮詢與上傳';
+      nextAction.addEventListener('click', goto('consult'));
+    } else {
+      nextTitle.textContent = '串接已完成';
+      nextText.textContent = '所有諮詢代碼皆已上傳。';
+    }
+    next.append(nextTitle, nextText);
+    if (canEdit && state.key !== 'uploaded') next.append(nextAction);
+    panel.append(next);
+
+    const tasks = getResponseTasks(response);
+    if (tasks.length) {
+      const summary = ExternalTasksModel.summarize(tasks);
+      const row = document.createElement('div');
+      row.className = `overview-tasks${summary.pending ? ' is-pending' : ' is-done'}`;
+      const text = document.createElement('span');
+      text.textContent = summary.pending ? `外部待辦：還有 ${summary.pending} 項未完成（${summary.done} / ${summary.total}）` : `外部待辦：${summary.total} 項皆已完成`;
+      row.append(text);
+      if (summary.pending) {
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'admin-button secondary';
+        open.textContent = '查看待辦';
+        open.addEventListener('click', goto('tasks'));
+        row.append(open);
+      }
+      panel.append(row);
+    }
+
+    const facts = document.createElement('dl');
+    facts.className = 'overview-facts';
+    const nationalities = getResponseNationalities(response).map(formatNationalityLabel).join('、');
+    [
+      ['篩檢員', data.screener],
+      ['篩檢地點', data.screening_place],
+      ['篩檢時間', data.screening_at ? (Number.isNaN(Date.parse(data.screening_at)) ? formatResponseValue('screening_at', data.screening_at) : formatDate(data.screening_at)) : ''],
+      ['篩檢結果', hasResponseValue(data.screening_interpretation) ? formatResponseValue('screening_interpretation', data.screening_interpretation) : ''],
+      ['國籍', nationalities],
+      ['諮詢代碼', getConsultationCode(response).split(',').map(code => code.trim()).filter(Boolean).join('、')]
+    ].forEach(([label, value]) => {
+      const term = document.createElement('dt');
+      const description = document.createElement('dd');
+      term.textContent = label;
+      description.textContent = value || '未填寫';
+      if (!value) description.className = 'admin-muted';
+      facts.append(term, description);
+    });
+    panel.append(facts);
+    return panel;
   }
 
   function getConsultationCode(response) {
@@ -3178,10 +3499,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.createElement('form');
     form.className = 'response-edit-form';
     const note = document.createElement('p');
-    note.className = 'admin-muted';
-    note.textContent = '可修正受檢者的問卷填答與篩檢結果；空白欄位會移除該筆答案。陽性轉介聯絡方式需由受檢者端送出，此處不會變更。';
+    note.className = 'response-edit-note';
+    note.append('修正填答與篩檢結果 ', window.AdminInfoTip.create('可修正受檢者的問卷填答與篩檢結果；空白欄位會移除該筆答案。陽性轉介聯絡方式需由受檢者端送出，此處不會變更。', '編輯說明'));
     form.append(note);
     const photoPicks = new Map();
+    form.addEventListener('input', () => { dialogDirty = true; });
+    form.addEventListener('change', () => { dialogDirty = true; });
 
     const fieldsByGroup = new Map();
     responseEditFields(data).forEach(({ group, key }) => {
@@ -3363,8 +3686,7 @@ document.addEventListener('DOMContentLoaded', () => {
     heading.textContent = '匿名諮詢處理';
     const headingRow = document.createElement('div');
     headingRow.className = 'consultation-workflow-heading';
-    const note = document.createElement('p');
-    note.textContent = '以下依匿名諮詢網題目順序整理本站可對照答案。外站未詢問或本站未收集的資料會明確標示，請依受檢者意願在外站補填；完成後將諮詢代碼存回此筆紀錄。';
+    const note = window.AdminInfoTip.create('以下依匿名諮詢網題目順序整理本站可對照答案。外站未詢問或本站未收集的資料會明確標示，請依受檢者意願在外站補填；完成後將諮詢代碼存回此筆紀錄。', '匿名諮詢處理說明');
 
     const answerFor = key => {
       if (key === 'frequency_closed_relationship' && data[key] === 'none') return '沒有固定性伴侶';
@@ -3524,7 +3846,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showStatus(copyStatus, '無法複製答案，請確認瀏覽器剪貼簿權限。', true);
       }
     });
-    headingRow.append(heading, copyButton);
+    headingRow.append(heading, note, copyButton);
 
     const codeForm = document.createElement('form');
     codeForm.className = 'consultation-code-form';
@@ -3719,7 +4041,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus(saveStatus, `已儲存 ${codes.length} 組諮詢代碼。`);
     });
 
-    section.append(headingRow, copyStatus, note, codeForm, saveStatus, answerList);
+    section.append(headingRow, copyStatus, codeForm, saveStatus, answerList);
     responseDetails.append(section, framePanel);
   }
 
@@ -3738,7 +4060,10 @@ document.addEventListener('DOMContentLoaded', () => {
     content.className = 'response-photos';
     content.textContent = '照片載入中。';
     section.append(heading, content);
+    section.open = true;
+    section.dataset.tab = 'photos';
     responseDetails.append(section);
+    applyDialogTab();
 
     const { data, error } = await window.questionnaireSupabase.storage
       .from(SCREENING_PHOTO_BUCKET)
