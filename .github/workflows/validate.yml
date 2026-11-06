@@ -18,6 +18,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Verify CDN integrity hashes
+        run: node scripts/check-cdn-integrity.cjs
       - name: Run unit tests
         run: node --test tests/*.test.cjs
       - name: Set up Ruby
