@@ -405,47 +405,72 @@
       const block = record.element.closest('[data-site-editor-field]')
         || record.element.closest('p,h1,h2,h3,h4,h5,h6,li,td,th,blockquote,pre,figcaption')
         || record.element;
-      const nodes = () => {
-        const walker = doc.createTreeWalker(block, global.NodeFilter.SHOW_TEXT), found = [];
-        while (walker.nextNode()) found.push(walker.currentNode);
-        return found;
+      const groups = () => {
+        const found = [];
+        let current = [];
+        const boundary = () => {
+          if (current.length) found.push(current);
+          current = [];
+        };
+        const visit = node => {
+          if (node.nodeType === 3) {
+            const owner = recordFor(node);
+            if (owner) current.push({ node, owner });
+            else boundary();
+            return;
+          }
+          if (node.nodeType !== 1) return;
+          const isRecord = Array.from(records.values()).some(item => item.element === node);
+          if (!isRecord && baseline.PROTECTED && node.matches(baseline.PROTECTED)) {
+            boundary();
+            return;
+          }
+          Array.from(node.childNodes).forEach(visit);
+        };
+        visit(block);
+        boundary();
+        return found.map(nodes => {
+          let text = '';
+          const segments = nodes.map(({ node, owner }) => {
+            const segment = { node, owner, start: text.length, end: text.length + node.nodeValue.length };
+            text += node.nodeValue;
+            return segment;
+          });
+          return { text, segments };
+        });
       };
       const search = () => {
-        const segments = [];
-        let text = '';
-        nodes().forEach(node => {
-          if (!node.nodeValue) return;
-          segments.push({ node, start: text.length, end: text.length + node.nodeValue.length });
-          text += node.nodeValue;
-        });
         const matches = [];
-        if (find.value) {
+        if (find.value) groups().forEach(group => {
           let from = 0, index;
-          while ((index = text.indexOf(find.value, from)) !== -1) {
-            matches.push([index, index + find.value.length]);
+          while ((index = group.text.indexOf(find.value, from)) !== -1) {
+            matches.push({ ...group, start: index, end: index + find.value.length });
             from = index + find.value.length;
           }
-        }
-        return { segments, matches };
+        });
+        return { matches };
       };
       const total = () => search().matches.length;
       find.addEventListener('input', () => { status.textContent = find.value ? `找到 ${total()} 處` : ''; });
       button(pane, 'find_replace', '全部取代', () => {
         if (!find.value) return;
-        const { segments, matches } = search();
+        const { matches } = search();
         const affected = new Set();
-        const segmentAt = (offset, end = false) => segments.find(segment =>
-          end ? offset > segment.start && offset <= segment.end : offset >= segment.start && offset < segment.end);
-        for (const [start, end] of matches.reverse()) {
-          segments.filter(segment => segment.start < end && segment.end > start)
-            .forEach(segment => { const owner = recordFor(segment.node); if (owner) affected.add(owner); });
-          const first = segmentAt(start), last = segmentAt(end, true);
-          if (!first || !last) continue;
-          const range = doc.createRange();
-          range.setStart(first.node, start - first.start);
-          range.setEnd(last.node, end - last.start);
-          range.deleteContents();
-          range.insertNode(doc.createTextNode(replace.value));
+        for (const match of matches.reverse()) {
+          const touched = match.segments.filter(segment => segment.start < match.end && segment.end > match.start);
+          if (!touched.length) continue;
+          touched.forEach(segment => affected.add(segment.owner));
+          const first = touched[0], last = touched[touched.length - 1];
+          const firstOffset = match.start - first.start;
+          const lastOffset = match.end - last.start;
+          if (first === last) {
+            first.node.nodeValue = first.node.nodeValue.slice(0, firstOffset)
+              + replace.value + first.node.nodeValue.slice(lastOffset);
+          } else {
+            first.node.nodeValue = first.node.nodeValue.slice(0, firstOffset) + replace.value;
+            touched.slice(1, -1).forEach(segment => { segment.node.nodeValue = ''; });
+            last.node.nodeValue = last.node.nodeValue.slice(lastOffset);
+          }
         }
         const count = matches.length;
         if (count) affected.forEach(item => { item.dirty = true; });
