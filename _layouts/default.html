@@ -21,6 +21,7 @@
 
   <!-- Custom Style -->
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}?v={{ asset_v }}">
+  <link rel="stylesheet" href="{{ '/assets/css/rich-content.css' | relative_url }}?v={{ asset_v }}">
   <link rel="stylesheet" href="{{ '/assets/css/site-editor.css' | relative_url }}?v={{ asset_v }}">
   
 </head>
@@ -69,6 +70,8 @@
   <script src="{{ '/assets/js/staff-access.js' | relative_url }}?v={{ asset_v }}"></script>
   {% if page.url == '/' or page.url == '/activity/' or page.url == '/news/' %}
   <script src="{{ '/assets/js/calendar-model.js' | relative_url }}?v={{ asset_v }}"></script>
+  <script src="{{ '/assets/js/rich-content-model.js' | relative_url }}?v={{ asset_v }}"></script>
+  <script src="{{ '/assets/js/rich-content.js' | relative_url }}?v={{ asset_v }}"></script>
   <script src="{{ '/assets/js/content.js' | relative_url }}?v={{ asset_v }}"></script>
   {% endif %}
   <!-- Main JS assets -->

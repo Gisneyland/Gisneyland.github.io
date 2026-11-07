@@ -420,5 +420,5 @@
     }
     return article;
   }
-  global.SiteEditorRich = Object.freeze({ render, renderRuns, readRuns, applyStyle });
+  global.SiteEditorRich = Object.freeze({ render, renderRuns, readRuns, applyStyle, diagramPreview });
 })(globalThis);

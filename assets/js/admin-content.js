@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const titleInput = document.getElementById('site-content-title-input');
   const summaryInput = document.getElementById('site-content-summary');
   const bodyInput = document.getElementById('site-content-body');
+  const bodyEditor = window.AdminRichEditor?.init({ textarea: bodyInput });
   const eventFields = document.getElementById('site-content-event-fields');
   const eventStartInput = document.getElementById('site-content-event-start');
   const eventEndInput = document.getElementById('site-content-event-end');
@@ -184,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openContentForm(startDate = '') {
     contentForm.reset();
+    bodyEditor?.setFormat('markdown');
     contentId.value = '';
     contentType.value = startDate || filterSelect.value === 'event' ? 'event' : 'news';
     updateEventFields();
@@ -1031,6 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
     titleInput.value = record.title;
     summaryInput.value = record.summary || '';
     bodyInput.value = record.body || '';
+    bodyEditor?.setFormat(record.body_format || 'text');
     eventStartInput.value = record.event_start || '';
     eventEndInput.value = record.event_end || '';
     allDayInput.checked = record.is_all_day !== false;
@@ -1099,6 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
       title: titleInput.value.trim(),
       summary: summaryInput.value.trim(),
       body: bodyInput.value.trim(),
+      body_format: bodyEditor ? bodyEditor.getFormat() : 'text',
       url,
       event_start: isEvent ? eventStartInput.value : null,
       event_end: isEvent ? eventEndInput.value || null : null,

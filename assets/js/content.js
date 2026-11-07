@@ -45,6 +45,10 @@ async function loadManagedNews() {
   }
 }
 
+function contentPlainText(record) {
+  return typeof RichContentModel === 'undefined' ? record.body : RichContentModel.toPlainText(record.body, record.body_format);
+}
+
 function renderNewsFeed(feed, records) {
   feed.replaceChildren();
   const cardClass = feed.dataset.cardClass || 'news-card';
@@ -68,6 +72,19 @@ function renderNewsFeed(feed, records) {
     const summary = document.createElement('p');
     summary.textContent = record.summary;
     article.append(tag, title, summary);
+
+    if (record.body && record.body.trim() && typeof RichContent !== 'undefined') {
+      const details = document.createElement('details');
+      details.className = 'rc-news-more';
+      const toggle = document.createElement('summary');
+      toggle.textContent = '展開詳情';
+      const bodyBox = document.createElement('div');
+      details.append(toggle, bodyBox);
+      details.addEventListener('toggle', () => {
+        if (details.open && !bodyBox.hasChildNodes()) RichContent.render(bodyBox, record.body, record.body_format);
+      });
+      article.append(details);
+    }
 
     if (record.url) {
       const link = createContentLink(record.url, '閱讀完整內容');
@@ -269,7 +286,7 @@ async function initializeActivityCalendar() {
               formatManagedEventDates(record),
               record.location && `地點：${record.location}`,
               record.summary,
-              record.body
+              contentPlainText(record)
             ].filter(Boolean).join('\n')
             : info.event.title;
       if (hoverText) {
@@ -423,7 +440,7 @@ async function exportActivityCalendar(status) {
           `DTSTART:${window.SiteCalendarModel.icsTimestamp(record.event_start_at)}`,
           `DTEND:${window.SiteCalendarModel.icsTimestamp(record.event_end_at)}`
         ]),
-        `DESCRIPTION:${escapeIcsText([record.summary, record.body].filter(Boolean).join('\n'))}`,
+        `DESCRIPTION:${escapeIcsText([record.summary, contentPlainText(record)].filter(Boolean).join('\n'))}`,
         ...(record.location ? [`LOCATION:${escapeIcsText(record.location)}`] : []),
         ...(Number.isFinite(record.location_latitude) && Number.isFinite(record.location_longitude) ? [`GEO:${record.location_latitude};${record.location_longitude}`] : []),
         ...(record.url ? [`URL:${escapeIcsText(resolveContentUrl(record.url))}`] : []),
@@ -537,7 +554,8 @@ function renderEventDetails(container, record) {
   location.hidden = !record.location;
 
   const summary = document.getElementById('activity-event-summary');
-  summary.textContent = record.body || record.summary || '';
+  if (record.body && typeof RichContent !== 'undefined') RichContent.render(summary, record.body, record.body_format);
+  else summary.textContent = record.body || record.summary || '';
   summary.hidden = !summary.textContent;
 
   const link = document.getElementById('activity-event-link');
