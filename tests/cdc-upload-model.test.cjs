@@ -79,3 +79,22 @@ test('site category uses the configured institutions and rapid item follows the 
   assert.deepEqual([ok.C, ok.H], ['1', '5']);
   assert.equal(model.buildImportRows([make('OO寺', undefined)], rapid).skipped.length, 1);
 });
+
+test('local codes carry a bureau, export and marking respect it, and labels use bureau names', () => {
+  const bureaus = [{ id: 'b1', name: '新竹市衛生局' }, { id: 'b2', name: '桃園市衛生局' }];
+  const response = {
+    id: 1, status: 'submitted', anonymous_consult_code: '111111,222222,333333', response_data: base,
+    consult_uploads: [
+      { code: '111111', unit: 'local', bureau_id: 'b1' },
+      { code: '222222', unit: 'local', bureau_id: 'b2' },
+      { code: '333333', unit: 'local', bureau_id: 'gone' }
+    ]
+  };
+  const local = { ...options, unit: 'local' };
+  assert.deepEqual(model.buildImportRows([response], { ...local, bureauId: 'b1' }).rows.map(row => row.cells.A), ['111111']);
+  assert.equal(model.buildImportRows([response], local).rows.length, 3);
+  const next = model.markUploaded(response, ['111111', '222222'], 'local', 'now', 'u1', 'b1');
+  assert.deepEqual(next.map(item => Boolean(item.uploaded_at)), [true, false, false]);
+  assert.equal(model.getCodeEntries(response).map(entry => model.unitLabel(entry, bureaus)).join('|'), '新竹市衛生局|桃園市衛生局|地方衛生局（已刪除）');
+  assert.equal(model.stateLabel(model.getUploadState(response), bureaus), '待上傳串接：新竹市衛生局、桃園市衛生局、地方衛生局（已刪除）');
+});

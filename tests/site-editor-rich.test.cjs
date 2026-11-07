@@ -14,6 +14,14 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const block = extra => ({ id: 'block-one', parent: 'main:abc', title: 'Title', body: 'Body', label: '', url: '', ...extra });
 function documentWith(extra) { return { ...plain(M.empty()), ...extra }; }
 
+test('horizontal Mermaid example uses one edge per source line', () => {
+  const editor = fs.readFileSync(path.join(root, 'assets/js/admin-rich-editor.js'), 'utf8');
+  const template = editor.match(/steps: \['橫向步驟', '([^']+)'\]/)?.[1];
+  assert.ok(template);
+  assert.equal(template.split('-->').length - 1, 3);
+  assert.equal((template.match(/\\n/g) || []).length, 3);
+});
+
 test('v1 round-trips legacy and new structured formats without adding defaults', () => {
   const legacy = documentWith({ blocks: [block({})] });
   assert.deepEqual(plain(M.normalize(legacy)), legacy);
@@ -291,4 +299,37 @@ test('browser: semantic runs, all block previews, literal hostile source and rev
   const code = await new Promise((resolve, reject) => { browser.on('exit', resolve); browser.on('error', reject); });
   assert.equal(code, 0, errors);
   assert.match(output, /data-result="all rich browser assertions passed"/, output.match(/data-result="([^"]*)"/)?.[1] || errors);
+});
+
+test('font size, font family and strikethrough use fixed vocabularies only', () => {
+  const doc = documentWith({ patches: { text1: { rich: [{ text: 'x', size: 'xlarge', family: 'kai', strike: true }] } } });
+  assert.deepEqual(plain(M.normalize(doc)), doc);
+  for (const run of [{ size: 'huge' }, { size: '20px' }, { family: 'Comic Sans' }, { family: 'serif;x:y' }, { strike: 'yes' }]) {
+    assert.throws(() => M.runs([{ text: 'x', ...run }]));
+  }
+});
+
+test('layout and background colour use fixed vocabularies only', () => {
+  const layout = { align: 'center', indent: 2, leading: 'relaxed', tracking: 'wide', width: 50 };
+  const doc = documentWith({
+    patches: { text1: { layout, rich: [{ text: 'x', background: '#AABBCC' }] }, img1: { layout: {} } },
+    blocks: [block({ layout })]
+  });
+  assert.deepEqual(plain(M.normalize(doc)), doc);
+  const bad = [{ align: 'start' }, { indent: 6 }, { indent: 1.5 }, { indent: '1' }, { leading: 'calc(1)' },
+    { tracking: '1px' }, { width: 60 }, { width: '50' }, { css: 'x' }, null, []];
+  for (const value of bad) {
+    assert.throws(() => M.normalize(documentWith({ patches: { t: { layout: value } } })));
+    assert.throws(() => M.normalize(documentWith({ blocks: [block({ layout: value })] })));
+  }
+  for (const background of ['red', '#fff', 'url(x)', '#ffffff;x', 3]) {
+    assert.throws(() => M.runs([{ text: 'x', background }]));
+  }
+});
+
+test('migration 0007 allows layout in patches and blocks and validates it', () => {
+  const sql = fs.readFileSync(path.join(root, 'supabase/migrations/202611070001_admin_enhancements.sql'), 'utf8');
+  assert.match(sql, /site_editor_valid_layout/);
+  assert.equal((sql.match(/'layout'/g) || []).length >= 4, true);
+  assert.match(sql, /'background'/);
 });

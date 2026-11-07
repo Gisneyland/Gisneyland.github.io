@@ -26,7 +26,7 @@
       if (!attributes.has(element)) attributes.set(element, {
         hidden: element.hidden, href: element.getAttribute('href'),
         i18n: element.getAttribute('data-i18n'), translate: element.getAttribute('translate'),
-        style: element.getAttribute('style'), format: element.getAttribute('data-site-editor-style'),
+        style: element.getAttribute('style'), format: element.getAttribute('data-site-editor-style'), layout: element.getAttribute('data-site-editor-layout'),
         src: element.getAttribute('src'), alt: element.getAttribute('alt'), srcset: element.getAttribute('srcset'),
         variant: element.getAttribute('data-site-editor-variant'), className: element.getAttribute('class')
       });
@@ -114,7 +114,7 @@
         element.hidden = attrs.hidden;
         element.removeAttribute('data-site-editor-deleted');
         for (const [name, value] of [['href', attrs.href], ['data-i18n', attrs.i18n], ['translate', attrs.translate],
-          ['style', attrs.style], ['data-site-editor-style', attrs.format], ['src', attrs.src], ['alt', attrs.alt],
+          ['style', attrs.style], ['data-site-editor-style', attrs.format], ['data-site-editor-layout', attrs.layout], ['src', attrs.src], ['alt', attrs.alt],
           ['srcset', attrs.srcset], ['data-site-editor-variant', attrs.variant], ['class', attrs.className]]) {
           // Flush pending CSSOM serialization before removing an originally absent style.
           if (name === 'style') element.getAttribute(name);
@@ -147,7 +147,7 @@
       restore();
       for (const [id, patch] of Object.entries(doc.patches)) {
         const target = texts.get(id);
-        if (target && ('text' in patch || 'rich' in patch || 'style' in patch)) {
+        if (target && ('text' in patch || 'rich' in patch || 'style' in patch || 'layout' in patch)) {
           if (target.node.parentNode !== target.element) {
             const originalParent = Array.from(parents.values()).find(item => item.element === target.element);
             if (!originalParent || target.element.querySelector(PROTECTED)) continue;
@@ -160,6 +160,7 @@
           if ('rich' in patch && global.SiteEditorRich) wrapper.append(global.SiteEditorRich.renderRuns(patch.rich));
           else wrapper.textContent = 'rich' in patch ? patch.rich.map(run => run.text).join('') : ('text' in patch ? patch.text : target.original);
           if (patch.style && global.SiteEditorRich) global.SiteEditorRich.applyStyle(wrapper, patch.style);
+          if (patch.layout && global.SiteEditorRich) global.SiteEditorRich.applyLayout(wrapper, patch.layout);
           target.node.replaceWith(wrapper);
           textWrappers.set(id, wrapper);
           // Original-language overrides should not be overwritten by runtime dictionaries.
@@ -177,6 +178,9 @@
         const visual = components.get(id);
         if (visual) {
           const element = visual.element;
+          if (visual.type === 'image' && patch.layout && global.SiteEditorRich) {
+            touched.add(element); global.SiteEditorRich.applyLayout(element, patch.layout, true);
+          }
           if (visual.type === 'image' && ('src' in patch || 'alt' in patch)) {
             touched.add(element);
             if ('src' in patch) {

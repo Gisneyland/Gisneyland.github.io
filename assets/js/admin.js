@@ -194,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectedResponseIds = new Set();
   let screeningInstitutions = [];
   let externalLinks = [];
+  let localBureaus = [];
   let selectedMapPlace = null;
   const taskFilter = document.getElementById('task-filter');
   const placeFilterChip = document.getElementById('place-filter-chip');
@@ -205,6 +206,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const institutionList = document.getElementById('screening-institution-list');
   const institutionForm = document.getElementById('screening-institution-form');
   const institutionStatus = document.getElementById('screening-institution-status');
+  const selectedLinkNationalities = new Set();
+  const linkNationalitySearch = document.getElementById('external-link-nationality-search');
+  const linkNationalityOptions = document.getElementById('external-link-nationality-options');
+  const linkNationalitySelected = document.getElementById('external-link-nationality-selected');
+  const bureauCard = document.getElementById('local-bureaus-card');
+  const bureauList = document.getElementById('local-bureau-list');
+  const bureauForm = document.getElementById('local-bureau-form');
+  const bureauStatus = document.getElementById('local-bureau-status');
   const responseBody = document.getElementById('responses-body');
   const emptyState = document.getElementById('empty-state');
   const dialog = document.getElementById('response-dialog');
@@ -944,6 +953,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   initializeCdcExport();
   initializeInstitutionSettings();
+  initializeBureauSettings();
   initializeExternalLinkSettings();
   mapModeControls.forEach(control => control.addEventListener('change', () => { currentPage = 1; renderResponses(); }));
   [screeningRangeStart, screeningRangeEnd].forEach(input => {
@@ -1051,6 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadScreenerNumber(data.session);
     if (window.StaffAccess.canAccess(profile, 'questionnaire.read')) {
       await loadScreeningInstitutions();
+      await loadLocalBureaus();
       await loadExternalLinks();
       await loadResponses();
     }
@@ -1984,7 +1995,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const row = document.createElement('tr');
       row.tabIndex = 0;
       const uploadState = CdcUploadModel.getUploadState(response);
-      row.setAttribute('aria-label', `${formatDate(response.created_at)}，${CdcUploadModel.stateLabel(uploadState)}，${consultationCode ? `諮詢代碼 ${consultationCode}` : '諮詢待處理'}。雙擊或按 Enter 查看詳細資料。`);
+      row.setAttribute('aria-label', `${formatDate(response.created_at)}，${CdcUploadModel.stateLabel(uploadState, localBureaus)}，${consultationCode ? `諮詢代碼 ${consultationCode}` : '諮詢待處理'}。雙擊或按 Enter 查看詳細資料。`);
       row.classList.add(consultationCode ? 'is-consultation-complete' : 'is-consultation-pending');
       const consultationCodeCell = consultationCode
         ? `<span class="consultation-code-badge is-complete">${escapeHtml(consultationCode)}</span>`
@@ -2034,10 +2045,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderUploadStatusCell(response, state) {
-    const badge = `<span class="response-status-badge is-${state.key}">${escapeHtml(CdcUploadModel.stateLabel(state))}</span>`;
+    const badge = `<span class="response-status-badge is-${state.key}">${escapeHtml(CdcUploadModel.stateLabel(state, localBureaus))}</span>`;
     const entries = CdcUploadModel.getCodeEntries(response);
     if (!entries.length) return badge;
-    const details = entries.map(entry => `<span class="upload-code-entry ${entry.uploaded_at ? 'is-uploaded' : 'is-pending'}" title="${entry.uploaded_at ? `已於 ${escapeHtml(formatDate(entry.uploaded_at))} 上傳` : '尚未上傳'}">${escapeHtml(entry.code)}→${escapeHtml(CdcUploadModel.UNITS[entry.unit])}${entry.uploaded_at ? ' ✓' : ''}</span>`).join('');
+    const details = entries.map(entry => `<span class="upload-code-entry ${entry.uploaded_at ? 'is-uploaded' : 'is-pending'}" title="${entry.uploaded_at ? `已於 ${escapeHtml(formatDate(entry.uploaded_at))} 上傳` : '尚未上傳'}">${escapeHtml(entry.code)}→${escapeHtml(CdcUploadModel.unitLabel(entry, localBureaus))}${entry.uploaded_at ? ' ✓' : ''}</span>`).join('');
     return `${badge}<div class="upload-code-list">${details}</div>`;
   }
 
@@ -2072,13 +2083,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderTaskChips(response) {
     const tasks = getResponseTasks(response);
     if (!tasks.length) return '';
-    return `<div class="task-chip-list">${tasks.map(task => `<span class="task-chip ${task.done ? 'is-done' : 'is-pending'}" title="${task.done ? '已完成' : '尚未完成'}">${task.done ? '✓' : '○'} ${escapeHtml(task.link.label)}</span>`).join('')}</div>`;
+    return `<div class="task-chip-list">${tasks.filter(task => !task.locked).map(task => `<span class="task-chip ${task.done ? 'is-done' : 'is-pending'}" title="${task.done ? '已完成' : '尚未完成'}">${task.done ? '✓' : '○'} ${escapeHtml(task.link.label)}</span>`).join('')}</div>`;
   }
 
   async function loadExternalLinks() {
     const { data, error } = await window.questionnaireSupabase
       .from('external_links')
-      .select('id, kind, nationality, match_keywords, label, url')
+      .select('id, kind, nationality, nationalities, match_keywords, label, url')
       .order('created_at', { ascending: true });
     if (error) {
       showStatus(externalLinkStatus, '無法載入待辦連結，請確認已執行最新資料庫更新。', true);
@@ -2102,16 +2113,70 @@ document.addEventListener('DOMContentLoaded', () => {
     return choices;
   }
 
-  function resolveCountry(input) {
-    const text = ExternalTasksModel.norm(input);
-    if (!text) return '';
-    const match = countryChoices().find(choice => ExternalTasksModel.norm(choice.code) === text || ExternalTasksModel.norm(choice.name) === text);
-    return match ? match.code : String(input).trim();
-  }
-
   function describeNationality(value) {
     const match = countryChoices().find(choice => choice.code === String(value).toUpperCase());
     return match ? `${match.name} (${match.code})` : value;
+  }
+
+  function renderLinkNationalities() {
+    linkNationalitySelected.replaceChildren(...[...selectedLinkNationalities].map(code => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'selected-value';
+      chip.dataset.removeLinkNationality = code;
+      chip.setAttribute('aria-label', `移除國籍 ${describeNationality(code)}`);
+      chip.textContent = `${describeNationality(code)} ×`;
+      return chip;
+    }));
+    linkNationalityOptions.querySelectorAll('input[data-link-nationality]').forEach(box => {
+      box.checked = selectedLinkNationalities.has(box.value);
+    });
+  }
+
+  function setLinkNationalities(codes) {
+    selectedLinkNationalities.clear();
+    codes.forEach(code => selectedLinkNationalities.add(code));
+    linkNationalitySearch.value = '';
+    filterLinkNationalities();
+    renderLinkNationalities();
+  }
+
+  function filterLinkNationalities() {
+    const query = linkNationalitySearch.value.trim().toLocaleLowerCase();
+    linkNationalityOptions.querySelectorAll('.admin-nationality-option').forEach(option => {
+      option.hidden = query !== '' && !option.dataset.searchText.includes(query);
+    });
+  }
+
+  function initializeLinkNationalityPicker() {
+    linkNationalityOptions.replaceChildren(...countryChoices().map(choice => {
+      const label = document.createElement('label');
+      label.className = 'admin-nationality-option';
+      label.dataset.searchText = `${choice.name} ${choice.code}`.toLocaleLowerCase();
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = choice.code;
+      box.dataset.linkNationality = 'true';
+      const name = document.createElement('span');
+      name.className = 'admin-nationality-option-name';
+      name.textContent = `${choice.name} (${choice.code})`;
+      label.append(box, name);
+      return label;
+    }));
+    linkNationalitySearch.addEventListener('input', filterLinkNationalities);
+    linkNationalityOptions.addEventListener('change', event => {
+      const box = event.target;
+      if (!box.matches('input[data-link-nationality]')) return;
+      if (box.checked) selectedLinkNationalities.add(box.value);
+      else selectedLinkNationalities.delete(box.value);
+      renderLinkNationalities();
+    });
+    linkNationalitySelected.addEventListener('click', event => {
+      const button = event.target.closest('[data-remove-link-nationality]');
+      if (!button) return;
+      selectedLinkNationalities.delete(button.dataset.removeLinkNationality);
+      renderLinkNationalities();
+    });
   }
 
   function renderExternalLinks() {
@@ -2125,7 +2190,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const text = document.createElement('div');
       text.className = 'external-link-text';
       const target = link.kind === 'nationality_questionnaire'
-        ? describeNationality(link.nationality)
+        ? ExternalTasksModel.linkNationalities(link).map(code => describeNationality(code.toUpperCase())).join('、')
         : ((link.match_keywords || []).join('、') || '全部地點');
       const badge = document.createElement('span');
       badge.className = 'external-link-kind';
@@ -2163,7 +2228,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const values = externalLinkForm.elements;
           values.id.value = link.id;
           values.kind.value = link.kind;
-          values.nationality.value = link.nationality || '';
+          setLinkNationalities(ExternalTasksModel.linkNationalities(link).map(code => code.toUpperCase()));
           values.keywords.value = (link.match_keywords || []).join(', ');
           values.label.value = link.label;
           values.url.value = link.url;
@@ -2199,10 +2264,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function initializeExternalLinkSettings() {
     if (!externalLinkForm) return;
-    const datalist = document.getElementById('external-link-countries');
-    datalist.replaceChildren(...countryChoices().map(choice => new Option(`${choice.name} (${choice.code})`, choice.name)));
+    initializeLinkNationalityPicker();
     const cancel = document.getElementById('external-link-cancel');
-    const reset = () => { externalLinkForm.reset(); externalLinkForm.elements.id.value = ''; cancel.hidden = true; syncExternalLinkKind(); };
+    const reset = () => { externalLinkForm.reset(); externalLinkForm.elements.id.value = ''; setLinkNationalities([]); cancel.hidden = true; syncExternalLinkKind(); };
     externalLinkForm.elements.kind.addEventListener('change', syncExternalLinkKind);
     cancel.addEventListener('click', reset);
     externalLinkForm.addEventListener('submit', async event => {
@@ -2211,19 +2275,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const kind = values.kind.value;
       const record = {
         kind,
-        nationality: kind === 'nationality_questionnaire' ? resolveCountry(values.nationality.value) : '',
+        nationality: kind === 'nationality_questionnaire' ? [...selectedLinkNationalities][0] || '' : '',
+        nationalities: kind === 'nationality_questionnaire' ? [...selectedLinkNationalities] : [],
         match_keywords: kind === 'agency_site'
           ? [...new Set(values.keywords.value.split(/[,，、;；]+/).map(word => word.trim()).filter(Boolean))]
           : [],
         label: values.label.value.trim(),
         url: values.url.value.trim()
       };
-      if (kind === 'nationality_questionnaire' && !record.nationality) { showStatus(externalLinkStatus, '請填寫國籍。', true); return; }
+      if (kind === 'nationality_questionnaire' && !record.nationalities.length) { showStatus(externalLinkStatus, '請至少選擇一個國籍。', true); return; }
       if (!ExternalTasksModel.isSafeUrl(record.url)) { showStatus(externalLinkStatus, '網址需以 http:// 或 https:// 開頭。', true); return; }
       const id = values.id.value;
       const table = window.questionnaireSupabase.from('external_links');
       const { data, error } = await (id ? table.update(record).eq('id', id) : table.insert(record))
-        .select('id, kind, nationality, match_keywords, label, url').maybeSingle();
+        .select('id, kind, nationality, nationalities, match_keywords, label, url').maybeSingle();
       if (error || !data) { showStatus(externalLinkStatus, '儲存失敗，請確認帳號具編輯權限。', true); return; }
       externalLinks = id ? externalLinks.map(entry => (entry.id === id ? data : entry)) : [...externalLinks, data];
       reset();
@@ -2253,13 +2318,19 @@ document.addEventListener('DOMContentLoaded', () => {
     status.hidden = true;
     tasks.forEach(task => {
       const item = document.createElement('li');
-      item.className = task.done ? 'is-done' : 'is-pending';
+      item.className = task.done ? 'is-done' : task.locked ? 'is-locked' : 'is-pending';
       const label = document.createElement('label');
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.checked = task.done;
-      box.disabled = !canEdit;
+      box.disabled = !canEdit || task.locked;
       label.append(box, ` ${task.link.label}`);
+      if (task.locked) {
+        const note = document.createElement('small');
+        note.className = 'admin-muted';
+        note.textContent = '（已完成其他外國問卷，每筆紀錄僅需填一份）';
+        label.append(note);
+      }
       const open = document.createElement('a');
       open.className = 'admin-button secondary';
       open.target = '_blank';
@@ -2380,6 +2451,85 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  async function loadLocalBureaus() {
+    const { data, error } = await window.questionnaireSupabase
+      .from('local_health_bureaus')
+      .select('id, name')
+      .order('created_at', { ascending: true });
+    if (error) {
+      showStatus(bureauStatus, '無法載入地方衛生局清單，請確認已執行最新資料庫更新。', true);
+      return;
+    }
+    localBureaus = data || [];
+    renderLocalBureaus();
+  }
+
+  function renderLocalBureaus() {
+    if (!bureauCard) return;
+    bureauCard.hidden = !window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.read');
+    const canEdit = window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation');
+    bureauForm.hidden = !canEdit;
+    bureauList.replaceChildren(...localBureaus.map(bureau => {
+      const item = document.createElement('li');
+      const text = document.createElement('span');
+      text.textContent = bureau.name;
+      item.append(text);
+      if (canEdit) {
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'admin-button secondary';
+        edit.textContent = '編輯';
+        edit.addEventListener('click', () => {
+          bureauForm.elements.id.value = bureau.id;
+          bureauForm.elements.name.value = bureau.name;
+          document.getElementById('local-bureau-cancel').hidden = false;
+          bureauForm.elements.name.focus();
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'admin-button secondary';
+        remove.textContent = '刪除';
+        remove.addEventListener('click', async () => {
+          if (!window.confirm(`確定刪除「${bureau.name}」？已指定此衛生局的諮詢代碼會顯示為「地方衛生局（已刪除）」。`)) return;
+          const { error } = await window.questionnaireSupabase.from('local_health_bureaus').delete().eq('id', bureau.id);
+          if (error) { showStatus(bureauStatus, '刪除失敗，請確認帳號具編輯權限。', true); return; }
+          localBureaus = localBureaus.filter(entry => entry.id !== bureau.id);
+          renderLocalBureaus();
+          renderResponses();
+          showStatus(bureauStatus, '已刪除。');
+        });
+        item.append(edit, remove);
+      }
+      return item;
+    }));
+  }
+
+  function initializeBureauSettings() {
+    if (!bureauForm) return;
+    const cancel = document.getElementById('local-bureau-cancel');
+    const reset = () => { bureauForm.reset(); bureauForm.elements.id.value = ''; cancel.hidden = true; };
+    cancel.addEventListener('click', reset);
+    bureauForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const id = bureauForm.elements.id.value;
+      const name = bureauForm.elements.name.value.trim();
+      if (localBureaus.some(entry => entry.id !== id && entry.name === name)) {
+        showStatus(bureauStatus, '已有相同名稱的衛生局。', true);
+        return;
+      }
+      const table = window.questionnaireSupabase.from('local_health_bureaus');
+      const { data, error } = await (id ? table.update({ name }).eq('id', id) : table.insert({ name })).select('id, name').maybeSingle();
+      if (error || !data) { showStatus(bureauStatus, '儲存失敗，請確認帳號具編輯權限。', true); return; }
+      localBureaus = id
+        ? localBureaus.map(entry => (entry.id === id ? data : entry))
+        : [...localBureaus, data];
+      reset();
+      renderLocalBureaus();
+      renderResponses();
+      showStatus(bureauStatus, '已儲存衛生局。');
+    });
+  }
+
   function initializeCdcExport() {
     if (!cdcExportButton || !cdcExportDialog || !cdcExportForm) return;
     const STORAGE_KEY = 'cdcExportSettings';
@@ -2394,6 +2544,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const values = Object.fromEntries(new FormData(cdcExportForm).entries());
       return { ...values, includeUploaded: cdcExportForm.elements.includeUploaded.checked };
     };
+    const bureauSelect = cdcExportForm.elements.bureauId;
+    const exportTargetLabel = options => (options.unit === 'local' && options.bureauId
+      ? localBureaus.find(bureau => bureau.id === options.bureauId)?.name || CdcUploadModel.UNITS.local
+      : CdcUploadModel.UNITS[options.unit]);
+    const syncBureauOptions = () => {
+      if (!bureauSelect) return;
+      const current = bureauSelect.value;
+      bureauSelect.replaceChildren(new Option('全部地方衛生局（含未指定）', ''), ...localBureaus.map(bureau => new Option(bureau.name, bureau.id)));
+      bureauSelect.value = localBureaus.some(bureau => bureau.id === current) ? current : '';
+      const isLocal = cdcExportForm.elements.unit.value === 'local';
+      bureauSelect.closest('label').hidden = !isLocal;
+    };
     const getTargets = () => {
       if (selectedResponseIds.size) return responses.filter(response => selectedResponseIds.has(response.id));
       return getFilteredResponses();
@@ -2401,6 +2563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const syncMethodFields = () => {
       const method = cdcExportForm.elements.method.value;
       cdcExportForm.querySelectorAll('[data-method]').forEach(label => { label.hidden = label.dataset.method !== method; });
+      syncBureauOptions();
     };
     const refreshPreview = () => {
       const targets = getTargets();
@@ -2408,7 +2571,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const { rows, skipped } = CdcUploadModel.buildImportRows(targets, { ...options, institutions: screeningInstitutions });
       const files = Math.ceil(rows.length / CdcUploadModel.MAX_ROWS_PER_FILE);
       scopeElement.textContent = `${selectedResponseIds.size ? `已選取 ${targets.length} 筆問卷` : `未選取資料，將使用目前篩選的 ${targets.length} 筆問卷`}；`
-        + `可匯出 ${rows.length} 組送往${CdcUploadModel.UNITS[options.unit]}的諮詢代碼${files > 1 ? `（將分成 ${files} 個檔案）` : ''}。`;
+        + `可匯出 ${rows.length} 組送往${exportTargetLabel(options)}的諮詢代碼${files > 1 ? `（將分成 ${files} 個檔案）` : ''}。`;
       skippedList.replaceChildren(...skipped.map(item => {
         const li = document.createElement('li');
         li.textContent = `代碼 ${item.code}：${item.reason}`;
@@ -2468,10 +2631,10 @@ document.addEventListener('DOMContentLoaded', () => {
           downloadBlob(blob, `cdc-upload-${options.unit}-${stamp}${chunks.length > 1 ? `-${index + 1}` : ''}.xlsx`);
           await new Promise(resolve => window.setTimeout(resolve, 300));
         }
-        lastExport = { unit: options.unit, rows };
-        markButton.textContent = `標記這 ${rows.length} 組代碼為已上傳${CdcUploadModel.UNITS[options.unit]}`;
+        lastExport = { unit: options.unit, bureauId: options.unit === 'local' ? options.bureauId : '', rows };
+        markButton.textContent = `標記這 ${rows.length} 組代碼為已上傳${exportTargetLabel(options)}`;
         markButton.hidden = false;
-        showStatus(statusElement, `已產生 ${chunks.length} 個檔案。請上傳至${CdcUploadModel.UNITS[options.unit]}系統，完成後按「標記為已上傳」。`);
+        showStatus(statusElement, `已產生 ${chunks.length} 個檔案。請上傳至${exportTargetLabel(options)}系統，完成後按「標記為已上傳」。`);
       } catch {
         showStatus(statusElement, '無法產生檔案，請確認範例檔可讀取後再試一次。', true);
       }
@@ -2492,7 +2655,7 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const [id, codes] of codesByResponse) {
         const target = responses.find(response => response.id === id);
         if (!target) continue;
-        const nextUploads = CdcUploadModel.markUploaded(target, codes, lastExport.unit, at, activeUser?.id);
+        const nextUploads = CdcUploadModel.markUploaded(target, codes, lastExport.unit, at, activeUser?.id, lastExport.bureauId);
         const { data: updated, error } = await window.questionnaireSupabase
           .from('questionnaire_responses')
           .update({ consult_uploads: nextUploads })
@@ -3230,7 +3393,7 @@ document.addEventListener('DOMContentLoaded', () => {
     responseSubtitle.replaceChildren();
     const badge = document.createElement('span');
     badge.className = `response-status-badge is-${state.key}`;
-    badge.textContent = CdcUploadModel.stateLabel(state);
+    badge.textContent = CdcUploadModel.stateLabel(state, localBureaus);
     responseSubtitle.append(badge, ` ${formatDate(response.created_at)}｜${data.screener || '未填篩檢員'}｜${data.screening_place || '未填地點'}`);
     const list = getFilteredResponses();
     const index = list.findIndex(entry => entry.id === response.id);
@@ -3355,8 +3518,8 @@ document.addEventListener('DOMContentLoaded', () => {
       nextAction.textContent = '前往諮詢與上傳';
       nextAction.addEventListener('click', goto('consult'));
     } else if (state.key === 'needs-upload') {
-      nextTitle.textContent = `下一步：${CdcUploadModel.stateLabel(state)}`;
-      nextText.textContent = state.pending.map(entry => `${entry.code}→${CdcUploadModel.UNITS[entry.unit]}`).join('、');
+      nextTitle.textContent = `下一步：${CdcUploadModel.stateLabel(state, localBureaus)}`;
+      nextText.textContent = state.pending.map(entry => `${entry.code}→${CdcUploadModel.unitLabel(entry, localBureaus)}`).join('、');
       nextAction.textContent = '前往諮詢與上傳';
       nextAction.addEventListener('click', goto('consult'));
     } else {
@@ -3937,9 +4100,44 @@ document.addEventListener('DOMContentLoaded', () => {
         // 新代碼預設為尚未使用的單位，方便同一份問卷同時上傳地方衛生局與疾管署
         const used = new Set([...codeMeta.values()].map(entry => entry.unit));
         const unit = ['cdc', 'local'].find(key => !used.has(key)) || CdcUploadModel.DEFAULT_UNIT;
-        codeMeta.set(code, { code, unit, uploaded_at: null, uploaded_by: null });
+        codeMeta.set(code, { code, unit, bureau_id: null, uploaded_at: null, uploaded_by: null });
       }
       return codeMeta.get(code);
+    };
+
+    let editingCodeIndex = -1;
+    const createCodeAction = (icon, text, label, className = '') => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `consultation-code-action ${className}`.trim();
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.append(createMaterialIcon(icon));
+      const span = document.createElement('span');
+      span.textContent = text;
+      button.append(span);
+      return button;
+    };
+
+    const commitCodeRename = (index, input) => {
+      const oldCode = consultationCodes[index];
+      const next = input.value.trim();
+      input.setCustomValidity('');
+      if (next !== oldCode) {
+        if (!/^[A-Za-z0-9-]{4,32}$/.test(next)) input.setCustomValidity('每組代碼需為 4–32 個英數字或連字號。');
+        else if (consultationCodes.includes(next)) input.setCustomValidity('此代碼已存在。');
+        if (input.validationMessage) {
+          input.reportValidity();
+          return;
+        }
+        const meta = metaFor(oldCode);
+        codeMeta.delete(oldCode);
+        codeMeta.set(next, { ...meta, code: next, uploaded_at: null, uploaded_by: null });
+        consultationCodes[index] = next;
+        markDialogDirty('consult');
+      }
+      editingCodeIndex = -1;
+      renderConsultationCodeTags();
     };
 
     const renderConsultationCodeTags = () => {
@@ -3947,46 +4145,125 @@ document.addEventListener('DOMContentLoaded', () => {
       codeTags.hidden = consultationCodes.length === 0;
       consultationCodes.forEach((code, index) => {
         const meta = metaFor(code);
-        const row = document.createElement('div');
-        row.className = 'consultation-code-row';
-        const label = document.createElement('span');
-        label.className = 'consultation-code-text';
-        label.textContent = code;
+        const isUploaded = Boolean(meta.uploaded_at);
+        const isEditing = editingCodeIndex === index;
+        const card = document.createElement('div');
+        card.className = 'consultation-code-card';
+        card.classList.toggle('is-uploaded', isUploaded);
+        card.setAttribute('role', 'group');
+        card.setAttribute('aria-label', `諮詢代碼 ${code}`);
+
+        const header = document.createElement('div');
+        header.className = 'consultation-code-card-header';
+        let codeInputEl = null;
+        if (isEditing) {
+          codeInputEl = document.createElement('input');
+          codeInputEl.type = 'text';
+          codeInputEl.className = 'consultation-code-edit-input';
+          codeInputEl.maxLength = 32;
+          codeInputEl.value = code;
+          codeInputEl.autocomplete = 'off';
+          codeInputEl.setAttribute('aria-label', `編輯諮詢代碼 ${code}`);
+          codeInputEl.addEventListener('input', () => codeInputEl.setCustomValidity(''));
+          codeInputEl.addEventListener('keydown', event => {
+            if (event.isComposing) return;
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commitCodeRename(index, codeInputEl);
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              editingCodeIndex = -1;
+              renderConsultationCodeTags();
+            }
+          });
+          header.append(codeInputEl);
+        } else {
+          const label = document.createElement('span');
+          label.className = 'consultation-code-text';
+          label.textContent = code;
+          header.append(label);
+        }
+        const badge = document.createElement('span');
+        badge.className = `consultation-code-status ${isUploaded ? 'is-uploaded' : 'is-pending'}`;
+        badge.textContent = isUploaded ? `已上傳 ${formatDate(meta.uploaded_at)}` : '尚未上傳';
+        header.append(badge);
+
+        const body = document.createElement('div');
+        body.className = 'consultation-code-card-body';
+        const unitLabel = document.createElement('label');
+        unitLabel.className = 'consultation-code-unit';
+        const unitText = document.createElement('span');
+        unitText.textContent = '上傳單位';
         const unitSelect = document.createElement('select');
         unitSelect.setAttribute('aria-label', `諮詢代碼 ${code} 上傳單位`);
         Object.entries(CdcUploadModel.UNITS).forEach(([value, text]) => unitSelect.add(new Option(text, value, false, value === meta.unit)));
         unitSelect.addEventListener('change', () => {
           meta.unit = unitSelect.value;
+          meta.bureau_id = null;
           meta.uploaded_at = null;
           meta.uploaded_by = null;
-          renderConsultationCodeTags();
-        });
-        const uploaded = document.createElement('button');
-        uploaded.type = 'button';
-        uploaded.className = 'consultation-code-action consultation-code-uploaded';
-        const isUploaded = Boolean(meta.uploaded_at);
-        uploaded.setAttribute('aria-pressed', String(isUploaded));
-        uploaded.classList.toggle('is-on', isUploaded);
-        const uploadedText = isUploaded ? `已上傳（${formatDate(meta.uploaded_at)}），點擊取消` : '尚未上傳，點擊標示為已上傳';
-        uploaded.title = uploadedText;
-        uploaded.setAttribute('aria-label', `諮詢代碼 ${code}：${uploadedText}`);
-        uploaded.append(createMaterialIcon(isUploaded ? 'cloud_done' : 'cloud_upload'));
-        uploaded.addEventListener('click', () => {
-          const next = !meta.uploaded_at;
-          meta.uploaded_at = next ? new Date().toISOString() : null;
-          meta.uploaded_by = next ? activeUser?.id || null : null;
           markDialogDirty('consult');
           renderConsultationCodeTags();
         });
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'consultation-code-action is-danger';
-        remove.dataset.codeIndex = index;
-        remove.title = `移除代碼 ${code}`;
-        remove.setAttribute('aria-label', `移除諮詢代碼 ${code}`);
-        remove.append(createMaterialIcon('delete'));
-        row.append(label, unitSelect, uploaded, remove);
-        codeTags.append(row);
+        unitLabel.append(unitText, unitSelect);
+        let bureauLabel = null;
+        if (meta.unit === 'local') {
+          bureauLabel = document.createElement('label');
+          bureauLabel.className = 'consultation-code-unit';
+          const bureauText = document.createElement('span');
+          bureauText.textContent = '衛生局';
+          const bureauSelect = document.createElement('select');
+          bureauSelect.setAttribute('aria-label', `諮詢代碼 ${code} 上傳的地方衛生局`);
+          bureauSelect.add(new Option(localBureaus.length ? '請選擇衛生局' : '尚未設定衛生局', ''));
+          localBureaus.forEach(bureau => bureauSelect.add(new Option(bureau.name, bureau.id, false, bureau.id === meta.bureau_id)));
+          if (meta.bureau_id && !localBureaus.some(bureau => bureau.id === meta.bureau_id)) {
+            bureauSelect.add(new Option('（已刪除的衛生局）', meta.bureau_id, false, true));
+          }
+          bureauSelect.addEventListener('change', () => {
+            meta.bureau_id = bureauSelect.value || null;
+            meta.uploaded_at = null;
+            meta.uploaded_by = null;
+            markDialogDirty('consult');
+            renderConsultationCodeTags();
+          });
+          bureauLabel.append(bureauText, bureauSelect);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'consultation-code-card-actions';
+        if (isEditing) {
+          const confirm = createCodeAction('check', '確定', `確定修改代碼 ${code}`, 'is-confirm');
+          confirm.addEventListener('click', () => commitCodeRename(index, codeInputEl));
+          const cancel = createCodeAction('close', '取消', '取消編輯');
+          cancel.addEventListener('click', () => {
+            editingCodeIndex = -1;
+            renderConsultationCodeTags();
+          });
+          actions.append(confirm, cancel);
+        } else {
+          const uploadedText = isUploaded ? `取消標示代碼 ${code} 為已上傳` : `標示代碼 ${code} 為已上傳`;
+          const uploaded = createCodeAction(isUploaded ? 'cloud_done' : 'cloud_upload', isUploaded ? '取消已上傳' : '標示已上傳', uploadedText, `consultation-code-uploaded${isUploaded ? ' is-on' : ''}`);
+          uploaded.setAttribute('aria-pressed', String(isUploaded));
+          uploaded.addEventListener('click', () => {
+            const next = !meta.uploaded_at;
+            meta.uploaded_at = next ? new Date().toISOString() : null;
+            meta.uploaded_by = next ? activeUser?.id || null : null;
+            markDialogDirty('consult');
+            renderConsultationCodeTags();
+          });
+          const edit = createCodeAction('edit', '編輯', `編輯代碼 ${code}`);
+          edit.addEventListener('click', () => {
+            editingCodeIndex = index;
+            renderConsultationCodeTags();
+            codeTags.querySelector('.consultation-code-edit-input')?.focus();
+          });
+          const remove = createCodeAction('delete', '刪除', `刪除代碼 ${code}`, 'is-danger');
+          remove.dataset.codeIndex = index;
+          actions.append(uploaded, edit, remove);
+        }
+        body.append(...[unitLabel, bureauLabel, actions].filter(Boolean));
+        card.append(header, body);
+        codeTags.append(card);
       });
     };
 
@@ -3995,7 +4272,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const invalidCode = incomingCodes.find(code => !/^[A-Za-z0-9-]{4,32}$/.test(code));
       const nextCodes = [...new Set([...consultationCodes, ...incomingCodes])];
       if (invalidCode) codeInput.setCustomValidity('每組代碼需為 4–32 個英數字或連字號。');
-      else if (nextCodes.length > 20) codeInput.setCustomValidity('每筆紀錄最多可輸入 20 組諮詢代碼。');
       else codeInput.setCustomValidity('');
       if (codeInput.validationMessage) {
         codeInput.reportValidity();

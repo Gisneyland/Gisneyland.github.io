@@ -19,6 +19,7 @@
       .map(item => ({
         code: item.code,
         unit: UNITS[item.unit] ? item.unit : DEFAULT_UNIT,
+        bureau_id: item.unit === 'local' && item.bureau_id ? String(item.bureau_id) : null,
         uploaded_at: item.uploaded_at || null,
         uploaded_by: item.uploaded_by || null
       }));
@@ -28,7 +29,7 @@
   function getCodeEntries(response) {
     const saved = new Map(normalizeUploads(response?.consult_uploads).map(item => [item.code, item]));
     const codes = splitCodes(response?.anonymous_consult_code ?? response?.response_data?.anonymous_consult_code);
-    return codes.map(code => saved.get(code) || { code, unit: DEFAULT_UNIT, uploaded_at: null, uploaded_by: null });
+    return codes.map(code => saved.get(code) || { code, unit: DEFAULT_UNIT, bureau_id: null, uploaded_at: null, uploaded_by: null });
   }
 
   function getUploadState(response) {
@@ -40,11 +41,19 @@
     return { key: 'uploaded', pending: [] };
   }
 
-  function stateLabel(state) {
+  // 地方衛生局顯示具體名稱；bureaus 為設定頁的衛生局清單 [{id,name}]
+  function unitLabel(entry, bureaus) {
+    if (entry.unit !== 'local') return UNITS[entry.unit];
+    if (!entry.bureau_id) return UNITS.local;
+    const bureau = (bureaus || []).find(item => item.id === entry.bureau_id);
+    return bureau ? bureau.name : `${UNITS.local}（已刪除）`;
+  }
+
+  function stateLabel(state, bureaus) {
     if (state.key === 'draft') return '草稿';
     if (state.key === 'needs-code') return '待填諮詢代碼';
     if (state.key === 'needs-upload') {
-      const units = [...new Set(state.pending.map(entry => UNITS[entry.unit]))];
+      const units = [...new Set(state.pending.map(entry => unitLabel(entry, bureaus)))];
       return `待上傳串接：${units.join('、')}`;
     }
     return '已上傳串接';
@@ -96,7 +105,7 @@
 
   /*
    * 每個尚未上傳到指定單位的諮詢代碼產生一列。
-   * options: { unit, includeUploaded, screeningUnitCode, institutions[{name,aliases}], method('rapid'|'initial'; 預設快篩), initialItem, told, cooperation }
+   * options: { unit, bureauId（unit 為 local 時只匯出指定衛生局）, includeUploaded, screeningUnitCode, institutions[{name,aliases}], method('rapid'|'initial'; 預設快篩), initialItem, told, cooperation }
    */
   function buildImportRows(responses, options) {
     const rows = [];
@@ -106,6 +115,7 @@
       const data = response.response_data || {};
       getCodeEntries(response).forEach(entry => {
         if (entry.unit !== unit) return;
+        if (unit === 'local' && options.bureauId && entry.bureau_id !== options.bureauId) return;
         if (entry.uploaded_at && !options.includeUploaded) return;
         const code = entry.code.replace(/^E/i, '');
         const reasons = [];
@@ -161,10 +171,10 @@
   }
 
   // 將指定單位下的這些代碼標記為已上傳，回傳完整的 consult_uploads
-  function markUploaded(response, codes, unit, at, by) {
+  function markUploaded(response, codes, unit, at, by, bureauId) {
     const wanted = new Set(codes);
     return getCodeEntries(response).map(entry => (
-      wanted.has(entry.code) && entry.unit === unit
+      wanted.has(entry.code) && entry.unit === unit && (!bureauId || entry.bureau_id === bureauId)
         ? { ...entry, uploaded_at: at, uploaded_by: by || null }
         : entry
     ));
@@ -172,7 +182,7 @@
 
   return {
     UNITS, DEFAULT_UNIT, MAX_ROWS_PER_FILE, FIRST_DATA_ROW,
-    splitCodes, normalizeUploads, getCodeEntries, getUploadState, stateLabel,
+    splitCodes, normalizeUploads, getCodeEntries, getUploadState, stateLabel, unitLabel,
     excelDateSerial, buildImportRows, siteCategory, rapidItem, chunkRows, validateOptions, markUploaded
   };
 });

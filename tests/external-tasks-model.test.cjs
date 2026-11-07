@@ -20,7 +20,7 @@ test('tasks follow every nationality, multiple links and place keywords', () => 
 test('progress is tracked per link and drafts have no tasks', () => {
   const response = { status: 'submitted', task_progress: { a: { done_at: 'now' } }, response_data: { nationality: 'TH', screening_place: 'x' } };
   const tasks = model.getTasks(response, links);
-  assert.deepEqual(model.summarize(tasks), { total: 3, done: 1, pending: 2 });
+  assert.deepEqual(model.summarize(tasks), { total: 2, done: 1, pending: 1 });
   assert.deepEqual(model.getTasks({ ...response, status: 'draft' }, links), []);
   assert.deepEqual(Object.keys(model.setDone(response.task_progress, 'b', true, 'now', 'u')), ['a', 'b']);
   assert.deepEqual(model.setDone(response.task_progress, 'a', false), {});
@@ -29,4 +29,23 @@ test('progress is tracked per link and drafts have no tasks', () => {
 test('only http(s) urls are accepted', () => {
   assert.equal(model.isSafeUrl('https://example.com/x'), true);
   assert.equal(model.isSafeUrl('javascript:alert(1)'), false);
+});
+
+test('one link can apply to several nationalities, with legacy single nationality still working', () => {
+  const multi = { id: 'm', kind: 'nationality_questionnaire', nationalities: ['TH', 'vn'], nationality: 'TH', label: 'x', url: 'https://example.com' };
+  const legacy = { id: 'l', kind: 'nationality_questionnaire', nationality: 'JP', label: 'y', url: 'https://example.com' };
+  const ids = nationality => model.getTasks({ status: 'submitted', response_data: { nationality } }, [multi, legacy]).map(task => task.link.id);
+  assert.deepEqual(ids(['VN']), ['m']);
+  assert.deepEqual(ids(['TH', 'JP']), ['m', 'l']);
+  assert.deepEqual(ids('ID'), []);
+  assert.deepEqual(model.linkNationalities(multi), ['th', 'vn']);
+});
+
+test('only one foreign questionnaire is needed per record', () => {
+  const response = { status: 'submitted', task_progress: { a: { done_at: 'now' } }, response_data: { nationality: ['TH', 'JP'], screening_place: 'x' } };
+  const tasks = model.getTasks(response, links);
+  assert.deepEqual(tasks.filter(task => task.locked).map(task => task.link.id), ['b', 'c']);
+  assert.deepEqual(model.summarize(tasks), { total: 2, done: 1, pending: 1 });
+  const open = model.getTasks({ ...response, task_progress: {} }, links);
+  assert.equal(open.some(task => task.locked), false);
 });

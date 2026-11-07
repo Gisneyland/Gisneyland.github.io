@@ -31,16 +31,72 @@
     // Existing elements are styled in place: their protected descendants are never replaced.
     element.style.listStyleType = style === 'ul' ? 'disc' : style === 'ol' ? 'decimal' : '';
   }
+  const LEADING = { tight: '1.3', relaxed: '1.9', loose: '2.4' };
+  const TRACKING = { tight: '-0.02em', wide: '0.05em', wider: '0.12em' };
+  // Layout is a fixed vocabulary (see SiteEditorModel.layout); values never come from user-supplied CSS.
+  function applyLayout(element, layout, media = false) {
+    const safe = M.layout(layout || {});
+    const has = Object.keys(safe).length > 0;
+    if (has) element.setAttribute('data-site-editor-layout', '');
+    else element.removeAttribute('data-site-editor-layout');
+    if (!media) for (const name of ['textAlign', 'marginInlineStart', 'lineHeight', 'letterSpacing']) element.style[name] = '';
+    if (safe.align && !media) {
+      element.style.textAlign = safe.align;
+      if (getComputedDisplayInline(element)) element.style.display = 'block';
+    }
+    if (media) {
+      element.style.display = 'block';
+      element.style.height = 'auto';
+      if (safe.width) element.style.width = `${safe.width}%`;
+      if (safe.align) {
+        element.style.marginInline = safe.align === 'center' ? 'auto' : safe.align === 'right' ? 'auto 0' : '0 auto';
+      }
+    } else {
+      if (safe.indent) element.style.marginInlineStart = `${safe.indent * 2}em`;
+      if (safe.leading) element.style.lineHeight = LEADING[safe.leading];
+      if (safe.tracking) element.style.letterSpacing = TRACKING[safe.tracking];
+    }
+    return element;
+  }
+  function getComputedDisplayInline(element) {
+    return !element.style.display && /^(SPAN|A|EM|STRONG|B|I|U)$/.test(element.tagName);
+  }
+  const SIZE_EM = { small: '0.875em', large: '1.25em', xlarge: '1.75em', xxlarge: '2.25em' };
+  const FAMILY_CSS = {
+    sans: '"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif',
+    serif: '"Noto Serif TC","PMingLiU",serif',
+    kai: '"DFKai-SB","BiauKai","Kaiti TC",serif',
+    mono: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace'
+  };
+  const compactFont = value => String(value || '').toLowerCase().replace(/["'\s]/g, '');
+  function sizeFrom(value, fontAttribute) {
+    if (fontAttribute) return ({ 1: 'small', 2: 'small', 4: 'large', 5: 'xlarge', 6: 'xxlarge', 7: 'xxlarge' })[fontAttribute] || null;
+    const match = /^(\d*\.?\d+)(px|em|rem|%)$/.exec(value || '');
+    if (!match) return null;
+    const ratio = Number(match[1]) / ({ px: 16, em: 1, rem: 1, '%': 100 })[match[2]];
+    return ratio < 0.95 ? 'small' : ratio <= 1.05 ? null : ratio < 1.5 ? 'large' : ratio < 2 ? 'xlarge' : 'xxlarge';
+  }
+  function familyFrom(value) {
+    const text = compactFont(value);
+    const token = /rc-(sans|serif|kai|mono)/.exec(text);
+    if (token) return token[1];
+    return Object.keys(FAMILY_CSS).find(name => compactFont(FAMILY_CSS[name]) === text) || null;
+  }
   function renderRuns(runs) {
     const fragment = document.createDocumentFragment();
     for (const run of M.runs(runs)) {
       let content = document.createTextNode(run.text);
       for (const [enabled, tag] of [[run.bold, 'strong'], [run.italic, 'em'], [run.underline, 'u'],
-        [run.highlight, 'mark'], [run.script === 'sub', 'sub'], [run.script === 'super', 'sup']]) {
+        [run.strike, 's'], [run.highlight, 'mark'], [run.script === 'sub', 'sub'], [run.script === 'super', 'sup']]) {
         if (enabled) { const wrapper = node(tag); wrapper.append(content); content = wrapper; }
       }
-      if (run.color) {
-        const wrapper = node('span'); wrapper.style.color = run.color; wrapper.append(content); content = wrapper;
+      if (run.color || run.size || run.family || run.background) {
+        const wrapper = node('span');
+        if (run.color) wrapper.style.color = run.color;
+        if (run.background) wrapper.style.backgroundColor = run.background;
+        if (run.size) wrapper.style.fontSize = SIZE_EM[run.size];
+        if (run.family) wrapper.style.fontFamily = FAMILY_CSS[run.family];
+        wrapper.append(content); content = wrapper;
       }
       if (run.href) {
         const wrapper = node('a'); wrapper.href = run.href; wrapper.append(content); content = wrapper;
@@ -77,7 +133,7 @@
       if (current.nodeType !== 1 && current.nodeType !== 11) return;
       if (current.nodeType === 1 && current.matches('script,style,iframe,object,svg,math,[data-site-editor-protected]')) return;
       const flags = { ...inherited }, tag = current.tagName;
-      for (const [tags, flag] of [[['STRONG', 'B'], 'bold'], [['EM', 'I'], 'italic'], [['U'], 'underline'], [['MARK'], 'highlight']]) {
+      for (const [tags, flag] of [[['STRONG', 'B'], 'bold'], [['EM', 'I'], 'italic'], [['U'], 'underline'], [['S', 'STRIKE', 'DEL'], 'strike'], [['MARK'], 'highlight']]) {
         if (tags.includes(tag)) flags[flag] = true;
       }
       if (tag === 'SUB' || tag === 'SUP') flags.script = tag === 'SUB' ? 'sub' : 'super';
@@ -86,14 +142,26 @@
       const style = current.style;
       const color = hexColor(style?.color || (tag === 'FONT' ? current.getAttribute('color') : ''));
       if (color) flags.color = color;
+      const presentationRoot = current === element && current.hasAttribute('data-site-editor-style');
+      if (!presentationRoot) {
+        const fontSize = tag === 'FONT' && current.hasAttribute('size') ? sizeFrom('', current.getAttribute('size').replace(/^\+/, '')) : sizeFrom(style?.fontSize);
+        const explicit = (tag === 'FONT' && current.hasAttribute('size')) || style?.fontSize;
+        if (fontSize) flags.size = fontSize; else if (explicit) delete flags.size;
+        const face = familyFrom(style?.fontFamily || (tag === 'FONT' ? current.getAttribute('face') : ''));
+        if (face) flags.family = face;
+        else if (style?.fontFamily || (tag === 'FONT' && current.hasAttribute('face'))) delete flags.family;
+      }
       if (style) {
-        const presentationRoot = current === element && current.hasAttribute('data-site-editor-style');
         if (style.fontWeight && !presentationRoot) flags.bold = /^(bold|bolder)$/.test(style.fontWeight) || Number(style.fontWeight) >= 600;
         if (style.fontStyle) flags.italic = /^(italic|oblique)/.test(style.fontStyle);
         const decoration = style.textDecorationLine || style.textDecoration;
-        if (decoration) flags.underline = decoration.includes('underline');
+        if (decoration) { flags.underline = decoration.includes('underline'); flags.strike = decoration.includes('line-through'); }
         if (style.backgroundColor) {
-          flags.highlight = style.backgroundColor !== 'transparent' && !/^rgba\([^)]*,\s*0(?:\.0*)?\s*\)$/.test(style.backgroundColor);
+          const transparent = style.backgroundColor === 'transparent' || /^rgba\([^)]*,\s*0(?:\.0*)?\s*\)$/.test(style.backgroundColor);
+          const background = transparent ? null : hexColor(style.backgroundColor);
+          delete flags.background;
+          if (background && background.toLowerCase() !== '#fff59d') { flags.highlight = false; flags.background = background; }
+          else flags.highlight = !transparent;
         }
         if (['sub', 'super'].includes(style.verticalAlign)) flags.script = style.verticalAlign;
         else if (style.verticalAlign === 'baseline') delete flags.script;
@@ -104,6 +172,13 @@
         for (const child of current.childNodes) {
           const block = child.nodeType === 1 && /^(DIV|P|H[1-6]|BLOCKQUOTE|LI|UL|OL)$/.test(child.tagName);
           if ((block || previousBlock) && result.length && !result[result.length - 1].text.endsWith('\n')) append('\n', flags);
+          if (child.nodeType === 1 && child.tagName === 'LI') {
+            let nesting = 0;
+            for (let parent = child.parentElement; parent && parent !== element.parentElement; parent = parent.parentElement) {
+              if (parent.tagName === 'UL' || parent.tagName === 'OL') nesting += 1;
+            }
+            if (nesting > 1) append('\t'.repeat(Math.min(nesting - 1, 5)), flags);
+          }
           visit(child, flags, depth + 1);
           previousBlock = block;
         }
@@ -115,19 +190,37 @@
   function bodyText(block) {
     const style = block.style || 'p', element = node(style);
     if (style === 'ul' || style === 'ol') {
-      const runs = block.rich || [{ text: block.body }];
-      let item = node('li'); element.append(item);
-      for (const run of runs) {
+      // Nested lists are stored as leading tab characters on each line.
+      const lines = [[]];
+      for (const run of block.rich || [{ text: block.body }]) {
         run.text.split('\n').forEach((part, index) => {
-          if (index) { item = node('li'); element.append(item); }
-          item.append(renderRuns([{ ...run, text: part }]));
+          if (index) lines.push([]);
+          lines[lines.length - 1].push({ ...run, text: part });
         });
+      }
+      const stack = [element];
+      for (const line of lines) {
+        let tabs = 0;
+        for (const run of line) {
+          const lead = run.text.match(/^\t*/)[0].length;
+          run.text = run.text.slice(lead); tabs += lead;
+          if (lead < run.text.length + lead && run.text) break;
+        }
+        const target = Math.min(tabs, stack.length, M.MAX_INDENT);
+        while (stack.length - 1 > target) stack.pop();
+        while (stack.length - 1 < target) {
+          const parentItem = stack[stack.length - 1].lastElementChild || stack[stack.length - 1].appendChild(node('li'));
+          const nested = node(style); parentItem.append(nested); stack.push(nested);
+        }
+        const item = node('li'); stack[stack.length - 1].append(item);
+        item.append(renderRuns(line));
       }
     } else {
       element.style.whiteSpace = 'pre-wrap';
       element.append(renderRuns(block.rich || [{ text: block.body }]));
     }
     element.setAttribute('data-site-editor-field', 'body');
+    if (block.layout) applyLayout(element, block.layout);
     return element;
   }
   function source(block) {
@@ -372,6 +465,7 @@
         if (['image', 'logo'].includes(type)) { media.alt = block.alt ?? block.title; media.loading = 'lazy'; }
         else { media.controls = true; media.preload = 'metadata'; }
         if (type === 'logo') media.className = 'site-editor-logo';
+        if (block.layout) applyLayout(media, block.layout, true);
         article.append(media);
       }
       article.append(bodyText(block));
@@ -393,9 +487,23 @@
       article.append(visual, bodyText(block));
     } else if (type === 'table') {
       const table = node('table'), body = node('tbody');
-      for (const line of block.body.split('\n')) {
-        const row = node('tr'); for (const cell of line.split('\t')) row.append(node('td', cell)); body.append(row);
-      }
+      // A cell holding only "<" merges into the cell on its left, "^" into the cell above.
+      const grid = block.body.split('\n').map(line => line.split('\t'));
+      const hidden = (r, c) => (grid[r][c] === '<' && c > 0) || (grid[r][c] === '^' && r > 0);
+      grid.forEach((cells, r) => {
+        const row = node('tr');
+        cells.forEach((cell, c) => {
+          if (hidden(r, c)) return;
+          const td = node('td', cell);
+          let across = 1, down = 1;
+          while (c + across < cells.length && cells[c + across] === '<') across += 1;
+          while (r + down < grid.length && grid[r + down][c] === '^') down += 1;
+          if (across > 1) td.colSpan = across;
+          if (down > 1) td.rowSpan = down;
+          row.append(td);
+        });
+        body.append(row);
+      });
       table.append(body); article.append(table, source(block));
     } else if (type === 'code') {
       const pre = node('pre'), code = node('code', block.body);
@@ -420,5 +528,5 @@
     }
     return article;
   }
-  global.SiteEditorRich = Object.freeze({ render, renderRuns, readRuns, applyStyle });
+  global.SiteEditorRich = Object.freeze({ render, renderRuns, readRuns, applyStyle, applyLayout, diagramPreview });
 })(globalThis);

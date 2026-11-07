@@ -3,6 +3,15 @@
   const MAX_TEXT = 12000;
   const STYLES = Object.freeze(['p', 'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol']);
   const BLOCK_TYPES = Object.freeze(['paragraph', 'card', 'image', 'audio', 'video', 'table', 'code', 'math', 'music', 'mermaid', 'markdown', 'button', 'icon', 'logo']);
+  const SIZES = Object.freeze(['small', 'large', 'xlarge', 'xxlarge']);
+  const FAMILIES = Object.freeze(['sans', 'serif', 'kai', 'mono']);
+  const LAYOUT = Object.freeze({
+    align: ['left', 'center', 'right', 'justify'],
+    leading: ['tight', 'relaxed', 'loose'],
+    tracking: ['tight', 'wide', 'wider'],
+    width: [25, 50, 75, 100]
+  });
+  const MAX_INDENT = 5;
   const VARIANTS = Object.freeze(['primary', 'secondary', 'outline', 'text']);
   function administrator(profile) {
     return Boolean(profile && profile.account_role === 'administrator'
@@ -50,11 +59,11 @@
     if (!Array.isArray(value) || value.length > 500) throw new Error('格式文字片段過多');
     let length = 0;
     return value.map(run => {
-      keys(run, ['text', 'bold', 'italic', 'underline', 'highlight', 'color', 'script', 'href']);
+      keys(run, ['text', 'bold', 'italic', 'underline', 'strike', 'highlight', 'background', 'color', 'script', 'href', 'size', 'family']);
       const safe = { text: text(run.text) };
       length += safe.text.length;
       if (length > MAX_TEXT) throw new Error('格式文字過長');
-      for (const flag of ['bold', 'italic', 'underline', 'highlight']) {
+      for (const flag of ['bold', 'italic', 'underline', 'strike', 'highlight']) {
         if (flag in run) {
           if (typeof run[flag] !== 'boolean') throw new Error('文字樣式錯誤');
           safe[flag] = run[flag];
@@ -63,6 +72,18 @@
       if ('color' in run) {
         if (typeof run.color !== 'string' || !/^#[a-fA-F0-9]{6}$/.test(run.color)) throw new Error('文字顏色錯誤');
         safe.color = run.color;
+      }
+      if ('background' in run) {
+        if (typeof run.background !== 'string' || !/^#[a-fA-F0-9]{6}$/.test(run.background)) throw new Error('背景色錯誤');
+        safe.background = run.background;
+      }
+      if ('size' in run) {
+        if (!SIZES.includes(run.size)) throw new Error('字級錯誤');
+        safe.size = run.size;
+      }
+      if ('family' in run) {
+        if (!FAMILIES.includes(run.family)) throw new Error('字型錯誤');
+        safe.family = run.family;
       }
       if ('script' in run) {
         if (!['sub', 'super'].includes(run.script)) throw new Error('上下標錯誤');
@@ -75,6 +96,20 @@
   function style(value) {
     if (!STYLES.includes(value)) throw new Error('區塊樣式錯誤');
     return value;
+  }
+  function layout(value) {
+    keys(value, ['align', 'indent', 'leading', 'tracking', 'width']);
+    const safe = {};
+    for (const name of ['align', 'leading', 'tracking', 'width']) {
+      if (!(name in value)) continue;
+      if (!LAYOUT[name].includes(value[name])) throw new Error('版面設定錯誤');
+      safe[name] = value[name];
+    }
+    if ('indent' in value) {
+      if (!Number.isInteger(value.indent) || value.indent < 0 || value.indent > MAX_INDENT) throw new Error('縮排層級錯誤');
+      safe.indent = value.indent;
+    }
+    return safe;
   }
   function icon(value) {
     if (typeof value !== 'string' || !/^[a-z][a-z0-9_]{0,63}$/.test(value)) throw new Error('圖示須為 Material 圖示名稱（小寫英數與底線）');
@@ -90,12 +125,13 @@
     const result = empty();
     if (!plain(value.patches) || Object.keys(value.patches).length > 2500) throw new Error('內容修改過多');
     for (const [id, patch] of Object.entries(value.patches)) {
-      key(id); keys(patch, ['text', 'href', 'deleted', 'rich', 'style', 'src', 'alt', 'icon', 'variant']);
+      key(id); keys(patch, ['text', 'href', 'deleted', 'rich', 'style', 'layout', 'src', 'alt', 'icon', 'variant']);
       const safe = {};
       if ('text' in patch) safe.text = text(patch.text);
       if ('href' in patch) safe.href = link(patch.href);
       if ('rich' in patch) safe.rich = runs(patch.rich);
       if ('style' in patch) safe.style = style(patch.style);
+      if ('layout' in patch) safe.layout = layout(patch.layout);
       if ('src' in patch) {
         if (!safeMediaURL(patch.src)) throw new Error('圖片網址僅限站內路徑或 HTTP(S)');
         safe.src = patch.src;
@@ -118,7 +154,7 @@
     if (!Array.isArray(value.blocks) || value.blocks.length > 200) throw new Error('新增區塊過多');
     const ids = new Set();
     result.blocks = value.blocks.map(block => {
-      keys(block, ['id', 'parent', 'before', 'title', 'body', 'url', 'label', 'type', 'rich', 'style', 'language', 'alt', 'icon', 'variant']);
+      keys(block, ['id', 'parent', 'before', 'title', 'body', 'url', 'label', 'type', 'rich', 'style', 'layout', 'language', 'alt', 'icon', 'variant']);
       key(block.id); key(block.parent);
       if (ids.has(block.id)) throw new Error('區塊識別碼重複');
       ids.add(block.id);
@@ -131,6 +167,7 @@
       }
       if ('rich' in block) safe.rich = runs(block.rich);
       if ('style' in block) safe.style = style(block.style);
+      if ('layout' in block) safe.layout = layout(block.layout);
       if ('language' in block) safe.language = text(block.language, 40);
       if ('alt' in block) safe.alt = text(block.alt, 300);
       if ('icon' in block) safe.icon = icon(block.icon);
@@ -172,5 +209,5 @@
     for (let i = 0; i < value.length; i += 1) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
     return (hash >>> 0).toString(36);
   }
-  global.SiteEditorModel = Object.freeze({ administrator, safeURL, safeMediaURL, publicPage, empty, normalize, fingerprint, runs, icon, VARIANTS, STYLES, BLOCK_TYPES });
+  global.SiteEditorModel = Object.freeze({ administrator, safeURL, safeMediaURL, publicPage, empty, normalize, fingerprint, runs, layout, icon, VARIANTS, STYLES, SIZES, FAMILIES, LAYOUT, MAX_INDENT, BLOCK_TYPES });
 })(globalThis);

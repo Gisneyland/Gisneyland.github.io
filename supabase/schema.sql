@@ -9,7 +9,7 @@ create table if not exists public.questionnaire_responses (
   constraint questionnaire_schema_version_check check (schema_version between 1 and 99),
   constraint questionnaire_response_object_check check (jsonb_typeof(response_data) = 'object'),
   constraint questionnaire_response_size_check check (octet_length(response_data::text) <= 100000),
-  constraint questionnaire_consult_code_check check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32}){0,19}$')
+  constraint questionnaire_consult_code_check check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32})*$')
 );
 
 alter table public.questionnaire_responses
@@ -23,7 +23,7 @@ alter table public.questionnaire_responses
 
 alter table public.questionnaire_responses
   add constraint questionnaire_consult_code_check
-  check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32}){0,19}$');
+  check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32})*$');
 
 do $$
 begin
@@ -50,14 +50,14 @@ begin
   ) then
     alter table public.questionnaire_responses
       add constraint questionnaire_consult_code_check
-      check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}$');
+      check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32})*$');
   end if;
 end $$;
 
 update public.questionnaire_responses
 set anonymous_consult_code = nullif(btrim(response_data ->> 'anonymous_consult_code'), '')
 where anonymous_consult_code is null
-  and (response_data ->> 'anonymous_consult_code') ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32}){0,19}$';
+  and (response_data ->> 'anonymous_consult_code') ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32})*$';
 
 create index if not exists questionnaire_pending_consult_code_idx
   on public.questionnaire_responses (created_at, id)
@@ -84,7 +84,7 @@ alter table public.questionnaire_responses
   drop constraint if exists questionnaire_consult_uploads_check;
 alter table public.questionnaire_responses
   add constraint questionnaire_consult_uploads_check
-  check (jsonb_typeof(consult_uploads) = 'array' and jsonb_array_length(consult_uploads) <= 20);
+  check (jsonb_typeof(consult_uploads) = 'array');
 
 create index if not exists questionnaire_draft_idx
   on public.questionnaire_responses (created_at, id)
@@ -238,7 +238,9 @@ create table if not exists public.site_content (
   category text not null default '',
   summary text not null default '',
   body text not null default '',
+  body_format text not null default 'text' check (body_format in ('text', 'markdown', 'html')),
   url text,
+  discussion_urls text[] not null default '{}' check (cardinality(discussion_urls) <= 5),
   location text not null default '',
   event_start date,
   event_end date,
@@ -477,3 +479,39 @@ using (
   bucket_id = 'screening-test-photos'
   and public.has_admin_permission('questionnaire.consultation')
 );
+
+-- 組織合作的地方衛生局名單；諮詢代碼的 consult_uploads 以 bureau_id 指定要上傳到哪一個衛生局。
+create table if not exists public.local_health_bureaus (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (length(btrim(name)) between 1 and 80),
+  created_at timestamptz not null default now()
+);
+
+alter table public.local_health_bureaus enable row level security;
+revoke all on table public.local_health_bureaus from anon, authenticated;
+grant select, insert, update, delete on table public.local_health_bureaus to authenticated;
+
+drop policy if exists "Staff can read local health bureaus" on public.local_health_bureaus;
+create policy "Staff can read local health bureaus" on public.local_health_bureaus
+for select to authenticated using (public.has_admin_permission('questionnaire.read'));
+
+drop policy if exists "Staff can manage local health bureaus" on public.local_health_bureaus;
+create policy "Staff can manage local health bureaus" on public.local_health_bureaus
+for all to authenticated
+using (public.has_admin_permission('questionnaire.consultation'))
+with check (public.has_admin_permission('questionnaire.consultation'));
+
+-- 一份外國問卷連結可適用多個國籍；舊的單一 nationality 欄位保留作相容，並回填到新欄位。
+alter table public.external_links
+  add column if not exists nationalities text[] not null default array[]::text[];
+
+alter table public.external_links
+  drop constraint if exists external_links_nationalities_check;
+alter table public.external_links
+  add constraint external_links_nationalities_check check (cardinality(nationalities) <= 300);
+
+update public.external_links
+set nationalities = array[nationality]
+where kind = 'nationality_questionnaire'
+  and cardinality(nationalities) = 0
+  and btrim(nationality) <> '';

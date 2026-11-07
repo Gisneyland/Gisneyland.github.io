@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const titleInput = document.getElementById('site-content-title-input');
   const summaryInput = document.getElementById('site-content-summary');
   const bodyInput = document.getElementById('site-content-body');
+  const bodyEditor = window.AdminRichEditor?.init({ textarea: bodyInput });
   const eventFields = document.getElementById('site-content-event-fields');
   const eventStartInput = document.getElementById('site-content-event-start');
   const eventEndInput = document.getElementById('site-content-event-end');
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const endTimeInput = document.getElementById('site-content-end-time');
   const locationInput = document.getElementById('site-content-location');
   const urlInput = document.getElementById('site-content-url');
+  const discussionInput = document.getElementById('site-content-discussion');
   const publishedInput = document.getElementById('site-content-published');
   const filterSelect = document.getElementById('site-content-filter');
   const saveButton = contentForm.querySelector('[type="submit"]');
@@ -184,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openContentForm(startDate = '') {
     contentForm.reset();
+    bodyEditor?.setFormat('markdown');
     contentId.value = '';
     contentType.value = startDate || filterSelect.value === 'event' ? 'event' : 'news';
     updateEventFields();
@@ -1031,6 +1034,7 @@ document.addEventListener('DOMContentLoaded', () => {
     titleInput.value = record.title;
     summaryInput.value = record.summary || '';
     bodyInput.value = record.body || '';
+    bodyEditor?.setFormat(record.body_format || 'text');
     eventStartInput.value = record.event_start || '';
     eventEndInput.value = record.event_end || '';
     allDayInput.checked = record.is_all_day !== false;
@@ -1038,6 +1042,7 @@ document.addEventListener('DOMContentLoaded', () => {
     endTimeInput.value = record.event_end_at ? model.localDateTime(record.event_end_at).slice(11, 16) : '16:00';
     locationInput.value = record.location || '';
     urlInput.value = record.url || '';
+    discussionInput.value = (record.discussion_urls || []).join('\n');
     publishedInput.checked = record.is_published;
     eventPlace.load(record);
     updateEventFields();
@@ -1099,7 +1104,9 @@ document.addEventListener('DOMContentLoaded', () => {
       title: titleInput.value.trim(),
       summary: summaryInput.value.trim(),
       body: bodyInput.value.trim(),
+      body_format: bodyEditor ? bodyEditor.getFormat() : 'text',
       url,
+      discussion_urls: window.RichContentModel.parseDiscussionUrls(discussionInput.value),
       event_start: isEvent ? eventStartInput.value : null,
       event_end: isEvent ? eventEndInput.value || null : null,
       is_all_day: !isEvent || allDayInput.checked,

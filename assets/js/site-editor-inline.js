@@ -106,6 +106,7 @@
         value.text = value.rich.map(run => run.text).join('');
       }
       if (record.style) value.style = record.style;
+      if (record.layout) value.layout = record.layout;
       return value;
     }
     function flush() {
@@ -142,6 +143,7 @@
             if (record.field === 'body') {
               if (value.rich) block.rich = value.rich;
               if (value.style) block.style = value.style;
+              if (value.layout) block.layout = value.layout;
             }
           } else {
             draft.patches[record.id] = { ...draft.patches[record.id], ...value };
@@ -207,14 +209,14 @@
       for (const [id, text] of baseline.texts) {
         if (baseline.PROTECTED && text.element.closest(baseline.PROTECTED)) continue;
         if (rendered.has(id) && rendered.get(id).parentNode === text.element) {
-          editable(rendered.get(id), id, { style: getDraft().patches[id]?.style });
+          editable(rendered.get(id), id, { style: getDraft().patches[id]?.style, layout: getDraft().patches[id]?.layout });
         } else if (text.node.parentNode === text.element && root.contains(text.element)
           && !text.element.closest('[contenteditable],.material-icons,[aria-hidden="true"]')
           && !(baseline.PROTECTED && text.element.closest(baseline.PROTECTED))
           && !text.element.closest('script,style,form,button:not([data-site-editor-static="true"]),input,textarea,select,[data-site-editor-protected]')) {
           const wrapper = element('span'); wrapper.dataset.siteEditorText = id;
           wrapper.textContent = text.node.nodeValue; text.node.replaceWith(wrapper);
-          editable(wrapper, id, { style: getDraft().patches[id]?.style }, text.node);
+          editable(wrapper, id, { style: getDraft().patches[id]?.style, layout: getDraft().patches[id]?.layout }, text.node);
         }
       }
       for (const node of root.querySelectorAll('[data-site-editor-block]')) {
@@ -223,7 +225,7 @@
         for (const field of node.querySelectorAll('[data-site-editor-field]')) {
           const name = field.dataset.siteEditorField;
           if (!['body', 'title'].includes(name) || (name === 'body' && SOURCE_TYPES.has(block.type))) continue;
-          editable(field, `${block.id}:${name}`, { block: block.id, field: name, style: block.style });
+          editable(field, `${block.id}:${name}`, { block: block.id, field: name, style: block.style, layout: block.layout });
         }
         const oldTab = node.getAttribute('tabindex'); node.setAttribute('tabindex', '0');
         cleanups.push(() => { if (oldTab === null) node.removeAttribute('tabindex'); else node.setAttribute('tabindex', oldTab); });
@@ -368,6 +370,118 @@
       doc.execCommand(command, false, value);
       record.dirty = true; savedSelection(); updateSelection();
     }
+    function setLayout(key, value) {
+      const record = restoreSelection();
+      if (!record || composing || record.field === 'title') return;
+      const next = { ...record.layout };
+      if (value === null || value === '') delete next[key]; else next[key] = value;
+      try { rich().applyLayout(record.element, next); } catch (error) { notify(error.message); return; }
+      record.layout = next; record.dirty = true; savedSelection(); updateSelection();
+    }
+    function indentBy(step) {
+      const record = restoreSelection();
+      if (!record || composing || record.field === 'title') return;
+      const anchor = global.getSelection()?.anchorNode;
+      const inItem = (anchor?.nodeType === 1 ? anchor : anchor?.parentElement)?.closest('li');
+      if (inItem && record.element.contains(inItem)) {
+        doc.execCommand(step > 0 ? 'indent' : 'outdent'); record.dirty = true; savedSelection(); updateSelection(); return;
+      }
+      setLayout('indent', Math.max(0, Math.min(global.SiteEditorModel.MAX_INDENT, (record.layout?.indent || 0) + step)) || null);
+    }
+    function countText(record) {
+      const text = (record.element.innerText ?? record.element.textContent).replace(/\s+/g, ' ').trim();
+      const cjk = (text.match(/[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/g) || []).length;
+      const words = (text.replace(/[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/g, ' ').match(/\S+/g) || []).length;
+      return { chars: text.replace(/\s/g, '').length, words: cjk + words };
+    }
+    function findReplace() {
+      const record = restoreSelection() || selectedRecord();
+      if (!record || record.field === 'title') return;
+      const pane = makeDialog('尋找與取代（僅限目前這段文字）');
+      const find = element('input'); find.setAttribute('aria-label', '尋找'); find.placeholder = '尋找';
+      const replace = element('input'); replace.setAttribute('aria-label', '取代為'); replace.placeholder = '取代為';
+      const status = element('p', '', ''); status.setAttribute('role', 'status');
+      pane.append(find, replace, status);
+      const block = record.element.closest('[data-site-editor-field]')
+        || record.element.closest('p,h1,h2,h3,h4,h5,h6,li,td,th,blockquote,pre,figcaption')
+        || record.element;
+      const groups = () => {
+        const found = [];
+        let current = [];
+        const boundary = () => {
+          if (current.length) found.push(current);
+          current = [];
+        };
+        const visit = node => {
+          if (node.nodeType === 3) {
+            const owner = recordFor(node);
+            if (owner) current.push({ node, owner });
+            else boundary();
+            return;
+          }
+          if (node.nodeType !== 1) return;
+          const isRecord = Array.from(records.values()).some(item => item.element === node);
+          if (!isRecord && baseline.PROTECTED && node.matches(baseline.PROTECTED)) {
+            boundary();
+            return;
+          }
+          Array.from(node.childNodes).forEach(visit);
+        };
+        visit(block);
+        boundary();
+        return found.map(nodes => {
+          let text = '';
+          const segments = nodes.map(({ node, owner }) => {
+            const segment = { node, owner, start: text.length, end: text.length + node.nodeValue.length };
+            text += node.nodeValue;
+            return segment;
+          });
+          return { text, segments };
+        });
+      };
+      const search = () => {
+        const matches = [];
+        if (find.value) groups().forEach(group => {
+          let from = 0, index;
+          while ((index = group.text.indexOf(find.value, from)) !== -1) {
+            matches.push({ ...group, start: index, end: index + find.value.length });
+            from = index + find.value.length;
+          }
+        });
+        return { matches };
+      };
+      const total = () => search().matches.length;
+      find.addEventListener('input', () => { status.textContent = find.value ? `找到 ${total()} 處` : ''; });
+      button(pane, 'find_replace', '全部取代', () => {
+        if (!find.value) return;
+        const { matches } = search();
+        const affected = new Set();
+        for (const match of matches.reverse()) {
+          const touched = match.segments.filter(segment => segment.start < match.end && segment.end > match.start);
+          if (!touched.length) continue;
+          touched.forEach(segment => affected.add(segment.owner));
+          const first = touched[0], last = touched[touched.length - 1];
+          const firstOffset = match.start - first.start;
+          const lastOffset = match.end - last.start;
+          if (first === last) {
+            first.node.nodeValue = first.node.nodeValue.slice(0, firstOffset)
+              + replace.value + first.node.nodeValue.slice(lastOffset);
+          } else {
+            first.node.nodeValue = first.node.nodeValue.slice(0, firstOffset) + replace.value;
+            touched.slice(1, -1).forEach(segment => { segment.node.nodeValue = ''; });
+            last.node.nodeValue = last.node.nodeValue.slice(lastOffset);
+          }
+        }
+        const count = matches.length;
+        if (count) affected.forEach(item => { item.dirty = true; });
+        status.textContent = `已取代 ${count} 處；離開文字時儲存。`;
+      });
+      find.focus();
+    }
+    function selectedRecord() {
+      const item = selectedNow();
+      return item && Array.from(records.values()).find(record => record.element === item.element || record.element.contains(item.element)) || null;
+    }
     function updateSelection() {
       if (!enabled() || composing) return;
       const selection = global.getSelection(), anchored = recordFor(selection?.anchorNode);
@@ -382,7 +496,9 @@
         range = doc.createRange(); range.selectNodeContents(record.element); range.collapse(true);
       }
       toolbar.hidden = false;
-      toolbar.querySelector('select').value = record.style || 'p';
+      toolbar.querySelector('select[aria-label="段落樣式"]').value = record.style || 'p';
+      const counts = countText(record);
+      toolbar.querySelector('[data-count]').textContent = `${counts.words} 字詞／${counts.chars} 字元`;
       position(toolbar, rect && (rect.width || rect.height) ? rect : record.element.getBoundingClientRect());
     }
     function closeDialog() {
@@ -405,10 +521,94 @@
       if (!flush()) return;
       const item = selectedNow(), block = item?.added && getDraft().blocks.find(value => value.id === item.id);
       if (!block || !SOURCE_TYPES.has(block.type)) return;
-      const pane = makeDialog(block.type === 'table' ? '編輯表格（Tab 分欄、換行分列）' : '編輯原始碼');
+      const pane = makeDialog(block.type === 'table' ? '編輯表格（Tab 分欄、換行分列；< 併入左格、^ 併入上格）' : '編輯原始碼');
       const label = element('label', '', '原始內容');
       const input = element('textarea'); input.value = block.body; input.maxLength = 12000;
       input.setAttribute('aria-label', '原始內容'); input.rows = 9; label.append(input); pane.append(label);
+      if (block.type === 'table') {
+        // Grid tools edit the tab/newline source in the textarea so both views stay in sync.
+        const grid = element('div', 'site-editor-grid'); pane.append(grid);
+        const read = () => input.value.split('\n').map(line => line.split('\t'));
+        const write = rows => {
+          const width = Math.max(1, ...rows.map(row => row.length));
+          const text = rows.map(row => Array.from({ length: width }, (_, index) => row[index] ?? '').join('\t')).join('\n');
+          if (rows.length > 100 || width > 30 || text.length > 12000) { notify('表格最多 100 列、30 欄。'); return; }
+          input.value = text; renderPreview(); draw();
+        };
+        let focus = [0, 0];
+        const draw = () => {
+          const rows = read(); grid.replaceChildren();
+          const table = element('table');
+          rows.forEach((row, r) => {
+            const tr = element('tr');
+            Array.from({ length: Math.max(...rows.map(item => item.length)) }, (_, c) => row[c] ?? '').forEach((cell, c) => {
+              const td = element('td'), field = element('input'); field.value = cell;
+              field.setAttribute('aria-label', `第 ${r + 1} 列第 ${c + 1} 欄`);
+              field.addEventListener('focus', () => { focus = [r, c]; });
+              field.addEventListener('input', () => {
+                const next = read(); while (next[r].length <= c) next[r].push('');
+                next[r][c] = field.value.replace(/[\t\n]/g, ' '); input.value = next.map(item => item.join('\t')).join('\n'); renderPreview();
+              });
+              td.append(field); tr.append(td);
+            });
+            table.append(tr);
+          });
+          grid.append(table);
+        };
+        const tool = (icon, label, change) => button(pane, icon, label, () => {
+          const rows = read();
+          const r = Math.max(0, Math.min(focus[0], rows.length - 1));
+          const c = Math.max(0, Math.min(focus[1], width(rows) - 1));
+          focus = [r, c];
+          change(rows, r, c);
+          write(rows);
+        });
+        const width = rows => Math.max(...rows.map(row => row.length));
+        const span = (rows, r, c) => {
+          while (c > 0 && rows[r][c] === '<') c -= 1;
+          while (r > 0 && rows[r][c] === '^') r -= 1;
+          let r2 = r, c2 = c;
+          while (rows[r][c2 + 1] === '<') c2 += 1;
+          while (rows[r2 + 1] && rows[r2 + 1][c] === '^') r2 += 1;
+          return { r, c, r2, c2 };
+        };
+        tool('call_merge', '向右合併儲存格', (rows, r, c) => {
+          const s = span(rows, r, c);
+          if (s.c2 + 1 >= width(rows) || ['<', '^'].includes(rows[s.r][s.c2 + 1])) return;
+          const neighbor = span(rows, s.r, s.c2 + 1);
+          if (neighbor.r !== s.r || neighbor.c !== s.c2 + 1 || neighbor.r2 !== s.r2) return;
+          for (let y = neighbor.r; y <= neighbor.r2; y += 1) {
+            for (let x = neighbor.c; x <= neighbor.c2; x += 1) rows[y][x] = '<';
+          }
+          focus = [s.r, s.c];
+        });
+        tool('vertical_align_bottom', '向下合併儲存格', (rows, r, c) => {
+          const s = span(rows, r, c);
+          if (s.r2 + 1 >= rows.length || ['<', '^'].includes(rows[s.r2 + 1][s.c])) return;
+          const neighbor = span(rows, s.r2 + 1, s.c);
+          if (neighbor.r !== s.r2 + 1 || neighbor.c !== s.c || neighbor.c2 !== s.c2) return;
+          for (let y = neighbor.r; y <= neighbor.r2; y += 1) {
+            for (let x = neighbor.c; x <= neighbor.c2; x += 1) rows[y][x] = x === s.c ? '^' : '<';
+          }
+          focus = [s.r, s.c];
+        });
+        tool('call_split', '拆分儲存格', (rows, r, c) => {
+          const s = span(rows, r, c);
+          for (let y = s.r; y <= s.r2; y += 1) for (let x = s.c; x <= s.c2; x += 1) if (y !== s.r || x !== s.c) rows[y][x] = '';
+          focus = [s.r, s.c];
+        });
+        tool('keyboard_double_arrow_up', '上方插入列', (rows, r) => rows.splice(r, 0, Array(width(rows)).fill('')));
+        tool('keyboard_double_arrow_down', '下方插入列', (rows, r) => rows.splice(r + 1, 0, Array(width(rows)).fill('')));
+        tool('keyboard_double_arrow_left', '左方插入欄', (rows, r, c) => rows.forEach(row => row.splice(c, 0, '')));
+        tool('keyboard_double_arrow_right', '右方插入欄', (rows, r, c) => rows.forEach(row => row.splice(c + 1, 0, '')));
+        tool('arrow_upward', '此列上移', (rows, r) => { if (r > 0) { [rows[r - 1], rows[r]] = [rows[r], rows[r - 1]]; focus[0] = r - 1; } });
+        tool('arrow_downward', '此列下移', (rows, r) => { if (r < rows.length - 1) { [rows[r + 1], rows[r]] = [rows[r], rows[r + 1]]; focus[0] = r + 1; } });
+        tool('arrow_back', '此欄左移', (rows, r, c) => { if (c > 0) { rows.forEach(row => { [row[c - 1], row[c]] = [row[c], row[c - 1]]; }); focus[1] = c - 1; } });
+        tool('arrow_forward', '此欄右移', (rows, r, c) => { if (c < width(rows) - 1) { rows.forEach(row => { [row[c + 1], row[c]] = [row[c], row[c + 1]]; }); focus[1] = c + 1; } });
+        tool('table_rows', '刪除此列', (rows, r) => { if (rows.length > 1) rows.splice(r, 1); focus[0] = Math.max(0, r - (r >= rows.length ? 1 : 0)); });
+        tool('view_column', '刪除此欄', (rows, r, c) => { if (width(rows) > 1) { rows.forEach(row => row.splice(c, 1)); focus[1] = Math.max(0, c - (c >= width(rows) ? 1 : 0)); } });
+        pane.draw = draw;
+      }
       const language = element('input'); language.value = block.language || ''; language.maxLength = 40;
       language.setAttribute('aria-label', '程式語言'); language.placeholder = '程式語言';
       if (block.type === 'code') pane.append(language);
@@ -429,20 +629,20 @@
           catch { preview.textContent = input.value; }
         } else preview.textContent = input.value;
       }
-      input.addEventListener('input', renderPreview); language.addEventListener('input', renderPreview);
+      input.addEventListener('input', event => { renderPreview(event); pane.draw?.(); }); language.addEventListener('input', renderPreview);
       input.addEventListener('keydown', event => {
         if (['Backspace', 'Delete'].includes(event.key) && !event.isComposing && !composing
           && !input.value && !block.title) {
           event.preventDefault(); if (removeSelected()) closeDialog(); return;
         }
         if (event.key !== 'Tab' || event.shiftKey || block.type !== 'table') return;
-        event.preventDefault(); input.setRangeText('\t', input.selectionStart, input.selectionEnd, 'end'); renderPreview();
+        event.preventDefault(); input.setRangeText('\t', input.selectionStart, input.selectionEnd, 'end'); renderPreview(); pane.draw?.();
       });
       button(pane, 'check', '套用原始內容', () => {
         if (!flush()) return;
         closeDialog(); reselect(block.id, true);
       });
-      renderPreview(); input.focus();
+      renderPreview(); pane.draw?.(); input.focus();
     }
     function mediaEditor(type) {
       if (!flush()) return;
@@ -536,9 +736,27 @@
         if (block) field('icon', 'Material 圖示名稱（可留空）', block.icon || '');
         field('variant', '按鈕樣式', (block || patch).variant || 'primary', global.SiteEditorModel.VARIANTS);
       }
+      if (['image', 'logo'].includes(kind)) {
+        const current = (block || patch).layout || {};
+        const pick = (title, options, value) => {
+          const label = element('label', '', title), select = element('select');
+          select.setAttribute('aria-label', title);
+          options.forEach(([v, text]) => select.append(new global.Option(text, v)));
+          select.value = value; label.append(select); pane.append(label); return select;
+        };
+        const widthSelect = pick('圖片寬度', [['', '預設'], ['25', '25%'], ['50', '50%'], ['75', '75%'], ['100', '100%']], current.width ? String(current.width) : '');
+        const alignSelect = pick('圖片對齊', [['', '預設'], ['left', '靠左'], ['center', '置中'], ['right', '靠右']], current.align || '');
+        fields.layout = { get value() {
+          const next = {};
+          if (widthSelect.value) next.width = Number(widthSelect.value);
+          if (alignSelect.value) next.align = alignSelect.value;
+          return next;
+        } };
+      }
       pane.append(element('p', '', '僅支援安全網址、Material 圖示名稱與預設按鈕樣式；不接受 HTML、SVG 或任意 CSS。功能按鈕、表單與動態工具由程式管理，不能移除。'));
       button(pane, 'check', '套用元件屬性', () => {
         const values = Object.fromEntries(Object.entries(fields).map(([name, input]) => [name, input.value]));
+        if (values.layout && !Object.keys(values.layout).length && !(block || patch).layout) delete values.layout;
         function apply(draft) {
           if (block) {
             const target = draft.blocks.find(value => value.id === item.id);
@@ -563,20 +781,53 @@
       });
       pane.querySelector('input,select')?.focus();
     }
+    const SHORTCUTS = { bold: 'Ctrl+B', italic: 'Ctrl+I', underline: 'Ctrl+U', createLink: 'Ctrl+K', undo: 'Ctrl+Z', redo: 'Ctrl+Y' };
     function buildUI() {
       ui = element('div', 'site-editor-inline-root');
       toolbar = floating(element('div', 'site-editor-inline-ui site-editor-format-toolbar'));
       toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', '選取文字格式');
       for (const [command, icon, label, value] of [
         ['bold', 'format_bold', '粗體'], ['italic', 'format_italic', '斜體'],
-        ['underline', 'format_underlined', '底線'], ['hiliteColor', 'format_color_fill', '螢光標記', '#fff59d'],
+        ['underline', 'format_underlined', '底線'], ['strikeThrough', 'format_strikethrough', '刪除線'], ['hiliteColor', 'format_color_fill', '螢光標記', '#fff59d'],
         ['subscript', 'subscript', '下標'], ['superscript', 'superscript', '上標'],
         ['createLink', 'link', '加入連結'], ['unlink', 'link_off', '移除連結'],
-        ['removeFormat', 'format_clear', '清除格式']
-      ]) button(toolbar, icon, label, () => format(command, value));
+        ['removeFormat', 'format_clear', '清除格式'], ['undo', 'undo', '復原'], ['redo', 'redo', '重做']
+      ]) {
+        const node = button(toolbar, icon, label, () => format(command, value));
+        const key = SHORTCUTS[command]; if (key) node.title = `${label}（${key}）`;
+      }
       const color = element('input'); color.type = 'color'; color.value = '#1f2937';
       color.title = '文字顏色'; color.setAttribute('aria-label', '文字顏色');
       color.addEventListener('input', () => format('foreColor', color.value)); toolbar.append(color);
+      const background = element('input'); background.type = 'color'; background.value = '#fff59d';
+      background.title = '背景色'; background.setAttribute('aria-label', '背景色');
+      background.addEventListener('input', () => format('hiliteColor', background.value)); toolbar.append(background);
+      button(toolbar, 'format_color_reset', '清除背景色', () => format('hiliteColor', 'transparent'));
+      for (const [key, icon, label] of [['left', 'format_align_left', '靠左'], ['center', 'format_align_center', '置中'],
+        ['right', 'format_align_right', '靠右'], ['justify', 'format_align_justify', '左右對齊']]) {
+        button(toolbar, icon, label, () => setLayout('align', key));
+      }
+      button(toolbar, 'format_indent_decrease', '減少縮排', () => indentBy(-1));
+      button(toolbar, 'format_indent_increase', '增加縮排', () => indentBy(1));
+      button(toolbar, 'find_replace', '尋找與取代', findReplace).title = '尋找與取代（Ctrl+H）';
+      const pick = (label, options, command) => {
+        const select = element('select'); select.setAttribute('aria-label', label);
+        select.append(new global.Option(`${label}…`, ''));
+        options.forEach(([value, text]) => select.append(new global.Option(text, value)));
+        select.addEventListener('change', () => { if (select.value) format(command, select.value); select.value = ''; });
+        toolbar.append(select);
+      };
+      pick('字型', [['rc-sans', '黑體'], ['rc-serif', '明體'], ['rc-kai', '楷體'], ['rc-mono', '等寬字']], 'fontName');
+      const layoutPick = (label, key, options) => {
+        const select = element('select'); select.setAttribute('aria-label', label);
+        select.append(new global.Option(`${label}…`, ''));
+        options.forEach(([value, text]) => select.append(new global.Option(text, value)));
+        select.addEventListener('change', () => { const v = select.value; select.value = ''; if (v) setLayout(key, v === 'default' ? null : v); });
+        toolbar.append(select);
+      };
+      layoutPick('行高', 'leading', [['default', '預設'], ['tight', '緊湊'], ['relaxed', '寬鬆'], ['loose', '加寬']]);
+      layoutPick('字距', 'tracking', [['default', '預設'], ['tight', '緊縮'], ['wide', '加寬'], ['wider', '更寬']]);
+      pick('字級', [['2', '小'], ['3', '標準'], ['4', '大'], ['5', '特大'], ['6', '超大']], 'fontSize');
       const style = element('select'); style.setAttribute('aria-label', '段落樣式');
       const labels = ['內文', '標題 1', '標題 2', '標題 3', '引文', '項目清單', '編號清單'];
       STYLES.forEach((value, index) => style.append(new global.Option(labels[index], value)));
@@ -585,6 +836,7 @@
         record.style = style.value; record.dirty = true; notify('段落樣式將於離開文字時套用。');
       });
       toolbar.append(style);
+      const count = element('span', 'site-editor-count'); count.dataset.count = ''; count.setAttribute('aria-live', 'off'); toolbar.append(count);
       toolbar.addEventListener('pointerdown', event => { if (event.target.closest('button')) event.preventDefault(); });
       tools = floating(element('div', 'site-editor-inline-ui site-editor-component-tools'));
       tools.setAttribute('role', 'toolbar'); tools.setAttribute('aria-label', '選取元件工具');
@@ -695,6 +947,11 @@
       }
       if (!root.contains(event.target)) return;
       select(component(event.target));
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && ['k', 'h'].includes(event.key.toLowerCase()) && recordFor(event.target)) {
+        event.preventDefault(); savedSelection();
+        if (event.key.toLowerCase() === 'k') format('createLink'); else findReplace();
+        return;
+      }
       if (event.altKey && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
         event.preventDefault(); move(event.key === 'ArrowUp' ? -1 : 1); return;
       }
