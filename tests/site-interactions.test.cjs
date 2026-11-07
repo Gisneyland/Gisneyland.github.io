@@ -354,6 +354,24 @@ test('site initialization and permission-gated admin interactions', {
     assert.deepEqual(errors, []);
   });
 
+  await t.test('draft contact validation selects and focuses the invalid input', async () => {
+    await open('/hiva/', 'anonymous');
+    assert.deepEqual(await evaluate(`(() => {
+      const step = document.getElementById('profile-review-message');
+      for (let parent = step; parent; parent = parent.parentElement) parent.hidden = false;
+      const type = step.querySelector('#draft-contact-list select');
+      type.value = 'email';
+      type.dispatchEvent(new Event('change', { bubbles: true }));
+      const input = step.querySelector('#draft-contact-list input');
+      input.value = 'invalid-email';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      const invalid = step.querySelector(':invalid');
+      const valid = invalid.reportValidity();
+      return { selectsInput: invalid === input, valid, focused: document.activeElement === input };
+    })()`), { selectsInput: true, valid: false, focused: true });
+    assert.deepEqual(errors, []);
+  });
+
   await t.test('questionnaire restores bound screener, interpretation, referral and photo controls', async () => {
     await open('/hiva/', 'administrator');
     assert.deepEqual(await evaluate(`[...document.querySelectorAll('#questionnaire-form > .card')].map(card=>card.hidden)`), [false, true, true, true]);

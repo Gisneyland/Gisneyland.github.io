@@ -71,6 +71,8 @@ i18n["tl"] = {
   "return_to_edit": "Bumalik para mag-edit",
   "handoff_screening": "Kumpirmahin at ibigay sa screener",
   "handoff_choice": "Kung tama na, ibigay ang device sa screener para ipagpatuloy, o isumite na ngayon para tapusin ng screener mamaya sa ibang device.",
+  "draft_contact_label": "Contact para sa referral kung positibo (opsyonal)",
+  "draft_contact_hint": "Kung isusumite ngayon at positibo ang resulta, maaari kang mag-iwan ng contact para sa referral.",
   "draft_submit": "Isumite na; tatapusin ng screener mamaya",
   "draft_sending": "Ipinapadala…",
   "draft_success": "Naisumite na. Ipagpapatuloy ito ng screener sa backend. Salamat.",

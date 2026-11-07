@@ -102,11 +102,11 @@ Deno.serve(async request => {
       return jsonResponse({ error: 'Invalid questionnaire payload' }, 400);
     }
 
-    // 草稿交由篩檢員在後台補完，不接受受檢者端的篩檢結果與照片。
+    // 草稿交由篩檢員在後台補完，不接受受檢者端的篩檢結果與照片；陽性轉介聯絡方式為選填，可由受檢者提供。
     if (status === 'draft') {
       for (const key of [
         'screener', 'screening_at', 'screening_place', 'screening_interpretation', 'hiv_window_period',
-        'hiv_positive_contacts', 'hiv_positive_contact_phone', 'hiv_positive_appointment',
+        'hiv_positive_contact_phone', 'hiv_positive_appointment',
         'hiv_positive_address', 'hiv_positive_notes', 'anonymous_consult_code'
       ]) delete responseData[key];
       if (photoFiles.size > 0) return jsonResponse({ error: 'Invalid photo' }, 400);

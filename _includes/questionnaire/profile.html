@@ -99,6 +99,15 @@
     <p data-i18n="review_instructions">以下是您本次的填答內容，請確認是否正確。若發現錯誤，請返回修改；確認無誤後，再交給篩檢員完成後續確認。</p>
     <div id="profile-review-answers" class="profile-review-answers answer-summary"></div>
     <p class="profile-handoff-choice" data-i18n="handoff_choice">確認無誤後，可直接把裝置交給篩檢員繼續填寫；或先送出，讓篩檢員之後在後台以另一台裝置完成。</p>
+    <div class="profile-draft-contact hiv-contact-methods" role="group" aria-labelledby="draft-contact-label">
+      <span id="draft-contact-label" class="screening-field-label" data-i18n="draft_contact_label">陽性轉介聯絡方式（選填）</span>
+      <p class="hiv-contact-hint" data-i18n="draft_contact_hint">若選擇先送出，且篩檢結果為陽性，可留下聯絡方式供轉介使用。</p>
+      <div id="draft-contact-list" class="hiv-contact-list"></div>
+      <button type="button" id="draft-contact-add" class="btn-flat hiv-contact-add">
+        <i class="material-icons notranslate" translate="no" aria-hidden="true">add</i>
+        <span data-i18n="contact_add">新增聯絡方式</span>
+      </button>
+    </div>
     <div class="profile-confirmation-actions">
       <button type="button" id="profile-confirm-edit" class="btn-flat" data-toggle-answer-edit aria-pressed="false" data-i18n="return_to_edit">返回修改</button>
       <button type="button" id="handoff-screening-button" class="btn" data-i18n="handoff_screening">確認並交給篩檢員</button>

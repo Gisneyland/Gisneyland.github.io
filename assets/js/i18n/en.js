@@ -71,6 +71,8 @@ i18n["en"] = {
   "return_to_edit": "Back to edit",
   "handoff_screening": "Confirm and hand over to screener",
   "handoff_choice": "When everything is correct, hand this device to the screener to continue, or submit now so the screener can finish it later on another device.",
+  "draft_contact_label": "Contact for positive-result referral (optional)",
+  "draft_contact_hint": "If you submit now and the screening result is positive, you may leave contact details for referral.",
   "draft_submit": "Submit now; screener finishes later",
   "draft_sending": "Sending…",
   "draft_success": "Submitted. The screener will continue in the back office. Thank you.",

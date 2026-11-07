@@ -71,6 +71,8 @@ i18n["id"] = {
   "return_to_edit": "Kembali untuk mengubah",
   "handoff_screening": "Konfirmasi dan serahkan kepada petugas skrining",
   "handoff_choice": "Jika sudah benar, serahkan perangkat ini kepada petugas untuk melanjutkan, atau kirim sekarang agar petugas menyelesaikannya nanti di perangkat lain.",
+  "draft_contact_label": "Kontak rujukan jika hasil positif (opsional)",
+  "draft_contact_hint": "Jika dikirim sekarang dan hasil positif, Anda dapat meninggalkan kontak untuk rujukan.",
   "draft_submit": "Kirim sekarang; petugas menyelesaikan nanti",
   "draft_sending": "Mengirim…",
   "draft_success": "Terkirim. Petugas akan melanjutkan di sistem internal. Terima kasih.",
