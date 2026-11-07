@@ -71,6 +71,8 @@ i18n["zh-TW"] = {
   "return_to_edit": "返回修改",
   "handoff_screening": "確認並交給篩檢員",
   "handoff_choice": "確認無誤後，可直接把裝置交給篩檢員繼續填寫；或先送出，讓篩檢員之後在後台以另一台裝置完成。",
+  "draft_contact_label": "陽性轉介聯絡方式（選填）",
+  "draft_contact_hint": "若選擇先送出，且篩檢結果為陽性，可留下聯絡方式供轉介使用。",
   "draft_submit": "先送出，由篩檢員稍後完成",
   "draft_sending": "資料傳送中…",
   "draft_success": "已送出，篩檢員會在後台繼續處理，謝謝填答。",

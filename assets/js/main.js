@@ -285,6 +285,7 @@ function initializeQuestionnaireFields() {
   initializeScreeningPlace();
   const resetReferralAddressPicker = initializeScreeningPlace('hiv_positive_address', 'hiv-positive-address', 'hiv-positive-address-locate-button');
   const resetReferralContacts = initializeReferralContacts();
+  draftContactState.reset = initializeReferralContacts('draft-contact-list', 'draft-contact-add', draftContactState);
   initializeScreeningInterpretation(resetReferralAddressPicker, resetReferralContacts);
   initializeScreeningPhotos();
 }
@@ -297,6 +298,7 @@ function initializeScreeningDate() {
 }
 
 const referralContactState = { collect: () => [], validate: () => null };
+const draftContactState = { collect: () => [], validate: () => null, reset: () => {} };
 const maxReferralContacts = 8;
 
 const normalizeInternationalPhone = value => {
@@ -403,9 +405,9 @@ function translateContactRow(row) {
   });
 }
 
-function initializeReferralContacts() {
-  const list = document.getElementById('hiv-contact-list');
-  const addButton = document.getElementById('hiv-contact-add');
+function initializeReferralContacts(listId = 'hiv-contact-list', addId = 'hiv-contact-add', state = referralContactState) {
+  const list = document.getElementById(listId);
+  const addButton = document.getElementById(addId);
   const template = document.getElementById('hiv-contact-template');
   if (!list || !addButton || !template) return () => {};
 
@@ -481,7 +483,7 @@ function initializeReferralContacts() {
   const addRow = (translate = true) => {
     if (list.children.length >= maxReferralContacts) return;
     const row = template.content.firstElementChild.cloneNode(true);
-    const prefix = `hiv-contact-${++rowCounter}`;
+    const prefix = `${listId}-${++rowCounter}`;
     const assign = (selector, id) => { row.querySelector(selector).id = id; };
     assign('[data-contact-address-input]', `${prefix}-input`);
     assign('[data-contact-locate]', `${prefix}-locate`);
@@ -545,7 +547,7 @@ function initializeReferralContacts() {
     addRow();
   };
 
-  referralContactState.validate = () => {
+  state.validate = () => {
     let firstInvalid = null;
     rows().forEach(row => {
       const invalid = validateRow(row);
@@ -553,7 +555,7 @@ function initializeReferralContacts() {
     });
     return firstInvalid;
   };
-  referralContactState.collect = () => rows().flatMap(row => {
+  state.collect = () => rows().flatMap(row => {
     const raw = rawValueOf(row);
     if (!raw) return [];
     const type = typeOf(row);
@@ -2395,6 +2397,12 @@ function initializeDraftSubmission(form) {
       showFormStatus(status, label('draft_failed') || '送出失敗，請稍後重試或交給篩檢員。', true);
       return;
     }
+    const invalidContact = draftContactState.validate();
+    if (invalidContact) {
+      invalidContact.focus();
+      invalidContact.reportValidity();
+      return;
+    }
     const screenerPanel = document.getElementById('screener-panel');
     const invalid = Array.from(form.elements).find(element => !screenerPanel?.contains(element) && element.willValidate && !element.checkValidity());
     if (invalid) {
@@ -2408,6 +2416,8 @@ function initializeDraftSubmission(form) {
     try {
       const responseData = collectFormData(form);
       draftScreenerFields.forEach(key => { delete responseData[key]; });
+      const draftContacts = draftContactState.collect();
+      if (draftContacts.length) responseData.hiv_positive_contacts = draftContacts;
       const payload = {
         response_data: responseData,
         language: document.documentElement.dataset.contentLanguage || 'zh-TW',
@@ -2422,6 +2432,7 @@ function initializeDraftSubmission(form) {
       }
       if (error) throw error;
       form.reset();
+      draftContactState.reset();
       button.hidden = true;
       if (handoffButton) handoffButton.hidden = true;
       showFormStatus(status, label('draft_success') || '已送出，篩檢員會在後台繼續處理，謝謝填答。');

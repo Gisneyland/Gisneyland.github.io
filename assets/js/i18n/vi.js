@@ -71,6 +71,8 @@ i18n["vi"] = {
   "return_to_edit": "Quay lại chỉnh sửa",
   "handoff_screening": "Xác nhận và chuyển cho nhân viên xét nghiệm",
   "handoff_choice": "Khi đã đúng, hãy đưa thiết bị cho nhân viên để tiếp tục, hoặc gửi ngay để nhân viên hoàn tất sau trên thiết bị khác.",
+  "draft_contact_label": "Liên hệ chuyển tuyến nếu dương tính (tùy chọn)",
+  "draft_contact_hint": "Nếu gửi ngay và kết quả dương tính, bạn có thể để lại thông tin liên hệ để chuyển tuyến.",
   "draft_submit": "Gửi ngay; nhân viên hoàn tất sau",
   "draft_sending": "Đang gửi…",
   "draft_success": "Đã gửi. Nhân viên sẽ tiếp tục trong hệ thống nội bộ. Cảm ơn bạn.",
