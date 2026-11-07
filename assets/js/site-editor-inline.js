@@ -382,7 +382,7 @@
         range = doc.createRange(); range.selectNodeContents(record.element); range.collapse(true);
       }
       toolbar.hidden = false;
-      toolbar.querySelector('select').value = record.style || 'p';
+      toolbar.querySelector('select[aria-label="段落樣式"]').value = record.style || 'p';
       position(toolbar, rect && (rect.width || rect.height) ? rect : record.element.getBoundingClientRect());
     }
     function closeDialog() {
@@ -569,14 +569,23 @@
       toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', '選取文字格式');
       for (const [command, icon, label, value] of [
         ['bold', 'format_bold', '粗體'], ['italic', 'format_italic', '斜體'],
-        ['underline', 'format_underlined', '底線'], ['hiliteColor', 'format_color_fill', '螢光標記', '#fff59d'],
+        ['underline', 'format_underlined', '底線'], ['strikeThrough', 'format_strikethrough', '刪除線'], ['hiliteColor', 'format_color_fill', '螢光標記', '#fff59d'],
         ['subscript', 'subscript', '下標'], ['superscript', 'superscript', '上標'],
         ['createLink', 'link', '加入連結'], ['unlink', 'link_off', '移除連結'],
-        ['removeFormat', 'format_clear', '清除格式']
+        ['removeFormat', 'format_clear', '清除格式'], ['undo', 'undo', '復原'], ['redo', 'redo', '重做']
       ]) button(toolbar, icon, label, () => format(command, value));
       const color = element('input'); color.type = 'color'; color.value = '#1f2937';
       color.title = '文字顏色'; color.setAttribute('aria-label', '文字顏色');
       color.addEventListener('input', () => format('foreColor', color.value)); toolbar.append(color);
+      const pick = (label, options, command) => {
+        const select = element('select'); select.setAttribute('aria-label', label);
+        select.append(new global.Option(`${label}…`, ''));
+        options.forEach(([value, text]) => select.append(new global.Option(text, value)));
+        select.addEventListener('change', () => { if (select.value) format(command, select.value); select.value = ''; });
+        toolbar.append(select);
+      };
+      pick('字型', [['rc-sans', '黑體'], ['rc-serif', '明體'], ['rc-kai', '楷體'], ['rc-mono', '等寬字']], 'fontName');
+      pick('字級', [['2', '小'], ['3', '標準'], ['4', '大'], ['5', '特大'], ['6', '超大']], 'fontSize');
       const style = element('select'); style.setAttribute('aria-label', '段落樣式');
       const labels = ['內文', '標題 1', '標題 2', '標題 3', '引文', '項目清單', '編號清單'];
       STYLES.forEach((value, index) => style.append(new global.Option(labels[index], value)));

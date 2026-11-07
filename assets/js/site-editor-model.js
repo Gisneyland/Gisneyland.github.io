@@ -3,6 +3,8 @@
   const MAX_TEXT = 12000;
   const STYLES = Object.freeze(['p', 'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol']);
   const BLOCK_TYPES = Object.freeze(['paragraph', 'card', 'image', 'audio', 'video', 'table', 'code', 'math', 'music', 'mermaid', 'markdown', 'button', 'icon', 'logo']);
+  const SIZES = Object.freeze(['small', 'large', 'xlarge', 'xxlarge']);
+  const FAMILIES = Object.freeze(['sans', 'serif', 'kai', 'mono']);
   const VARIANTS = Object.freeze(['primary', 'secondary', 'outline', 'text']);
   function administrator(profile) {
     return Boolean(profile && profile.account_role === 'administrator'
@@ -50,11 +52,11 @@
     if (!Array.isArray(value) || value.length > 500) throw new Error('格式文字片段過多');
     let length = 0;
     return value.map(run => {
-      keys(run, ['text', 'bold', 'italic', 'underline', 'highlight', 'color', 'script', 'href']);
+      keys(run, ['text', 'bold', 'italic', 'underline', 'strike', 'highlight', 'color', 'script', 'href', 'size', 'family']);
       const safe = { text: text(run.text) };
       length += safe.text.length;
       if (length > MAX_TEXT) throw new Error('格式文字過長');
-      for (const flag of ['bold', 'italic', 'underline', 'highlight']) {
+      for (const flag of ['bold', 'italic', 'underline', 'strike', 'highlight']) {
         if (flag in run) {
           if (typeof run[flag] !== 'boolean') throw new Error('文字樣式錯誤');
           safe[flag] = run[flag];
@@ -63,6 +65,14 @@
       if ('color' in run) {
         if (typeof run.color !== 'string' || !/^#[a-fA-F0-9]{6}$/.test(run.color)) throw new Error('文字顏色錯誤');
         safe.color = run.color;
+      }
+      if ('size' in run) {
+        if (!SIZES.includes(run.size)) throw new Error('字級錯誤');
+        safe.size = run.size;
+      }
+      if ('family' in run) {
+        if (!FAMILIES.includes(run.family)) throw new Error('字型錯誤');
+        safe.family = run.family;
       }
       if ('script' in run) {
         if (!['sub', 'super'].includes(run.script)) throw new Error('上下標錯誤');
@@ -172,5 +182,5 @@
     for (let i = 0; i < value.length; i += 1) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
     return (hash >>> 0).toString(36);
   }
-  global.SiteEditorModel = Object.freeze({ administrator, safeURL, safeMediaURL, publicPage, empty, normalize, fingerprint, runs, icon, VARIANTS, STYLES, BLOCK_TYPES });
+  global.SiteEditorModel = Object.freeze({ administrator, safeURL, safeMediaURL, publicPage, empty, normalize, fingerprint, runs, icon, VARIANTS, STYLES, SIZES, FAMILIES, BLOCK_TYPES });
 })(globalThis);

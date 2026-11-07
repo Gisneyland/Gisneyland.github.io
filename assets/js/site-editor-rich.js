@@ -31,16 +31,41 @@
     // Existing elements are styled in place: their protected descendants are never replaced.
     element.style.listStyleType = style === 'ul' ? 'disc' : style === 'ol' ? 'decimal' : '';
   }
+  const SIZE_EM = { small: '0.875em', large: '1.25em', xlarge: '1.75em', xxlarge: '2.25em' };
+  const FAMILY_CSS = {
+    sans: '"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif',
+    serif: '"Noto Serif TC","PMingLiU",serif',
+    kai: '"DFKai-SB","BiauKai","Kaiti TC",serif',
+    mono: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace'
+  };
+  const compactFont = value => String(value || '').toLowerCase().replace(/["'\s]/g, '');
+  function sizeFrom(value, fontAttribute) {
+    if (fontAttribute) return ({ 1: 'small', 2: 'small', 4: 'large', 5: 'xlarge', 6: 'xxlarge', 7: 'xxlarge' })[fontAttribute] || null;
+    const match = /^(\d*\.?\d+)(px|em|rem|%)$/.exec(value || '');
+    if (!match) return null;
+    const ratio = Number(match[1]) / ({ px: 16, em: 1, rem: 1, '%': 100 })[match[2]];
+    return ratio < 0.95 ? 'small' : ratio <= 1.05 ? null : ratio < 1.5 ? 'large' : ratio < 2 ? 'xlarge' : 'xxlarge';
+  }
+  function familyFrom(value) {
+    const text = compactFont(value);
+    const token = /rc-(sans|serif|kai|mono)/.exec(text);
+    if (token) return token[1];
+    return Object.keys(FAMILY_CSS).find(name => compactFont(FAMILY_CSS[name]) === text) || null;
+  }
   function renderRuns(runs) {
     const fragment = document.createDocumentFragment();
     for (const run of M.runs(runs)) {
       let content = document.createTextNode(run.text);
       for (const [enabled, tag] of [[run.bold, 'strong'], [run.italic, 'em'], [run.underline, 'u'],
-        [run.highlight, 'mark'], [run.script === 'sub', 'sub'], [run.script === 'super', 'sup']]) {
+        [run.strike, 's'], [run.highlight, 'mark'], [run.script === 'sub', 'sub'], [run.script === 'super', 'sup']]) {
         if (enabled) { const wrapper = node(tag); wrapper.append(content); content = wrapper; }
       }
-      if (run.color) {
-        const wrapper = node('span'); wrapper.style.color = run.color; wrapper.append(content); content = wrapper;
+      if (run.color || run.size || run.family) {
+        const wrapper = node('span');
+        if (run.color) wrapper.style.color = run.color;
+        if (run.size) wrapper.style.fontSize = SIZE_EM[run.size];
+        if (run.family) wrapper.style.fontFamily = FAMILY_CSS[run.family];
+        wrapper.append(content); content = wrapper;
       }
       if (run.href) {
         const wrapper = node('a'); wrapper.href = run.href; wrapper.append(content); content = wrapper;
@@ -77,7 +102,7 @@
       if (current.nodeType !== 1 && current.nodeType !== 11) return;
       if (current.nodeType === 1 && current.matches('script,style,iframe,object,svg,math,[data-site-editor-protected]')) return;
       const flags = { ...inherited }, tag = current.tagName;
-      for (const [tags, flag] of [[['STRONG', 'B'], 'bold'], [['EM', 'I'], 'italic'], [['U'], 'underline'], [['MARK'], 'highlight']]) {
+      for (const [tags, flag] of [[['STRONG', 'B'], 'bold'], [['EM', 'I'], 'italic'], [['U'], 'underline'], [['S', 'STRIKE', 'DEL'], 'strike'], [['MARK'], 'highlight']]) {
         if (tags.includes(tag)) flags[flag] = true;
       }
       if (tag === 'SUB' || tag === 'SUP') flags.script = tag === 'SUB' ? 'sub' : 'super';
@@ -86,12 +111,20 @@
       const style = current.style;
       const color = hexColor(style?.color || (tag === 'FONT' ? current.getAttribute('color') : ''));
       if (color) flags.color = color;
+      const presentationRoot = current === element && current.hasAttribute('data-site-editor-style');
+      if (!presentationRoot) {
+        const fontSize = tag === 'FONT' && current.hasAttribute('size') ? sizeFrom('', current.getAttribute('size').replace(/^\+/, '')) : sizeFrom(style?.fontSize);
+        const explicit = (tag === 'FONT' && current.hasAttribute('size')) || style?.fontSize;
+        if (fontSize) flags.size = fontSize; else if (explicit) delete flags.size;
+        const face = familyFrom(style?.fontFamily || (tag === 'FONT' ? current.getAttribute('face') : ''));
+        if (face) flags.family = face;
+        else if (style?.fontFamily || (tag === 'FONT' && current.hasAttribute('face'))) delete flags.family;
+      }
       if (style) {
-        const presentationRoot = current === element && current.hasAttribute('data-site-editor-style');
         if (style.fontWeight && !presentationRoot) flags.bold = /^(bold|bolder)$/.test(style.fontWeight) || Number(style.fontWeight) >= 600;
         if (style.fontStyle) flags.italic = /^(italic|oblique)/.test(style.fontStyle);
         const decoration = style.textDecorationLine || style.textDecoration;
-        if (decoration) flags.underline = decoration.includes('underline');
+        if (decoration) { flags.underline = decoration.includes('underline'); flags.strike = decoration.includes('line-through'); }
         if (style.backgroundColor) {
           flags.highlight = style.backgroundColor !== 'transparent' && !/^rgba\([^)]*,\s*0(?:\.0*)?\s*\)$/.test(style.backgroundColor);
         }

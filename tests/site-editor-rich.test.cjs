@@ -292,3 +292,11 @@ test('browser: semantic runs, all block previews, literal hostile source and rev
   assert.equal(code, 0, errors);
   assert.match(output, /data-result="all rich browser assertions passed"/, output.match(/data-result="([^"]*)"/)?.[1] || errors);
 });
+
+test('font size, font family and strikethrough use fixed vocabularies only', () => {
+  const doc = documentWith({ patches: { text1: { rich: [{ text: 'x', size: 'xlarge', family: 'kai', strike: true }] } } });
+  assert.deepEqual(plain(M.normalize(doc)), doc);
+  for (const run of [{ size: 'huge' }, { size: '20px' }, { family: 'Comic Sans' }, { family: 'serif;x:y' }, { strike: 'yes' }]) {
+    assert.throws(() => M.runs([{ text: 'x', ...run }]));
+  }
+});
