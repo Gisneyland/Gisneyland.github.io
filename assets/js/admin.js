@@ -206,6 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const institutionList = document.getElementById('screening-institution-list');
   const institutionForm = document.getElementById('screening-institution-form');
   const institutionStatus = document.getElementById('screening-institution-status');
+  const selectedLinkNationalities = new Set();
+  const linkNationalitySearch = document.getElementById('external-link-nationality-search');
+  const linkNationalityOptions = document.getElementById('external-link-nationality-options');
+  const linkNationalitySelected = document.getElementById('external-link-nationality-selected');
   const bureauCard = document.getElementById('local-bureaus-card');
   const bureauList = document.getElementById('local-bureau-list');
   const bureauForm = document.getElementById('local-bureau-form');
@@ -2085,7 +2089,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadExternalLinks() {
     const { data, error } = await window.questionnaireSupabase
       .from('external_links')
-      .select('id, kind, nationality, match_keywords, label, url')
+      .select('id, kind, nationality, nationalities, match_keywords, label, url')
       .order('created_at', { ascending: true });
     if (error) {
       showStatus(externalLinkStatus, '無法載入待辦連結，請確認已執行最新資料庫更新。', true);
@@ -2109,16 +2113,70 @@ document.addEventListener('DOMContentLoaded', () => {
     return choices;
   }
 
-  function resolveCountry(input) {
-    const text = ExternalTasksModel.norm(input);
-    if (!text) return '';
-    const match = countryChoices().find(choice => ExternalTasksModel.norm(choice.code) === text || ExternalTasksModel.norm(choice.name) === text);
-    return match ? match.code : String(input).trim();
-  }
-
   function describeNationality(value) {
     const match = countryChoices().find(choice => choice.code === String(value).toUpperCase());
     return match ? `${match.name} (${match.code})` : value;
+  }
+
+  function renderLinkNationalities() {
+    linkNationalitySelected.replaceChildren(...[...selectedLinkNationalities].map(code => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'selected-value';
+      chip.dataset.removeLinkNationality = code;
+      chip.setAttribute('aria-label', `移除國籍 ${describeNationality(code)}`);
+      chip.textContent = `${describeNationality(code)} ×`;
+      return chip;
+    }));
+    linkNationalityOptions.querySelectorAll('input[data-link-nationality]').forEach(box => {
+      box.checked = selectedLinkNationalities.has(box.value);
+    });
+  }
+
+  function setLinkNationalities(codes) {
+    selectedLinkNationalities.clear();
+    codes.forEach(code => selectedLinkNationalities.add(code));
+    linkNationalitySearch.value = '';
+    filterLinkNationalities();
+    renderLinkNationalities();
+  }
+
+  function filterLinkNationalities() {
+    const query = linkNationalitySearch.value.trim().toLocaleLowerCase();
+    linkNationalityOptions.querySelectorAll('.admin-nationality-option').forEach(option => {
+      option.hidden = query !== '' && !option.dataset.searchText.includes(query);
+    });
+  }
+
+  function initializeLinkNationalityPicker() {
+    linkNationalityOptions.replaceChildren(...countryChoices().map(choice => {
+      const label = document.createElement('label');
+      label.className = 'admin-nationality-option';
+      label.dataset.searchText = `${choice.name} ${choice.code}`.toLocaleLowerCase();
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = choice.code;
+      box.dataset.linkNationality = 'true';
+      const name = document.createElement('span');
+      name.className = 'admin-nationality-option-name';
+      name.textContent = `${choice.name} (${choice.code})`;
+      label.append(box, name);
+      return label;
+    }));
+    linkNationalitySearch.addEventListener('input', filterLinkNationalities);
+    linkNationalityOptions.addEventListener('change', event => {
+      const box = event.target;
+      if (!box.matches('input[data-link-nationality]')) return;
+      if (box.checked) selectedLinkNationalities.add(box.value);
+      else selectedLinkNationalities.delete(box.value);
+      renderLinkNationalities();
+    });
+    linkNationalitySelected.addEventListener('click', event => {
+      const button = event.target.closest('[data-remove-link-nationality]');
+      if (!button) return;
+      selectedLinkNationalities.delete(button.dataset.removeLinkNationality);
+      renderLinkNationalities();
+    });
   }
 
   function renderExternalLinks() {
@@ -2132,7 +2190,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const text = document.createElement('div');
       text.className = 'external-link-text';
       const target = link.kind === 'nationality_questionnaire'
-        ? describeNationality(link.nationality)
+        ? ExternalTasksModel.linkNationalities(link).map(code => describeNationality(code.toUpperCase())).join('、')
         : ((link.match_keywords || []).join('、') || '全部地點');
       const badge = document.createElement('span');
       badge.className = 'external-link-kind';
@@ -2170,7 +2228,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const values = externalLinkForm.elements;
           values.id.value = link.id;
           values.kind.value = link.kind;
-          values.nationality.value = link.nationality || '';
+          setLinkNationalities(ExternalTasksModel.linkNationalities(link).map(code => code.toUpperCase()));
           values.keywords.value = (link.match_keywords || []).join(', ');
           values.label.value = link.label;
           values.url.value = link.url;
@@ -2206,10 +2264,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function initializeExternalLinkSettings() {
     if (!externalLinkForm) return;
-    const datalist = document.getElementById('external-link-countries');
-    datalist.replaceChildren(...countryChoices().map(choice => new Option(`${choice.name} (${choice.code})`, choice.name)));
+    initializeLinkNationalityPicker();
     const cancel = document.getElementById('external-link-cancel');
-    const reset = () => { externalLinkForm.reset(); externalLinkForm.elements.id.value = ''; cancel.hidden = true; syncExternalLinkKind(); };
+    const reset = () => { externalLinkForm.reset(); externalLinkForm.elements.id.value = ''; setLinkNationalities([]); cancel.hidden = true; syncExternalLinkKind(); };
     externalLinkForm.elements.kind.addEventListener('change', syncExternalLinkKind);
     cancel.addEventListener('click', reset);
     externalLinkForm.addEventListener('submit', async event => {
@@ -2218,19 +2275,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const kind = values.kind.value;
       const record = {
         kind,
-        nationality: kind === 'nationality_questionnaire' ? resolveCountry(values.nationality.value) : '',
+        nationality: kind === 'nationality_questionnaire' ? [...selectedLinkNationalities][0] || '' : '',
+        nationalities: kind === 'nationality_questionnaire' ? [...selectedLinkNationalities] : [],
         match_keywords: kind === 'agency_site'
           ? [...new Set(values.keywords.value.split(/[,，、;；]+/).map(word => word.trim()).filter(Boolean))]
           : [],
         label: values.label.value.trim(),
         url: values.url.value.trim()
       };
-      if (kind === 'nationality_questionnaire' && !record.nationality) { showStatus(externalLinkStatus, '請填寫國籍。', true); return; }
+      if (kind === 'nationality_questionnaire' && !record.nationalities.length) { showStatus(externalLinkStatus, '請至少選擇一個國籍。', true); return; }
       if (!ExternalTasksModel.isSafeUrl(record.url)) { showStatus(externalLinkStatus, '網址需以 http:// 或 https:// 開頭。', true); return; }
       const id = values.id.value;
       const table = window.questionnaireSupabase.from('external_links');
       const { data, error } = await (id ? table.update(record).eq('id', id) : table.insert(record))
-        .select('id, kind, nationality, match_keywords, label, url').maybeSingle();
+        .select('id, kind, nationality, nationalities, match_keywords, label, url').maybeSingle();
       if (error || !data) { showStatus(externalLinkStatus, '儲存失敗，請確認帳號具編輯權限。', true); return; }
       externalLinks = id ? externalLinks.map(entry => (entry.id === id ? data : entry)) : [...externalLinks, data];
       reset();

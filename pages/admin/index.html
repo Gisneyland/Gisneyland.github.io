@@ -511,10 +511,12 @@ permalink: /admin/
               <option value="agency_site">衛生局／疾管署網站</option>
             </select>
           </label>
-          <label data-kind="nationality_questionnaire">國籍（輸入國名或國碼，如 泰國、TH）
-            <input name="nationality" list="external-link-countries" maxlength="80" autocomplete="off">
-            <datalist id="external-link-countries"></datalist>
-          </label>
+          <div class="external-link-nationalities" data-kind="nationality_questionnaire">
+            <label for="external-link-nationality-search">適用國籍（可複選，同一份問卷可對應多個國家）</label>
+            <input id="external-link-nationality-search" type="search" autocomplete="off" placeholder="搜尋國家或地區">
+            <div id="external-link-nationality-selected" class="selected-values admin-nationality-selected" aria-live="polite"></div>
+            <div id="external-link-nationality-options" class="admin-nationality-options" role="group" aria-label="適用國籍選項"></div>
+          </div>
           <label data-kind="agency_site" hidden>適用地點關鍵字（以逗號分隔，如 新竹市、新竹縣；留空代表全部）
             <input name="keywords" maxlength="300" autocomplete="off">
           </label>

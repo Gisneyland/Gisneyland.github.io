@@ -30,3 +30,13 @@ test('only http(s) urls are accepted', () => {
   assert.equal(model.isSafeUrl('https://example.com/x'), true);
   assert.equal(model.isSafeUrl('javascript:alert(1)'), false);
 });
+
+test('one link can apply to several nationalities, with legacy single nationality still working', () => {
+  const multi = { id: 'm', kind: 'nationality_questionnaire', nationalities: ['TH', 'vn'], nationality: 'TH', label: 'x', url: 'https://example.com' };
+  const legacy = { id: 'l', kind: 'nationality_questionnaire', nationality: 'JP', label: 'y', url: 'https://example.com' };
+  const ids = nationality => model.getTasks({ status: 'submitted', response_data: { nationality } }, [multi, legacy]).map(task => task.link.id);
+  assert.deepEqual(ids(['VN']), ['m']);
+  assert.deepEqual(ids(['TH', 'JP']), ['m', 'l']);
+  assert.deepEqual(ids('ID'), []);
+  assert.deepEqual(model.linkNationalities(multi), ['th', 'vn']);
+});

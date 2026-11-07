@@ -15,11 +15,18 @@
     return values.map(norm).filter(Boolean);
   }
 
+  // 一份連結可對應多個國籍；舊資料只有 nationality 單一欄位
+  function linkNationalities(link) {
+    const list = Array.isArray(link?.nationalities) && link.nationalities.length ? link.nationalities : [link?.nationality];
+    return [...new Set(list.map(norm).filter(Boolean))];
+  }
+
   function appliesTo(link, response, placeText) {
     if (response?.status === 'draft') return false;
     if (link.kind === 'nationality_questionnaire') {
-      const wanted = norm(link.nationality);
-      return Boolean(wanted) && responseNationalities(response).includes(wanted);
+      const wanted = linkNationalities(link);
+      const held = responseNationalities(response);
+      return wanted.some(code => held.includes(code));
     }
     if (link.kind === 'agency_site') {
       const keywords = (link.match_keywords || []).map(norm).filter(Boolean);
@@ -60,5 +67,5 @@
     }
   }
 
-  return { KINDS, getTasks, summarize, setDone, isSafeUrl, norm };
+  return { KINDS, linkNationalities, getTasks, summarize, setDone, isSafeUrl, norm };
 });
