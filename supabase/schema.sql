@@ -50,7 +50,7 @@ begin
   ) then
     alter table public.questionnaire_responses
       add constraint questionnaire_consult_code_check
-      check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}$');
+      check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32}){0,19}$');
   end if;
 end $$;
 
