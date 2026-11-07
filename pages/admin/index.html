@@ -103,20 +103,26 @@ permalink: /admin/
       <p id="staff-gate-message"></p>
       <button id="accept-staff-privacy" class="admin-button" type="button" hidden>同意並繼續</button>
     </section>
+    <nav class="admin-nav" id="admin-nav" aria-label="後台導覽">
+    <button id="admin-nav-toggle" class="admin-nav-toggle" type="button" aria-controls="admin-nav" aria-expanded="true" aria-label="收合導覽列" title="收合導覽列">
+      <span class="material-icons notranslate" translate="no" aria-hidden="true">menu_open</span>
+      <span class="admin-nav-toggle-label">收合</span>
+    </button>
     <div class="admin-tabs" role="tablist" aria-label="後台功能">
       <button id="admin-tab-questionnaire" class="admin-tab" type="button" role="tab" aria-selected="true" aria-controls="admin-panel-questionnaire" tabindex="0">
         <span class="material-icons notranslate" translate="no" aria-hidden="true">assignment</span>
-        篩檢分析
+        <span class="admin-tab-label">篩檢分析</span>
       </button>
       <button id="admin-tab-content" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-content" tabindex="-1" hidden>
         <span class="material-icons notranslate" translate="no" aria-hidden="true">campaign</span>
-        新聞與活動
+        <span class="admin-tab-label">新聞與活動</span>
       </button>
       <button id="admin-tab-settings" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-settings" tabindex="-1">
         <span class="material-icons notranslate" translate="no" aria-hidden="true">settings</span>
-        設定
+        <span class="admin-tab-label">設定</span>
       </button>
     </div>
+    </nav>
     <section id="admin-panel-questionnaire" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-questionnaire" tabindex="0">
       <div class="admin-stats" aria-label="篩檢紀錄統計">
         <div class="stat-card"><span>HIV 陽性 / 篩檢</span><strong id="hiv-screening-ratio">0 / 0</strong></div>
