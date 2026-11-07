@@ -3121,7 +3121,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const conditionalRules = new Map();
       const conditionalChildren = new Map();
       RESPONSE_CONDITIONAL_GROUPS.forEach(rule => {
-        rule.children.forEach(key => conditionalRules.set(key, rule));
+        const children = isDraftResponse(response) && rule.parent === 'screening_interpretation'
+          ? rule.children.filter(key => key !== 'hiv_positive_contacts')
+          : rule.children;
+        children.forEach(key => conditionalRules.set(key, rule));
       });
       const visibleFields = group.fields.filter(([key, , value]) => {
         if (key === 'screening_photos' || key === 'anonymous_consult_code' || !hasResponseValue(value)) return false;

@@ -2144,6 +2144,7 @@ function initializeQuestionnaire(form) {
   });
   form.addEventListener('change', event => {
     const input = event.target;
+    if (input.closest('#draft-contact-list')) return;
     const step = input.closest('.question-step, .question-group');
     if (!step || steps[currentStep] !== step) return;
     if (input.type === 'radio' && step.matches('.question-group')) {
