@@ -1,5 +1,76 @@
 begin;
 
+-- Multiple anonymous consult codes
+-- 允許以逗號分隔儲存任意數量匿名諮詢代碼（舊限制僅允許單一代碼）。
+alter table public.questionnaire_responses
+  drop constraint if exists questionnaire_consult_code_check;
+alter table public.questionnaire_responses
+  add constraint questionnaire_consult_code_check
+  check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32})*$');
+
+alter table public.questionnaire_responses
+  drop constraint if exists questionnaire_consult_uploads_check;
+alter table public.questionnaire_responses
+  add constraint questionnaire_consult_uploads_check
+  check (jsonb_typeof(consult_uploads) = 'array');
+
+-- Local health bureaus
+-- 組織合作的地方衛生局名單；諮詢代碼的 consult_uploads 以 bureau_id 指定要上傳到哪一個衛生局。
+create table if not exists public.local_health_bureaus (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (length(btrim(name)) between 1 and 80),
+  created_at timestamptz not null default now()
+);
+
+alter table public.local_health_bureaus enable row level security;
+revoke all on table public.local_health_bureaus from anon, authenticated;
+grant select, insert, update, delete on table public.local_health_bureaus to authenticated;
+
+drop policy if exists "Staff can read local health bureaus" on public.local_health_bureaus;
+create policy "Staff can read local health bureaus" on public.local_health_bureaus
+for select to authenticated using (public.has_admin_permission('questionnaire.read'));
+
+drop policy if exists "Staff can manage local health bureaus" on public.local_health_bureaus;
+create policy "Staff can manage local health bureaus" on public.local_health_bureaus
+for all to authenticated
+using (public.has_admin_permission('questionnaire.consultation'))
+with check (public.has_admin_permission('questionnaire.consultation'));
+
+-- External survey link nationalities
+-- 一份外國問卷連結可適用多個國籍；舊的單一 nationality 欄位保留作相容，並回填到新欄位。
+alter table public.external_links
+  add column if not exists nationalities text[] not null default array[]::text[];
+
+alter table public.external_links
+  drop constraint if exists external_links_nationalities_check;
+alter table public.external_links
+  add constraint external_links_nationalities_check check (cardinality(nationalities) <= 300);
+
+update public.external_links
+set nationalities = array[nationality]
+where kind = 'nationality_questionnaire'
+  and cardinality(nationalities) = 0
+  and btrim(nationality) <> '';
+
+-- News/event body format
+-- News/event detail body can now be plain text, Markdown or sanitised HTML.
+alter table public.site_content
+  add column if not exists body_format text not null default 'text';
+
+alter table public.site_content drop constraint if exists site_content_body_format_check;
+alter table public.site_content
+  add constraint site_content_body_format_check check (body_format in ('text', 'markdown', 'html'));
+
+-- News/event discussion links
+-- Social posts (Mastodon, Facebook, X, YouTube...) shown as discussion below news/events.
+alter table public.site_content
+  add column if not exists discussion_urls text[] not null default '{}';
+
+alter table public.site_content drop constraint if exists site_content_discussion_urls_check;
+alter table public.site_content
+  add constraint site_content_discussion_urls_check check (cardinality(discussion_urls) <= 5);
+
+-- Site editor font runs, layout and background colour (supersedes the earlier font-runs-only draft)
 -- Adds block layout (alignment, indent, line height, letter spacing, media width) and run background colour.
 -- Fixed vocabularies only; no CSS, HTML or free-form values are accepted.
 create or replace function public.site_editor_valid_runs(value jsonb)

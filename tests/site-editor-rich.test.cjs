@@ -320,7 +320,7 @@ test('layout and background colour use fixed vocabularies only', () => {
 });
 
 test('migration 0007 allows layout in patches and blocks and validates it', () => {
-  const sql = fs.readFileSync(path.join(root, 'supabase/migrations/202611070007_site_editor_layout.sql'), 'utf8');
+  const sql = fs.readFileSync(path.join(root, 'supabase/migrations/202611070001_admin_enhancements.sql'), 'utf8');
   assert.match(sql, /site_editor_valid_layout/);
   assert.equal((sql.match(/'layout'/g) || []).length >= 4, true);
   assert.match(sql, /'background'/);
