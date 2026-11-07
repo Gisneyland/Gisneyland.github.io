@@ -41,14 +41,19 @@
   function getTasks(response, links, placeTextFor) {
     const progress = response?.task_progress && typeof response.task_progress === 'object' ? response.task_progress : {};
     const placeText = placeTextFor ? placeTextFor(response) : response?.response_data?.screening_place;
-    return (links || [])
+    const tasks = (links || [])
       .filter(link => appliesTo(link, response, placeText))
-      .map(link => ({ link, done: Boolean(progress[link.id]?.done_at), done_at: progress[link.id]?.done_at || null }));
+      .map(link => ({ link, done: Boolean(progress[link.id]?.done_at), done_at: progress[link.id]?.done_at || null, locked: false }));
+    // 每筆篩檢紀錄只能填一份外國問卷：已完成其中一份後，其餘外國問卷不再需要填寫
+    const questionnaires = tasks.filter(task => task.link.kind === 'nationality_questionnaire');
+    if (questionnaires.some(task => task.done)) questionnaires.forEach(task => { task.locked = !task.done; });
+    return tasks;
   }
 
   function summarize(tasks) {
-    const done = tasks.filter(task => task.done).length;
-    return { total: tasks.length, done, pending: tasks.length - done };
+    const active = tasks.filter(task => !task.locked);
+    const done = active.filter(task => task.done).length;
+    return { total: active.length, done, pending: active.length - done };
   }
 
   function setDone(progress, linkId, done, at, by) {

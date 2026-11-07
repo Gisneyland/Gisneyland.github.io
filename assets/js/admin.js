@@ -2083,7 +2083,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderTaskChips(response) {
     const tasks = getResponseTasks(response);
     if (!tasks.length) return '';
-    return `<div class="task-chip-list">${tasks.map(task => `<span class="task-chip ${task.done ? 'is-done' : 'is-pending'}" title="${task.done ? '已完成' : '尚未完成'}">${task.done ? '✓' : '○'} ${escapeHtml(task.link.label)}</span>`).join('')}</div>`;
+    return `<div class="task-chip-list">${tasks.filter(task => !task.locked).map(task => `<span class="task-chip ${task.done ? 'is-done' : 'is-pending'}" title="${task.done ? '已完成' : '尚未完成'}">${task.done ? '✓' : '○'} ${escapeHtml(task.link.label)}</span>`).join('')}</div>`;
   }
 
   async function loadExternalLinks() {
@@ -2318,13 +2318,19 @@ document.addEventListener('DOMContentLoaded', () => {
     status.hidden = true;
     tasks.forEach(task => {
       const item = document.createElement('li');
-      item.className = task.done ? 'is-done' : 'is-pending';
+      item.className = task.done ? 'is-done' : task.locked ? 'is-locked' : 'is-pending';
       const label = document.createElement('label');
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.checked = task.done;
-      box.disabled = !canEdit;
+      box.disabled = !canEdit || task.locked;
       label.append(box, ` ${task.link.label}`);
+      if (task.locked) {
+        const note = document.createElement('small');
+        note.className = 'admin-muted';
+        note.textContent = '（已完成其他外國問卷，每筆紀錄僅需填一份）';
+        label.append(note);
+      }
       const open = document.createElement('a');
       open.className = 'admin-button secondary';
       open.target = '_blank';

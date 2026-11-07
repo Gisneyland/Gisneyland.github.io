@@ -3869,3 +3869,5 @@ html[data-theme="dark"] .admin-body .consultation-code-action.is-danger:focus-vi
 .consultation-code-card .consultation-code-action.is-confirm { color: #155b3b; border-color: #6fa47c; }
 html[data-theme="dark"] .admin-body .consultation-code-status.is-pending { color: #ffe0a0; background: #4a3920; }
 html[data-theme="dark"] .admin-body .consultation-code-status.is-uploaded { color: #b7e9c8; background: #243e35; }
+
+.admin-body .task-list li.is-locked { opacity: 0.6; }

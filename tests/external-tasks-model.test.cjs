@@ -40,3 +40,12 @@ test('one link can apply to several nationalities, with legacy single nationalit
   assert.deepEqual(ids('ID'), []);
   assert.deepEqual(model.linkNationalities(multi), ['th', 'vn']);
 });
+
+test('only one foreign questionnaire is needed per record', () => {
+  const response = { status: 'submitted', task_progress: { a: { done_at: 'now' } }, response_data: { nationality: ['TH', 'JP'], screening_place: 'x' } };
+  const tasks = model.getTasks(response, links);
+  assert.deepEqual(tasks.filter(task => task.locked).map(task => task.link.id), ['b', 'c']);
+  assert.deepEqual(model.summarize(tasks), { total: 2, done: 1, pending: 1 });
+  const open = model.getTasks({ ...response, task_progress: {} }, links);
+  assert.equal(open.some(task => task.locked), false);
+});
