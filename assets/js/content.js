@@ -73,15 +73,19 @@ function renderNewsFeed(feed, records) {
     summary.textContent = record.summary;
     article.append(tag, title, summary);
 
-    if (record.body && record.body.trim() && typeof RichContent !== 'undefined') {
+    const hasDiscussion = typeof SocialDiscussion !== 'undefined' && record.discussion_urls?.length;
+    if (((record.body && record.body.trim()) || hasDiscussion) && typeof RichContent !== 'undefined') {
       const details = document.createElement('details');
       details.className = 'rc-news-more';
       const toggle = document.createElement('summary');
       toggle.textContent = '展開詳情';
       const bodyBox = document.createElement('div');
-      details.append(toggle, bodyBox);
+      const discussionBox = document.createElement('div');
+      details.append(toggle, bodyBox, discussionBox);
       details.addEventListener('toggle', () => {
-        if (details.open && !bodyBox.hasChildNodes()) RichContent.render(bodyBox, record.body, record.body_format);
+        if (!details.open || bodyBox.hasChildNodes() || discussionBox.hasChildNodes()) return;
+        if (record.body) RichContent.render(bodyBox, record.body, record.body_format);
+        if (hasDiscussion) SocialDiscussion.render(discussionBox, record.discussion_urls);
       });
       article.append(details);
     }
@@ -329,6 +333,8 @@ function renderCalendarNotice(container, title, date, description) {
   const summary = document.getElementById('activity-event-summary');
   summary.textContent = description || '';
   summary.hidden = !description;
+  const noticeDiscussion = document.getElementById('activity-event-discussion');
+  if (noticeDiscussion) { noticeDiscussion.replaceChildren(); noticeDiscussion.hidden = true; }
   const link = document.getElementById('activity-event-link');
   link.hidden = true;
   link.removeAttribute('href');
@@ -557,6 +563,12 @@ function renderEventDetails(container, record) {
   if (record.body && typeof RichContent !== 'undefined') RichContent.render(summary, record.body, record.body_format);
   else summary.textContent = record.body || record.summary || '';
   summary.hidden = !summary.textContent;
+
+  const discussion = document.getElementById('activity-event-discussion');
+  if (discussion) {
+    if (typeof SocialDiscussion !== 'undefined') SocialDiscussion.render(discussion, record.discussion_urls);
+    else discussion.hidden = true;
+  }
 
   const link = document.getElementById('activity-event-link');
   link.hidden = true;

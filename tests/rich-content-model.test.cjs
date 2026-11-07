@@ -38,4 +38,12 @@ assert.equal(M.chartSvg({ type: 'evil', labels: ['a'], datasets: [{ data: [1] }]
 assert.equal(M.toPlainText('# 嗨\n\n**粗** [x](https://a.tw)', 'markdown'), '嗨\n\n粗 x');
 assert.equal(M.toPlainText('<p>a &amp; b</p><script>x</script>', 'html'), 'a & b');
 assert.equal(M.toPlainText('<b>原樣</b>', 'text'), '<b>原樣</b>');
+assert.deepEqual(M.parseDiscussionUrls('https://a.tw/x\nhttp://bad.tw\njavascript:1\nhttps://a.tw/x'), ['https://a.tw/x']);
+assert.equal(M.parseDiscussionUrls(Array(9).fill(0).map((_, i) => `https://a.tw/${i}`).join('\n')).length, 5);
+assert.deepEqual(M.classifyDiscussion('https://mastodon.social/@gisney/111222333444'), { url: 'https://mastodon.social/@gisney/111222333444', host: 'mastodon.social', kind: 'mastodon', id: '111222333444' });
+assert.equal(M.classifyDiscussion('https://x.com/a/status/1234567890').kind, 'twitter');
+assert.equal(M.classifyDiscussion('https://www.facebook.com/a/posts/1').src.startsWith('https://www.facebook.com/plugins/post.php?href='), true);
+assert.equal(M.classifyDiscussion('https://youtu.be/dQw4w9WgXcQ').kind, 'youtube');
+assert.equal(M.classifyDiscussion('https://example.com/t').kind, 'link');
+assert.equal(M.classifyDiscussion('http://example.com'), null);
 console.log('rich-content-model ok');

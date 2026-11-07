@@ -434,6 +434,9 @@ permalink: /admin/
               <div id="event-location-map" class="event-location-map" aria-label="活動地點地圖"></div>
               <div class="event-location-coordinates"><label for="event-location-latitude">緯度</label><input id="event-location-latitude" type="number" step="any" min="-90" max="90"><label for="event-location-longitude">經度</label><input id="event-location-longitude" type="number" step="any" min="-180" max="180"></div>
             </div>
+            <label for="site-content-discussion">社群討論連結（每行一個，最多 5 個）</label>
+            <textarea id="site-content-discussion" rows="3" maxlength="1500" placeholder="https://mastodon.social/@user/1234567890&#10;https://www.facebook.com/…/posts/…&#10;https://x.com/…/status/…&#10;https://www.youtube.com/watch?v=…"></textarea>
+            <p class="rc-editor-hint">Mastodon 會直接在文章下方顯示公開回覆；Facebook、X、YouTube 會嵌入貼文並附上留言連結。</p>
             <label for="site-content-url">相關連結</label>
             <input id="site-content-url" type="text" maxlength="500" placeholder="https://... 或 /頁面路徑">
             <label class="site-content-publish-toggle" for="site-content-published">

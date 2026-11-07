@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const endTimeInput = document.getElementById('site-content-end-time');
   const locationInput = document.getElementById('site-content-location');
   const urlInput = document.getElementById('site-content-url');
+  const discussionInput = document.getElementById('site-content-discussion');
   const publishedInput = document.getElementById('site-content-published');
   const filterSelect = document.getElementById('site-content-filter');
   const saveButton = contentForm.querySelector('[type="submit"]');
@@ -1041,6 +1042,7 @@ document.addEventListener('DOMContentLoaded', () => {
     endTimeInput.value = record.event_end_at ? model.localDateTime(record.event_end_at).slice(11, 16) : '16:00';
     locationInput.value = record.location || '';
     urlInput.value = record.url || '';
+    discussionInput.value = (record.discussion_urls || []).join('\n');
     publishedInput.checked = record.is_published;
     eventPlace.load(record);
     updateEventFields();
@@ -1104,6 +1106,7 @@ document.addEventListener('DOMContentLoaded', () => {
       body: bodyInput.value.trim(),
       body_format: bodyEditor ? bodyEditor.getFormat() : 'text',
       url,
+      discussion_urls: window.RichContentModel.parseDiscussionUrls(discussionInput.value),
       event_start: isEvent ? eventStartInput.value : null,
       event_end: isEvent ? eventEndInput.value || null : null,
       is_all_day: !isEvent || allDayInput.checked,

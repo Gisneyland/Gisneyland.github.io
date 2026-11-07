@@ -73,3 +73,20 @@ pre.rc-mermaid.rc-error::after { content: attr(data-error); display: block; marg
 .rc-image-choice { padding: 0; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; overflow: hidden; }
 .rc-image-choice img { display: block; width: 100%; height: 90px; object-fit: cover; }
 .rc-image-choice.is-selected { border-color: var(--accent); }
+
+/* 社群討論 */
+.sd-discussion { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.sd-title { margin: 0 0 0.75rem; font-size: 1.15rem; }
+.sd-item { margin-bottom: 1.25rem; }
+.sd-platform { margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--text-muted); }
+.sd-frame { display: block; width: 100%; max-width: 550px; min-height: 360px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.sd-frame-youtube { aspect-ratio: 16 / 9; min-height: 0; }
+.sd-link { display: inline-block; margin-top: 0.4rem; font-weight: 700; }
+.sd-status { color: var(--text-muted); font-size: 0.9rem; margin: 0.25rem 0; }
+.sd-replies { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.sd-reply { padding: 0.7rem 0.9rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.sd-reply-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+.sd-avatar { width: 32px; height: 32px; border-radius: 50%; }
+.sd-handle, .sd-time { color: var(--text-muted); }
+.sd-reply-body { margin-top: 0.3rem; }
+.sd-reply-body p { margin: 0.3rem 0; }

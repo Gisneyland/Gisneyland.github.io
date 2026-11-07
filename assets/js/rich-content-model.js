@@ -96,6 +96,39 @@
     return url && url.protocol === 'https:' ? url.href : '';
   }
 
+  // ---------- 社群討論 ----------
+  const MAX_DISCUSSIONS = 5;
+
+  function parseDiscussionUrls(value) {
+    const lines = Array.isArray(value) ? value : String(value || '').split(/\r?\n/);
+    const urls = [];
+    lines.forEach(line => {
+      const url = parseUrl(line);
+      if (url && url.protocol === 'https:' && !urls.includes(url.href) && urls.length < MAX_DISCUSSIONS) urls.push(url.href);
+    });
+    return urls;
+  }
+
+  // 辨識社群貼文連結；回傳 { kind, url, ... }，kind: mastodon | facebook | twitter | youtube | link
+  function classifyDiscussion(value) {
+    const url = parseUrl(value);
+    if (!url || url.protocol !== 'https:') return null;
+    const host = url.hostname.replace(/^www\./, '').replace(/^m\./, '');
+    const base = { url: url.href, host };
+    const status = url.pathname.match(/^\/(?:@[\w.-]+|users\/[\w.-]+\/statuses)\/(\d{5,25})\/?$/);
+    if (status && host !== 'twitter.com' && host !== 'x.com') return { ...base, kind: 'mastodon', id: status[1] };
+    if (/(^|\.)facebook\.com$/.test(host) || host === 'fb.com' || host === 'fb.watch') {
+      return { ...base, kind: 'facebook', src: `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url.href)}&width=500&show_text=true` };
+    }
+    const tweet = url.pathname.match(/^\/[\w]+\/status\/(\d{5,25})/);
+    if ((host === 'twitter.com' || host === 'x.com') && tweet) {
+      return { ...base, kind: 'twitter', src: `https://platform.twitter.com/embed/Tweet.html?id=${tweet[1]}&dnt=true` };
+    }
+    const embed = embedFor(url.href);
+    if (embed && embed.provider === 'YouTube') return { ...base, kind: 'youtube', src: embed.src };
+    return { ...base, kind: 'link' };
+  }
+
   // ---------- Markdown ----------
   const BLOCK_TAGS = /^<\/?(div|figure|figcaption|table|thead|tbody|tr|th|td|iframe|details|summary|video|audio|section|p|h[1-6]|ul|ol|li|pre|blockquote|hr|img)\b/i;
 
@@ -441,7 +474,7 @@
 
   return {
     FORMATS, FONTS, FONT_LABELS, SIZES, SIZE_LABELS, CALLOUTS, CHART_TYPES, MAX_CHART_LABELS, MAX_CHART_SERIES,
-    escapeHtml, unescapeHtml, safeStyle, embedFor, siteEmbedUrl, markdownToHtml, toHtml, toPlainText,
+    MAX_DISCUSSIONS, parseDiscussionUrls, classifyDiscussion, escapeHtml, unescapeHtml, safeStyle, embedFor, siteEmbedUrl, markdownToHtml, toHtml, toPlainText,
     buildMarkdownTable, buildHtmlTable, parseMarkdownTable, parseHtmlTable, locateTable, parseChart, chartSvg
   };
 });

@@ -240,6 +240,7 @@ create table if not exists public.site_content (
   body text not null default '',
   body_format text not null default 'text' check (body_format in ('text', 'markdown', 'html')),
   url text,
+  discussion_urls text[] not null default '{}' check (cardinality(discussion_urls) <= 5),
   location text not null default '',
   event_start date,
   event_end date,
