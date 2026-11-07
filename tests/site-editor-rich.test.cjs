@@ -18,7 +18,7 @@ test('horizontal Mermaid example uses one edge per source line', () => {
   const editor = fs.readFileSync(path.join(root, 'assets/js/admin-rich-editor.js'), 'utf8');
   const template = editor.match(/steps: \['橫向步驟', '([^']+)'\]/)?.[1];
   assert.ok(template);
-  assert.equal((template.match(/-->/g) || []).length, 3);
+  assert.equal(template.split('-->').length - 1, 3);
   assert.equal((template.match(/\\n/g) || []).length, 3);
 });
 
