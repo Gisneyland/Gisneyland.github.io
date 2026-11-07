@@ -464,7 +464,7 @@
       if (!flush()) return;
       const item = selectedNow(), block = item?.added && getDraft().blocks.find(value => value.id === item.id);
       if (!block || !SOURCE_TYPES.has(block.type)) return;
-      const pane = makeDialog(block.type === 'table' ? '編輯表格（Tab 分欄、換行分列）' : '編輯原始碼');
+      const pane = makeDialog(block.type === 'table' ? '編輯表格（Tab 分欄、換行分列；< 併入左格、^ 併入上格）' : '編輯原始碼');
       const label = element('label', '', '原始內容');
       const input = element('textarea'); input.value = block.body; input.maxLength = 12000;
       input.setAttribute('aria-label', '原始內容'); input.rows = 9; label.append(input); pane.append(label);
@@ -500,6 +500,31 @@
         };
         const tool = (icon, label, change) => button(pane, icon, label, () => { const rows = read(); change(rows, focus[0], focus[1]); write(rows); });
         const width = rows => Math.max(...rows.map(row => row.length));
+        const span = (rows, r, c) => {
+          while (c > 0 && rows[r][c] === '<') c -= 1;
+          while (r > 0 && rows[r][c] === '^') r -= 1;
+          let r2 = r, c2 = c;
+          while (rows[r][c2 + 1] === '<') c2 += 1;
+          while (rows[r2 + 1] && rows[r2 + 1][c] === '^') r2 += 1;
+          return { r, c, r2, c2 };
+        };
+        tool('call_merge', '向右合併儲存格', (rows, r, c) => {
+          const s = span(rows, r, c);
+          if (s.c2 + 1 >= width(rows) || rows[s.r][s.c2 + 1] === '^') return;
+          for (let y = s.r; y <= s.r2; y += 1) rows[y][s.c2 + 1] = '<';
+          focus = [s.r, s.c];
+        });
+        tool('vertical_align_bottom', '向下合併儲存格', (rows, r, c) => {
+          const s = span(rows, r, c);
+          if (s.r2 + 1 >= rows.length || rows[s.r2 + 1][s.c] === '<') return;
+          for (let x = s.c; x <= s.c2; x += 1) rows[s.r2 + 1][x] = x === s.c ? '^' : '<';
+          focus = [s.r, s.c];
+        });
+        tool('call_split', '拆分儲存格', (rows, r, c) => {
+          const s = span(rows, r, c);
+          for (let y = s.r; y <= s.r2; y += 1) for (let x = s.c; x <= s.c2; x += 1) if (y !== s.r || x !== s.c) rows[y][x] = '';
+          focus = [s.r, s.c];
+        });
         tool('keyboard_double_arrow_up', '上方插入列', (rows, r) => rows.splice(r, 0, Array(width(rows)).fill('')));
         tool('keyboard_double_arrow_down', '下方插入列', (rows, r) => rows.splice(r + 1, 0, Array(width(rows)).fill('')));
         tool('keyboard_double_arrow_left', '左方插入欄', (rows, r, c) => rows.forEach(row => row.splice(c, 0, '')));

@@ -487,9 +487,23 @@
       article.append(visual, bodyText(block));
     } else if (type === 'table') {
       const table = node('table'), body = node('tbody');
-      for (const line of block.body.split('\n')) {
-        const row = node('tr'); for (const cell of line.split('\t')) row.append(node('td', cell)); body.append(row);
-      }
+      // A cell holding only "<" merges into the cell on its left, "^" into the cell above.
+      const grid = block.body.split('\n').map(line => line.split('\t'));
+      const hidden = (r, c) => (grid[r][c] === '<' && c > 0) || (grid[r][c] === '^' && r > 0);
+      grid.forEach((cells, r) => {
+        const row = node('tr');
+        cells.forEach((cell, c) => {
+          if (hidden(r, c)) return;
+          const td = node('td', cell);
+          let across = 1, down = 1;
+          while (c + across < cells.length && cells[c + across] === '<') across += 1;
+          while (r + down < grid.length && grid[r + down][c] === '^') down += 1;
+          if (across > 1) td.colSpan = across;
+          if (down > 1) td.rowSpan = down;
+          row.append(td);
+        });
+        body.append(row);
+      });
       table.append(body); article.append(table, source(block));
     } else if (type === 'code') {
       const pre = node('pre'), code = node('code', block.body);
