@@ -151,7 +151,7 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
       const toolbar=document.querySelector('.site-editor-format-toolbar');
       const visible=selection.isCollapsed&&!toolbar.hidden&&Number.isFinite(parseFloat(toolbar.style.top));
-      const style=toolbar.querySelector('select');style.value='blockquote';style.dispatchEvent(new Event('change',{bubbles:true}));
+      const style=toolbar.querySelector('select[aria-label="段落樣式"]');style.value='blockquote';style.dispatchEvent(new Event('change',{bubbles:true}));
       document.querySelector('#widget button').focus();
       return {visible,style:draft.patches[textId('Second paragraph')].style,
         text:draft.patches[textId('Second paragraph')].text};

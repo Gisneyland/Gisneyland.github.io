@@ -83,6 +83,12 @@ body.site-editor-editing .site-editor-mode-status:not(:empty) {
 .site-editor-inline-ui label { color: inherit; font-size: inherit; }
 .site-editor-format-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; width: max-content; }
 .site-editor-format-toolbar .material-icons { font-size: 20px; }
+.site-editor-format-toolbar { max-width: min(96vw, 760px); }
+.site-editor-count { flex-basis: 100%; padding: 2px 6px; font-size: .8rem; opacity: .8; }
+.site-editor-grid { max-height: 220px; overflow: auto; margin: 8px 0; }
+.site-editor-grid table { border-collapse: collapse; }
+.site-editor-grid td { padding: 2px; }
+.site-editor-grid input { min-width: 90px; padding: 4px; }
 .site-editor-component-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; }
 .site-editor-insert-menu { max-height: min(65vh, 540px); overflow-y: auto; width: 320px; }
 .site-editor-insert-menu h3 { margin: 8px; font-size: 1.1rem; }

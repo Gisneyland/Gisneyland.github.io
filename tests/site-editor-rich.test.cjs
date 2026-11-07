@@ -300,3 +300,28 @@ test('font size, font family and strikethrough use fixed vocabularies only', () 
     assert.throws(() => M.runs([{ text: 'x', ...run }]));
   }
 });
+
+test('layout and background colour use fixed vocabularies only', () => {
+  const layout = { align: 'center', indent: 2, leading: 'relaxed', tracking: 'wide', width: 50 };
+  const doc = documentWith({
+    patches: { text1: { layout, rich: [{ text: 'x', background: '#AABBCC' }] }, img1: { layout: {} } },
+    blocks: [block({ layout })]
+  });
+  assert.deepEqual(plain(M.normalize(doc)), doc);
+  const bad = [{ align: 'start' }, { indent: 6 }, { indent: 1.5 }, { indent: '1' }, { leading: 'calc(1)' },
+    { tracking: '1px' }, { width: 60 }, { width: '50' }, { css: 'x' }, null, []];
+  for (const value of bad) {
+    assert.throws(() => M.normalize(documentWith({ patches: { t: { layout: value } } })));
+    assert.throws(() => M.normalize(documentWith({ blocks: [block({ layout: value })] })));
+  }
+  for (const background of ['red', '#fff', 'url(x)', '#ffffff;x', 3]) {
+    assert.throws(() => M.runs([{ text: 'x', background }]));
+  }
+});
+
+test('migration 0007 allows layout in patches and blocks and validates it', () => {
+  const sql = fs.readFileSync(path.join(root, 'supabase/migrations/202611070007_site_editor_layout.sql'), 'utf8');
+  assert.match(sql, /site_editor_valid_layout/);
+  assert.equal((sql.match(/'layout'/g) || []).length >= 4, true);
+  assert.match(sql, /'background'/);
+});

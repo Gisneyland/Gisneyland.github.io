@@ -576,7 +576,7 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
       const selection=getSelection(),range=document.createRange();range.selectNodeContents(node);range.collapse(true);
       selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
       const toolbar=document.querySelector('.site-editor-format-toolbar'),visible=!toolbar.hidden&&selection.isCollapsed;
-      const style=toolbar.querySelector('select');style.value='blockquote';style.dispatchEvent(new Event('change',{bubbles:true}));
+      const style=toolbar.querySelector('select[aria-label="段落樣式"]');style.value='blockquote';style.dispatchEvent(new Event('change',{bubbles:true}));
       originalWidget.focus();
       return visible&&document.querySelector('#mixed [data-site-editor-style="blockquote"]')!==null;
     })()`), true, 'Caret-only editing must expose paragraph styles and flush them on blur');

@@ -31,6 +31,36 @@
     // Existing elements are styled in place: their protected descendants are never replaced.
     element.style.listStyleType = style === 'ul' ? 'disc' : style === 'ol' ? 'decimal' : '';
   }
+  const LEADING = { tight: '1.3', relaxed: '1.9', loose: '2.4' };
+  const TRACKING = { tight: '-0.02em', wide: '0.05em', wider: '0.12em' };
+  // Layout is a fixed vocabulary (see SiteEditorModel.layout); values never come from user-supplied CSS.
+  function applyLayout(element, layout, media = false) {
+    const safe = M.layout(layout || {});
+    const has = Object.keys(safe).length > 0;
+    if (has) element.setAttribute('data-site-editor-layout', '');
+    else element.removeAttribute('data-site-editor-layout');
+    if (!media) for (const name of ['textAlign', 'marginInlineStart', 'lineHeight', 'letterSpacing']) element.style[name] = '';
+    if (safe.align && !media) {
+      element.style.textAlign = safe.align;
+      if (getComputedDisplayInline(element)) element.style.display = 'block';
+    }
+    if (media) {
+      element.style.display = 'block';
+      element.style.height = 'auto';
+      if (safe.width) element.style.width = `${safe.width}%`;
+      if (safe.align) {
+        element.style.marginInline = safe.align === 'center' ? 'auto' : safe.align === 'right' ? 'auto 0' : '0 auto';
+      }
+    } else {
+      if (safe.indent) element.style.marginInlineStart = `${safe.indent * 2}em`;
+      if (safe.leading) element.style.lineHeight = LEADING[safe.leading];
+      if (safe.tracking) element.style.letterSpacing = TRACKING[safe.tracking];
+    }
+    return element;
+  }
+  function getComputedDisplayInline(element) {
+    return !element.style.display && /^(SPAN|A|EM|STRONG|B|I|U)$/.test(element.tagName);
+  }
   const SIZE_EM = { small: '0.875em', large: '1.25em', xlarge: '1.75em', xxlarge: '2.25em' };
   const FAMILY_CSS = {
     sans: '"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif',
@@ -60,9 +90,10 @@
         [run.strike, 's'], [run.highlight, 'mark'], [run.script === 'sub', 'sub'], [run.script === 'super', 'sup']]) {
         if (enabled) { const wrapper = node(tag); wrapper.append(content); content = wrapper; }
       }
-      if (run.color || run.size || run.family) {
+      if (run.color || run.size || run.family || run.background) {
         const wrapper = node('span');
         if (run.color) wrapper.style.color = run.color;
+        if (run.background) wrapper.style.backgroundColor = run.background;
         if (run.size) wrapper.style.fontSize = SIZE_EM[run.size];
         if (run.family) wrapper.style.fontFamily = FAMILY_CSS[run.family];
         wrapper.append(content); content = wrapper;
@@ -126,7 +157,11 @@
         const decoration = style.textDecorationLine || style.textDecoration;
         if (decoration) { flags.underline = decoration.includes('underline'); flags.strike = decoration.includes('line-through'); }
         if (style.backgroundColor) {
-          flags.highlight = style.backgroundColor !== 'transparent' && !/^rgba\([^)]*,\s*0(?:\.0*)?\s*\)$/.test(style.backgroundColor);
+          const transparent = style.backgroundColor === 'transparent' || /^rgba\([^)]*,\s*0(?:\.0*)?\s*\)$/.test(style.backgroundColor);
+          const background = transparent ? null : hexColor(style.backgroundColor);
+          delete flags.background;
+          if (background && background.toLowerCase() !== '#fff59d') { flags.highlight = false; flags.background = background; }
+          else flags.highlight = !transparent;
         }
         if (['sub', 'super'].includes(style.verticalAlign)) flags.script = style.verticalAlign;
         else if (style.verticalAlign === 'baseline') delete flags.script;
@@ -137,6 +172,13 @@
         for (const child of current.childNodes) {
           const block = child.nodeType === 1 && /^(DIV|P|H[1-6]|BLOCKQUOTE|LI|UL|OL)$/.test(child.tagName);
           if ((block || previousBlock) && result.length && !result[result.length - 1].text.endsWith('\n')) append('\n', flags);
+          if (child.nodeType === 1 && child.tagName === 'LI') {
+            let nesting = 0;
+            for (let parent = child.parentElement; parent && parent !== element.parentElement; parent = parent.parentElement) {
+              if (parent.tagName === 'UL' || parent.tagName === 'OL') nesting += 1;
+            }
+            if (nesting > 1) append('\t'.repeat(Math.min(nesting - 1, 5)), flags);
+          }
           visit(child, flags, depth + 1);
           previousBlock = block;
         }
@@ -148,19 +190,37 @@
   function bodyText(block) {
     const style = block.style || 'p', element = node(style);
     if (style === 'ul' || style === 'ol') {
-      const runs = block.rich || [{ text: block.body }];
-      let item = node('li'); element.append(item);
-      for (const run of runs) {
+      // Nested lists are stored as leading tab characters on each line.
+      const lines = [[]];
+      for (const run of block.rich || [{ text: block.body }]) {
         run.text.split('\n').forEach((part, index) => {
-          if (index) { item = node('li'); element.append(item); }
-          item.append(renderRuns([{ ...run, text: part }]));
+          if (index) lines.push([]);
+          lines[lines.length - 1].push({ ...run, text: part });
         });
+      }
+      const stack = [element];
+      for (const line of lines) {
+        let tabs = 0;
+        for (const run of line) {
+          const lead = run.text.match(/^\t*/)[0].length;
+          run.text = run.text.slice(lead); tabs += lead;
+          if (lead < run.text.length + lead && run.text) break;
+        }
+        const target = Math.min(tabs, stack.length, M.MAX_INDENT);
+        while (stack.length - 1 > target) stack.pop();
+        while (stack.length - 1 < target) {
+          const parentItem = stack[stack.length - 1].lastElementChild || stack[stack.length - 1].appendChild(node('li'));
+          const nested = node(style); parentItem.append(nested); stack.push(nested);
+        }
+        const item = node('li'); stack[stack.length - 1].append(item);
+        item.append(renderRuns(line));
       }
     } else {
       element.style.whiteSpace = 'pre-wrap';
       element.append(renderRuns(block.rich || [{ text: block.body }]));
     }
     element.setAttribute('data-site-editor-field', 'body');
+    if (block.layout) applyLayout(element, block.layout);
     return element;
   }
   function source(block) {
@@ -405,6 +465,7 @@
         if (['image', 'logo'].includes(type)) { media.alt = block.alt ?? block.title; media.loading = 'lazy'; }
         else { media.controls = true; media.preload = 'metadata'; }
         if (type === 'logo') media.className = 'site-editor-logo';
+        if (block.layout) applyLayout(media, block.layout, true);
         article.append(media);
       }
       article.append(bodyText(block));
@@ -453,5 +514,5 @@
     }
     return article;
   }
-  global.SiteEditorRich = Object.freeze({ render, renderRuns, readRuns, applyStyle, diagramPreview });
+  global.SiteEditorRich = Object.freeze({ render, renderRuns, readRuns, applyStyle, applyLayout, diagramPreview });
 })(globalThis);
