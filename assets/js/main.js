@@ -4,6 +4,7 @@ const taiwanAdminLocations = [
   '高雄市', '屏東縣', '宜蘭縣', '花蓮縣', '臺東縣', '澎湖縣', '金門縣', '連江縣', '其他'
 ];
 let selectedPageLanguage = 'zh-TW';
+let requestedPageLanguage = 'zh-TW';
 let googleMachineTranslationActive = false;
 const screeningPhotos = new Map();
 const screeningPhotoJobs = new Map();
@@ -67,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
   const browserDefaultLanguage = languageAliases[browserLanguage] || 'zh-TW';
   const savedLanguage = localStorage.getItem('site-language');
-  const defaultLanguage = Object.hasOwn(i18n, savedLanguage)
+  const defaultLanguage = localeOrder.includes(savedLanguage)
     ? savedLanguage
     : browserDefaultLanguage;
   if (langSelect) {
@@ -2231,6 +2232,17 @@ function googleTranslateElementInit() {
 }
 
 function setPageLanguage(language) {
+  if (!i18n[language]) {
+    // The page already renders in zh-TW, so keep it until the locale file arrives.
+    requestedPageLanguage = language;
+    loadLocale(language).then(loaded => {
+      if (requestedPageLanguage !== language) return;
+      if (loaded) setPageLanguage(language);
+      else if (language !== 'zh-TW') setPageLanguage('zh-TW');
+    });
+    return;
+  }
+  requestedPageLanguage = language;
   selectedPageLanguage = language;
   localStorage.setItem('site-language', language);
   syncGoogleTranslationCookie(language);

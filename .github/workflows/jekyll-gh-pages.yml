@@ -36,6 +36,7 @@ jobs:
         run: |
           node --check assets/js/main.js
           node --check assets/js/i18n.js
+          node scripts/build-i18n.cjs --check
           node --check assets/js/admin.js
           node --check assets/js/supabase-config.js
       - name: Run unit tests
@@ -66,9 +67,9 @@ jobs:
         shell: bash
         run: |
           npm install --no-save --no-audit --no-fund terser@5 clean-css-cli@5
-          for f in _site/assets/js/*.js; do npx terser "$f" --compress --mangle --output "$f"; done
+          for f in $(find _site/assets/js -name "*.js"); do npx terser "$f" --compress --mangle --output "$f"; done
           for f in _site/assets/css/*.css; do npx cleancss -o "$f" "$f"; done
-          for f in _site/assets/js/*.js; do node --check "$f"; done
+          for f in $(find _site/assets/js -name "*.js"); do node --check "$f"; done
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 
