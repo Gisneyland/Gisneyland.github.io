@@ -69,7 +69,7 @@
 
   const MERMAID_TEMPLATES = Object.freeze({
     flow: ['流程圖', 'flowchart TD\n  A[開始] --> B{需要協助嗎？}\n  B -->|是| C(預約諮詢)\n  B -->|否| D[結束]\n  C --> D'],
-    steps: ['橫向步驟', 'flowchart LR\n  A[報名] --> B[報到] --> C[活動] --> D[回饋]'],
+    steps: ['橫向步驟', 'flowchart LR\n  A[報名] --> B[報到]\n  B[報到] --> C[活動]\n  C[活動] --> D[回饋]'],
     tree: ['組織架構', 'graph TD\n  A[理事會] --> B[秘書處]\n  A --> C[志工隊]\n  B --> D[活動組]\n  B --> E[健康組]']
   });
 

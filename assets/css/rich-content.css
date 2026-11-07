@@ -18,8 +18,8 @@
 .rc-content th { background: var(--surface-muted); }
 .rc-content tbody tr:nth-child(even) { background: color-mix(in srgb, var(--surface-muted) 45%, transparent); }
 .rc-content hr { border: 0; border-top: 1px solid var(--border); margin: 1.5em 0; }
-.rc-content mark { background: #fff3a3; color: inherit; padding: 0 0.15em; }
-.rc-callout { margin: 1em 0; padding: 0.8em 1em; border-radius: 8px; border-left: 5px solid; }
+.rc-content mark { background: #fff3a3; color: #1f2933; padding: 0 0.15em; }
+.rc-callout { margin: 1em 0; padding: 0.8em 1em; border-radius: 8px; border-left: 5px solid; color: #1f2933; }
 .rc-callout > p:last-child { margin-bottom: 0; }
 .rc-callout-title { display: block; margin-bottom: 0.2em; }
 .rc-callout-info { background: #e8f1fb; border-color: #3d7dca; }

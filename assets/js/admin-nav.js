@@ -9,6 +9,10 @@
   const icon = toggle.querySelector('.material-icons');
   // Desktop and mobile remember their collapsed state separately.
   const storageKey = () => `${KEY}:${wide.matches ? 'wide' : 'narrow'}`;
+  nav.querySelectorAll('.admin-tab').forEach(tab => {
+    const text = tab.querySelector('.admin-tab-label')?.textContent.trim();
+    if (text) tab.setAttribute('aria-label', text);
+  });
   function read() {
     try { return localStorage.getItem(storageKey()) === '1'; } catch { return false; }
   }

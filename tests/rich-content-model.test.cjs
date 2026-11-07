@@ -12,6 +12,7 @@ assert.match(M.markdownToHtml('<b>x</b> & <y'), /&amp; &lt;y/);
 assert.equal(M.safeStyle('font-size:20px;position:fixed;color:#fff;background-image:url(x);color:red'), 'font-size:20px;color:#fff');
 assert.equal(M.safeStyle("font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif"), "font-family:'noto sans tc','pingfang tc','microsoft jhenghei',sans-serif".replace(/'/g, "'"));
 assert.equal(M.safeStyle('font-family:Comic Sans;font-size:900px;color:expression(1)'), '');
+assert.equal(M.safeStyle('display:block;display:none'), 'display:block');
 
 assert.equal(M.embedFor('https://youtu.be/dQw4w9WgXcQ').src, 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
 assert.equal(M.embedFor('https://vimeo.com/123456789').src, 'https://player.vimeo.com/video/123456789');
@@ -31,6 +32,9 @@ assert.equal(M.locateTable('前\n\n後', 1), null);
 
 const svg = M.chartSvg({ type: 'bar', title: '<b>', labels: ['<i>'], datasets: [{ label: 'x', data: [3] }] });
 assert.ok(svg.startsWith('<svg') && !svg.includes('<b>') && !svg.includes('<i>'));
+const titleText = svg.match(/<text[^>]*>[^<]*<\/text>/)[0];
+assert.equal((titleText.match(/\bfont-size=/g) || []).length, 1);
+assert.match(titleText, /font-size="15"/);
 assert.ok(M.chartSvg({ type: 'pie', labels: ['a', 'b'], datasets: [{ data: [1, 1] }] }).includes('<path'));
 assert.equal(M.chartSvg('{bad'), '');
 assert.equal(M.chartSvg({ type: 'evil', labels: ['a'], datasets: [{ data: [1] }] }), '');

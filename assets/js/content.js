@@ -562,7 +562,7 @@ function renderEventDetails(container, record) {
   const summary = document.getElementById('activity-event-summary');
   if (record.body && typeof RichContent !== 'undefined') RichContent.render(summary, record.body, record.body_format);
   else summary.textContent = record.body || record.summary || '';
-  summary.hidden = !summary.textContent;
+  summary.hidden = !summary.hasChildNodes();
 
   const discussion = document.getElementById('activity-event-discussion');
   if (discussion) {

@@ -63,3 +63,28 @@ test('only returned published news is rendered as text', async () => {
   assert.equal(feed.children.length, 1);
   assert.equal(feed.children[0].children[1].textContent, '<script>not markup</script>');
 });
+
+test('media-only rich event details remain visible', () => {
+  const { context } = setup({ data: [], error: null });
+  const node = () => ({
+    children: [], hidden: true, textContent: '',
+    append(...children) { this.children.push(...children); },
+    hasChildNodes() { return this.children.length > 0 || Boolean(this.textContent); },
+    removeAttribute() {}
+  });
+  const elements = new Map([
+    ['activity-event-title', node()],
+    ['activity-event-date', node()],
+    ['activity-event-location', node()],
+    ['activity-event-summary', node()],
+    ['activity-event-discussion', node()],
+    ['activity-event-link', node()]
+  ]);
+  context.document.getElementById = id => elements.get(id);
+  context.RichContent = { render: summary => summary.append(node()) };
+  context.SocialDiscussion = { render: discussion => { discussion.hidden = true; } };
+  context.renderEventDetails(node(), {
+    title: 'Media event', event_start: '2026-01-01', body: '<img src="/image.png">', body_format: 'html'
+  });
+  assert.equal(elements.get('activity-event-summary').hidden, false);
+});

@@ -55,6 +55,7 @@
       else if (property === 'color' || property === 'background-color') {
         ok = /^#[0-9a-f]{3,8}$/.test(value) || /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\)$/.test(value);
       } else if (property === 'text-align') ok = ['left', 'center', 'right', 'justify'].includes(value);
+      else if (property === 'display') ok = value === 'block';
       else if (property === 'font-weight') ok = /^(normal|bold|[1-9]00)$/.test(value);
       else if (property === 'font-style') ok = ['normal', 'italic'].includes(value);
       else if (property === 'text-decoration') ok = ['none', 'underline', 'line-through', 'underline line-through'].includes(value);
@@ -390,8 +391,8 @@
     const height = 360;
     const label = chart.title || CHART_TYPES[chart.type];
     const parts = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" class="rc-chart-svg" role="img" aria-label="${escapeHtml(label)}"><title>${escapeHtml(label)}</title>`];
-    const text = (x, y, content, extra = '') => `<text x="${number(x)}" y="${number(y)}" fill="currentColor" font-size="12" ${extra}>${escapeHtml(content)}</text>`;
-    if (chart.title) parts.push(text(width / 2, 22, chart.title, 'text-anchor="middle" font-size="15" font-weight="700"'));
+    const text = (x, y, content, extra = '', fontSize = 12) => `<text x="${number(x)}" y="${number(y)}" fill="currentColor" font-size="${fontSize}" ${extra}>${escapeHtml(content)}</text>`;
+    if (chart.title) parts.push(text(width / 2, 22, chart.title, 'text-anchor="middle" font-weight="700"', 15));
     const top = chart.title ? 40 : 16;
 
     if (chart.type === 'pie' || chart.type === 'doughnut') {

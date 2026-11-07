@@ -14,6 +14,14 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const block = extra => ({ id: 'block-one', parent: 'main:abc', title: 'Title', body: 'Body', label: '', url: '', ...extra });
 function documentWith(extra) { return { ...plain(M.empty()), ...extra }; }
 
+test('horizontal Mermaid example uses one edge per source line', () => {
+  const editor = fs.readFileSync(path.join(root, 'assets/js/admin-rich-editor.js'), 'utf8');
+  const template = editor.match(/steps: \['橫向步驟', '([^']+)'\]/)?.[1];
+  assert.ok(template);
+  assert.equal((template.match(/-->/g) || []).length, 3);
+  assert.equal((template.match(/\\n/g) || []).length, 3);
+});
+
 test('v1 round-trips legacy and new structured formats without adding defaults', () => {
   const legacy = documentWith({ blocks: [block({})] });
   assert.deepEqual(plain(M.normalize(legacy)), legacy);

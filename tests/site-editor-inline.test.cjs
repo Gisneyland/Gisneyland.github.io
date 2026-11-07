@@ -22,7 +22,7 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       <p id="empty">Placeholder</p><a id="link" href="/do-not-follow/">A link</a>
       <form id="widget"><input value="keep"><button type="button">Widget</button></form>
       <div id="static-div-card" class="detail-card"><h3></h3><p>Only body</p></div>
-    </section><section id="other"><p id="foreign">Different parent</p></section>
+    </section>        <section id="other"><p id="foreign">Different parent</p></section>
       <div id="visuals"><span id="static-icon" class="material-icons" aria-hidden="true">home</span>
         <picture><source srcset="/original-wide.png"><img id="static-logo" src="/original.png" srcset="/original-2x.png 2x" alt="Original"></picture>
         <a id="static-button" class="btn" href="/original"><span class="material-icons">call</span>Contact</a>
@@ -166,6 +166,26 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       document.querySelector('#widget button').focus();
       return draft.patches[textId('Second paragraph')].rich.some(run=>run.bold&&run.text.includes('formatted'));
     })()`), true);
+  });
+  await t.test('find and replace matches across inline formatting while retaining surrounding markup', async () => {
+    const result=await evaluate(`(()=>{
+      const target=document.querySelector('#foreign'),editable=target.querySelector('[contenteditable]');
+      editable.innerHTML='<strong>Before </strong><em>Hello</em> world<strong> after</strong>';
+      editable.focus();
+      const selection=getSelection(),range=document.createRange();range.selectNodeContents(editable);
+      selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
+      clickLabel('尋找與取代');
+      const pane=document.querySelector('[role=dialog]'),find=pane.querySelector('[aria-label="尋找"]');
+      find.value='Hello world';find.dispatchEvent(new Event('input',{bubbles:true}));
+      const status=pane.querySelector('[role=status]').textContent;
+      pane.querySelector('[aria-label="取代為"]').value='Hi there';
+      clickLabel('全部取代',pane);
+      const value={status,text:editable.textContent,bold:Array.from(editable.querySelectorAll('strong')).map(node=>node.textContent)};
+      clickLabel('關閉',pane);
+      inline.stop();baseline.restore();redraw();
+      return value;
+    })()`);
+    assert.deepEqual(result, { status: '找到 1 處', text: 'Before Hi there after', bold: ['Before ', ' after'] });
   });
   await t.test('IME blocks flush and empty-delete until composition is complete', async () => {
     assert.equal(await evaluate(`(()=>{
@@ -331,8 +351,25 @@ test('inline browser editing preserves nodes, sanitizes input and supports compo
       const rejected=inline.flush()===false&&document.querySelector('[role=dialog] textarea')===input
         &&draft.blocks.find(item=>item.id===block.id).body!=='A\\tB\\n1\\t2';
       window.rejectMutations=false;
+      const pane=document.querySelector('[role=dialog]'),source=pane.querySelector('textarea');
+      const setSource=value=>{source.value=value;source.dispatchEvent(new Event('input',{bubbles:true}));};
+      setSource('A\\tB\\nC\\tD');
+      pane.querySelectorAll('.site-editor-grid input')[2].focus();
+      setSource('A\\tB');
+      clickLabel('拆分儲存格',pane);
+      const clamped=source.value==='A\\tB';
+      setSource('A\\tB\\t<\\nC\\t^\\t<');
+      pane.querySelector('.site-editor-grid input').focus();
+      clickLabel('向右合併儲存格',pane);
+      const horizontal=source.value==='A\\tB\\t<\\nC\\t^\\t<';
+      setSource('A\\t<\\tC\\nB\\tC\\t<');
+      pane.querySelector('.site-editor-grid input').focus();
+      clickLabel('向下合併儲存格',pane);
+      const vertical=source.value==='A\\t<\\tC\\nB\\tC\\t<';
+      setSource('A\\tB\\n1\\t2');
       inline.flush();
-      return preview&&rejected&&draft.blocks.find(item=>item.id===block.id).body==='A\\tB\\n1\\t2';
+      return preview&&rejected&&clamped&&horizontal&&vertical
+        &&draft.blocks.find(item=>item.id===block.id).body==='A\\tB\\n1\\t2';
     })()`), true);
     assert.equal(await evaluate(`(()=>{
       const block=draft.blocks.find(item=>item.type==='table');

@@ -402,21 +402,53 @@
       const replace = element('input'); replace.setAttribute('aria-label', '取代為'); replace.placeholder = '取代為';
       const status = element('p', '', ''); status.setAttribute('role', 'status');
       pane.append(find, replace, status);
+      const block = record.element.closest('[data-site-editor-field]')
+        || record.element.closest('p,h1,h2,h3,h4,h5,h6,li,td,th,blockquote,pre,figcaption')
+        || record.element;
       const nodes = () => {
-        const walker = doc.createTreeWalker(record.element, global.NodeFilter.SHOW_TEXT), found = [];
+        const walker = doc.createTreeWalker(block, global.NodeFilter.SHOW_TEXT), found = [];
         while (walker.nextNode()) found.push(walker.currentNode);
         return found;
       };
-      const total = () => nodes().reduce((sum, node) => sum + (find.value ? node.nodeValue.split(find.value).length - 1 : 0), 0);
+      const search = () => {
+        const segments = [];
+        let text = '';
+        nodes().forEach(node => {
+          if (!node.nodeValue) return;
+          segments.push({ node, start: text.length, end: text.length + node.nodeValue.length });
+          text += node.nodeValue;
+        });
+        const matches = [];
+        if (find.value) {
+          let from = 0, index;
+          while ((index = text.indexOf(find.value, from)) !== -1) {
+            matches.push([index, index + find.value.length]);
+            from = index + find.value.length;
+          }
+        }
+        return { segments, matches };
+      };
+      const total = () => search().matches.length;
       find.addEventListener('input', () => { status.textContent = find.value ? `找到 ${total()} 處` : ''; });
       button(pane, 'find_replace', '全部取代', () => {
         if (!find.value) return;
-        let count = 0;
-        for (const node of nodes()) {
-          const parts = node.nodeValue.split(find.value);
-          if (parts.length > 1) { count += parts.length - 1; node.nodeValue = parts.join(replace.value); }
+        const { segments, matches } = search();
+        const affected = new Set();
+        const segmentAt = (offset, end = false) => segments.find(segment =>
+          end ? offset > segment.start && offset <= segment.end : offset >= segment.start && offset < segment.end);
+        for (const [start, end] of matches.reverse()) {
+          segments.filter(segment => segment.start < end && segment.end > start)
+            .forEach(segment => { const owner = recordFor(segment.node); if (owner) affected.add(owner); });
+          const first = segmentAt(start), last = segmentAt(end, true);
+          if (!first || !last) continue;
+          const range = doc.createRange();
+          range.setStart(first.node, start - first.start);
+          range.setEnd(last.node, end - last.start);
+          range.deleteContents();
+          range.insertNode(doc.createTextNode(replace.value));
         }
-        if (count) record.dirty = true;
+        const count = matches.length;
+        if (count) affected.forEach(item => { item.dirty = true; });
         status.textContent = `已取代 ${count} 處；離開文字時儲存。`;
       });
       find.focus();
@@ -498,7 +530,14 @@
           });
           grid.append(table);
         };
-        const tool = (icon, label, change) => button(pane, icon, label, () => { const rows = read(); change(rows, focus[0], focus[1]); write(rows); });
+        const tool = (icon, label, change) => button(pane, icon, label, () => {
+          const rows = read();
+          const r = Math.max(0, Math.min(focus[0], rows.length - 1));
+          const c = Math.max(0, Math.min(focus[1], width(rows) - 1));
+          focus = [r, c];
+          change(rows, r, c);
+          write(rows);
+        });
         const width = rows => Math.max(...rows.map(row => row.length));
         const span = (rows, r, c) => {
           while (c > 0 && rows[r][c] === '<') c -= 1;
@@ -510,14 +549,22 @@
         };
         tool('call_merge', '向右合併儲存格', (rows, r, c) => {
           const s = span(rows, r, c);
-          if (s.c2 + 1 >= width(rows) || rows[s.r][s.c2 + 1] === '^') return;
-          for (let y = s.r; y <= s.r2; y += 1) rows[y][s.c2 + 1] = '<';
+          if (s.c2 + 1 >= width(rows) || ['<', '^'].includes(rows[s.r][s.c2 + 1])) return;
+          const neighbor = span(rows, s.r, s.c2 + 1);
+          if (neighbor.r !== s.r || neighbor.c !== s.c2 + 1 || neighbor.r2 !== s.r2) return;
+          for (let y = neighbor.r; y <= neighbor.r2; y += 1) {
+            for (let x = neighbor.c; x <= neighbor.c2; x += 1) rows[y][x] = '<';
+          }
           focus = [s.r, s.c];
         });
         tool('vertical_align_bottom', '向下合併儲存格', (rows, r, c) => {
           const s = span(rows, r, c);
-          if (s.r2 + 1 >= rows.length || rows[s.r2 + 1][s.c] === '<') return;
-          for (let x = s.c; x <= s.c2; x += 1) rows[s.r2 + 1][x] = x === s.c ? '^' : '<';
+          if (s.r2 + 1 >= rows.length || ['<', '^'].includes(rows[s.r2 + 1][s.c])) return;
+          const neighbor = span(rows, s.r2 + 1, s.c);
+          if (neighbor.r !== s.r2 + 1 || neighbor.c !== s.c || neighbor.c2 !== s.c2) return;
+          for (let y = neighbor.r; y <= neighbor.r2; y += 1) {
+            for (let x = neighbor.c; x <= neighbor.c2; x += 1) rows[y][x] = x === s.c ? '^' : '<';
+          }
           focus = [s.r, s.c];
         });
         tool('call_split', '拆分儲存格', (rows, r, c) => {
