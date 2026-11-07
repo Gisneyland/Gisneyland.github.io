@@ -9,7 +9,7 @@ create table if not exists public.questionnaire_responses (
   constraint questionnaire_schema_version_check check (schema_version between 1 and 99),
   constraint questionnaire_response_object_check check (jsonb_typeof(response_data) = 'object'),
   constraint questionnaire_response_size_check check (octet_length(response_data::text) <= 100000),
-  constraint questionnaire_consult_code_check check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32}){0,19}$')
+  constraint questionnaire_consult_code_check check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32})*$')
 );
 
 alter table public.questionnaire_responses
@@ -23,7 +23,7 @@ alter table public.questionnaire_responses
 
 alter table public.questionnaire_responses
   add constraint questionnaire_consult_code_check
-  check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32}){0,19}$');
+  check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32})*$');
 
 do $$
 begin
@@ -50,14 +50,14 @@ begin
   ) then
     alter table public.questionnaire_responses
       add constraint questionnaire_consult_code_check
-      check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32}){0,19}$');
+      check (anonymous_consult_code is null or anonymous_consult_code ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32})*$');
   end if;
 end $$;
 
 update public.questionnaire_responses
 set anonymous_consult_code = nullif(btrim(response_data ->> 'anonymous_consult_code'), '')
 where anonymous_consult_code is null
-  and (response_data ->> 'anonymous_consult_code') ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32}){0,19}$';
+  and (response_data ->> 'anonymous_consult_code') ~ '^[A-Za-z0-9-]{4,32}(,[A-Za-z0-9-]{4,32})*$';
 
 create index if not exists questionnaire_pending_consult_code_idx
   on public.questionnaire_responses (created_at, id)
@@ -84,7 +84,7 @@ alter table public.questionnaire_responses
   drop constraint if exists questionnaire_consult_uploads_check;
 alter table public.questionnaire_responses
   add constraint questionnaire_consult_uploads_check
-  check (jsonb_typeof(consult_uploads) = 'array' and jsonb_array_length(consult_uploads) <= 20);
+  check (jsonb_typeof(consult_uploads) = 'array');
 
 create index if not exists questionnaire_draft_idx
   on public.questionnaire_responses (created_at, id)

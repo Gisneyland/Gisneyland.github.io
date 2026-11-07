@@ -3995,7 +3995,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const invalidCode = incomingCodes.find(code => !/^[A-Za-z0-9-]{4,32}$/.test(code));
       const nextCodes = [...new Set([...consultationCodes, ...incomingCodes])];
       if (invalidCode) codeInput.setCustomValidity('每組代碼需為 4–32 個英數字或連字號。');
-      else if (nextCodes.length > 20) codeInput.setCustomValidity('每筆紀錄最多可輸入 20 組諮詢代碼。');
       else codeInput.setCustomValidity('');
       if (codeInput.validationMessage) {
         codeInput.reportValidity();
