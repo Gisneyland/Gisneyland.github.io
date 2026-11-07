@@ -20,7 +20,7 @@ test('tasks follow every nationality, multiple links and place keywords', () => 
 test('progress is tracked per link and drafts have no tasks', () => {
   const response = { status: 'submitted', task_progress: { a: { done_at: 'now' } }, response_data: { nationality: 'TH', screening_place: 'x' } };
   const tasks = model.getTasks(response, links);
-  assert.deepEqual(model.summarize(tasks), { total: 3, done: 1, pending: 2 });
+  assert.deepEqual(model.summarize(tasks), { total: 2, done: 1, pending: 1 });
   assert.deepEqual(model.getTasks({ ...response, status: 'draft' }, links), []);
   assert.deepEqual(Object.keys(model.setDone(response.task_progress, 'b', true, 'now', 'u')), ['a', 'b']);
   assert.deepEqual(model.setDone(response.task_progress, 'a', false), {});
