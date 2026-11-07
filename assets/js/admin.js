@@ -3942,16 +3942,95 @@ document.addEventListener('DOMContentLoaded', () => {
       return codeMeta.get(code);
     };
 
+    let editingCodeIndex = -1;
+    const createCodeAction = (icon, text, label, className = '') => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `consultation-code-action ${className}`.trim();
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.append(createMaterialIcon(icon));
+      const span = document.createElement('span');
+      span.textContent = text;
+      button.append(span);
+      return button;
+    };
+
+    const commitCodeRename = (index, input) => {
+      const oldCode = consultationCodes[index];
+      const next = input.value.trim();
+      input.setCustomValidity('');
+      if (next !== oldCode) {
+        if (!/^[A-Za-z0-9-]{4,32}$/.test(next)) input.setCustomValidity('每組代碼需為 4–32 個英數字或連字號。');
+        else if (consultationCodes.includes(next)) input.setCustomValidity('此代碼已存在。');
+        if (input.validationMessage) {
+          input.reportValidity();
+          return;
+        }
+        const meta = metaFor(oldCode);
+        codeMeta.delete(oldCode);
+        codeMeta.set(next, { ...meta, code: next, uploaded_at: null, uploaded_by: null });
+        consultationCodes[index] = next;
+        markDialogDirty('consult');
+      }
+      editingCodeIndex = -1;
+      renderConsultationCodeTags();
+    };
+
     const renderConsultationCodeTags = () => {
       codeTags.replaceChildren();
       codeTags.hidden = consultationCodes.length === 0;
       consultationCodes.forEach((code, index) => {
         const meta = metaFor(code);
-        const row = document.createElement('div');
-        row.className = 'consultation-code-row';
-        const label = document.createElement('span');
-        label.className = 'consultation-code-text';
-        label.textContent = code;
+        const isUploaded = Boolean(meta.uploaded_at);
+        const isEditing = editingCodeIndex === index;
+        const card = document.createElement('div');
+        card.className = 'consultation-code-card';
+        card.classList.toggle('is-uploaded', isUploaded);
+        card.setAttribute('role', 'group');
+        card.setAttribute('aria-label', `諮詢代碼 ${code}`);
+
+        const header = document.createElement('div');
+        header.className = 'consultation-code-card-header';
+        let codeInputEl = null;
+        if (isEditing) {
+          codeInputEl = document.createElement('input');
+          codeInputEl.type = 'text';
+          codeInputEl.className = 'consultation-code-edit-input';
+          codeInputEl.maxLength = 32;
+          codeInputEl.value = code;
+          codeInputEl.autocomplete = 'off';
+          codeInputEl.setAttribute('aria-label', `編輯諮詢代碼 ${code}`);
+          codeInputEl.addEventListener('input', () => codeInputEl.setCustomValidity(''));
+          codeInputEl.addEventListener('keydown', event => {
+            if (event.isComposing) return;
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commitCodeRename(index, codeInputEl);
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              editingCodeIndex = -1;
+              renderConsultationCodeTags();
+            }
+          });
+          header.append(codeInputEl);
+        } else {
+          const label = document.createElement('span');
+          label.className = 'consultation-code-text';
+          label.textContent = code;
+          header.append(label);
+        }
+        const badge = document.createElement('span');
+        badge.className = `consultation-code-status ${isUploaded ? 'is-uploaded' : 'is-pending'}`;
+        badge.textContent = isUploaded ? `已上傳 ${formatDate(meta.uploaded_at)}` : '尚未上傳';
+        header.append(badge);
+
+        const body = document.createElement('div');
+        body.className = 'consultation-code-card-body';
+        const unitLabel = document.createElement('label');
+        unitLabel.className = 'consultation-code-unit';
+        const unitText = document.createElement('span');
+        unitText.textContent = '上傳單位';
         const unitSelect = document.createElement('select');
         unitSelect.setAttribute('aria-label', `諮詢代碼 ${code} 上傳單位`);
         Object.entries(CdcUploadModel.UNITS).forEach(([value, text]) => unitSelect.add(new Option(text, value, false, value === meta.unit)));
@@ -3959,34 +4038,46 @@ document.addEventListener('DOMContentLoaded', () => {
           meta.unit = unitSelect.value;
           meta.uploaded_at = null;
           meta.uploaded_by = null;
-          renderConsultationCodeTags();
-        });
-        const uploaded = document.createElement('button');
-        uploaded.type = 'button';
-        uploaded.className = 'consultation-code-action consultation-code-uploaded';
-        const isUploaded = Boolean(meta.uploaded_at);
-        uploaded.setAttribute('aria-pressed', String(isUploaded));
-        uploaded.classList.toggle('is-on', isUploaded);
-        const uploadedText = isUploaded ? `已上傳（${formatDate(meta.uploaded_at)}），點擊取消` : '尚未上傳，點擊標示為已上傳';
-        uploaded.title = uploadedText;
-        uploaded.setAttribute('aria-label', `諮詢代碼 ${code}：${uploadedText}`);
-        uploaded.append(createMaterialIcon(isUploaded ? 'cloud_done' : 'cloud_upload'));
-        uploaded.addEventListener('click', () => {
-          const next = !meta.uploaded_at;
-          meta.uploaded_at = next ? new Date().toISOString() : null;
-          meta.uploaded_by = next ? activeUser?.id || null : null;
           markDialogDirty('consult');
           renderConsultationCodeTags();
         });
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'consultation-code-action is-danger';
-        remove.dataset.codeIndex = index;
-        remove.title = `移除代碼 ${code}`;
-        remove.setAttribute('aria-label', `移除諮詢代碼 ${code}`);
-        remove.append(createMaterialIcon('delete'));
-        row.append(label, unitSelect, uploaded, remove);
-        codeTags.append(row);
+        unitLabel.append(unitText, unitSelect);
+
+        const actions = document.createElement('div');
+        actions.className = 'consultation-code-card-actions';
+        if (isEditing) {
+          const confirm = createCodeAction('check', '確定', `確定修改代碼 ${code}`, 'is-confirm');
+          confirm.addEventListener('click', () => commitCodeRename(index, codeInputEl));
+          const cancel = createCodeAction('close', '取消', '取消編輯');
+          cancel.addEventListener('click', () => {
+            editingCodeIndex = -1;
+            renderConsultationCodeTags();
+          });
+          actions.append(confirm, cancel);
+        } else {
+          const uploadedText = isUploaded ? `取消標示代碼 ${code} 為已上傳` : `標示代碼 ${code} 為已上傳`;
+          const uploaded = createCodeAction(isUploaded ? 'cloud_done' : 'cloud_upload', isUploaded ? '取消已上傳' : '標示已上傳', uploadedText, `consultation-code-uploaded${isUploaded ? ' is-on' : ''}`);
+          uploaded.setAttribute('aria-pressed', String(isUploaded));
+          uploaded.addEventListener('click', () => {
+            const next = !meta.uploaded_at;
+            meta.uploaded_at = next ? new Date().toISOString() : null;
+            meta.uploaded_by = next ? activeUser?.id || null : null;
+            markDialogDirty('consult');
+            renderConsultationCodeTags();
+          });
+          const edit = createCodeAction('edit', '編輯', `編輯代碼 ${code}`);
+          edit.addEventListener('click', () => {
+            editingCodeIndex = index;
+            renderConsultationCodeTags();
+            codeTags.querySelector('.consultation-code-edit-input')?.focus();
+          });
+          const remove = createCodeAction('delete', '刪除', `刪除代碼 ${code}`, 'is-danger');
+          remove.dataset.codeIndex = index;
+          actions.append(uploaded, edit, remove);
+        }
+        body.append(unitLabel, actions);
+        card.append(header, body);
+        codeTags.append(card);
       });
     };
 
