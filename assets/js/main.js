@@ -286,6 +286,7 @@ function initializeQuestionnaireFields() {
   const resetReferralAddressPicker = initializeScreeningPlace('hiv_positive_address', 'hiv-positive-address', 'hiv-positive-address-locate-button');
   const resetReferralContacts = initializeReferralContacts();
   draftContactState.reset = initializeReferralContacts('draft-contact-list', 'draft-contact-add', draftContactState);
+  document.getElementById('questionnaire-form')?.addEventListener('reset', draftContactState.reset);
   initializeScreeningInterpretation(resetReferralAddressPicker, resetReferralContacts);
   initializeScreeningPhotos();
 }
@@ -1808,7 +1809,7 @@ function initializeQuestionnaire(form) {
   });
 
   steps.forEach(step => {
-    if (step.id === 'screener-panel' || step.querySelector('#profile-review-button')) return;
+    if (step.id === 'screener-panel' || step.id === 'profile-review-message' || step.querySelector('#profile-review-button')) return;
     if (step.querySelector('[data-question-next]')) return;
     const needsManualAdvance = step.matches('.consent-options') || step.querySelector(
       'select:not([multiple]), input[type="date"], input[type="month"], input[type="search"][role="combobox"], input[type="text"][required]'
@@ -2433,7 +2434,6 @@ function initializeDraftSubmission(form) {
       }
       if (error) throw error;
       form.reset();
-      draftContactState.reset();
       button.hidden = true;
       if (handoffButton) handoffButton.hidden = true;
       showFormStatus(status, label('draft_success') || '已送出，篩檢員會在後台繼續處理，謝謝填答。');
