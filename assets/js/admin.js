@@ -194,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectedResponseIds = new Set();
   let screeningInstitutions = [];
   let externalLinks = [];
+  let localBureaus = [];
   let selectedMapPlace = null;
   const taskFilter = document.getElementById('task-filter');
   const placeFilterChip = document.getElementById('place-filter-chip');
@@ -205,6 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const institutionList = document.getElementById('screening-institution-list');
   const institutionForm = document.getElementById('screening-institution-form');
   const institutionStatus = document.getElementById('screening-institution-status');
+  const bureauCard = document.getElementById('local-bureaus-card');
+  const bureauList = document.getElementById('local-bureau-list');
+  const bureauForm = document.getElementById('local-bureau-form');
+  const bureauStatus = document.getElementById('local-bureau-status');
   const responseBody = document.getElementById('responses-body');
   const emptyState = document.getElementById('empty-state');
   const dialog = document.getElementById('response-dialog');
@@ -944,6 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   initializeCdcExport();
   initializeInstitutionSettings();
+  initializeBureauSettings();
   initializeExternalLinkSettings();
   mapModeControls.forEach(control => control.addEventListener('change', () => { currentPage = 1; renderResponses(); }));
   [screeningRangeStart, screeningRangeEnd].forEach(input => {
@@ -1051,6 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadScreenerNumber(data.session);
     if (window.StaffAccess.canAccess(profile, 'questionnaire.read')) {
       await loadScreeningInstitutions();
+      await loadLocalBureaus();
       await loadExternalLinks();
       await loadResponses();
     }
@@ -1984,7 +1991,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const row = document.createElement('tr');
       row.tabIndex = 0;
       const uploadState = CdcUploadModel.getUploadState(response);
-      row.setAttribute('aria-label', `${formatDate(response.created_at)}，${CdcUploadModel.stateLabel(uploadState)}，${consultationCode ? `諮詢代碼 ${consultationCode}` : '諮詢待處理'}。雙擊或按 Enter 查看詳細資料。`);
+      row.setAttribute('aria-label', `${formatDate(response.created_at)}，${CdcUploadModel.stateLabel(uploadState, localBureaus)}，${consultationCode ? `諮詢代碼 ${consultationCode}` : '諮詢待處理'}。雙擊或按 Enter 查看詳細資料。`);
       row.classList.add(consultationCode ? 'is-consultation-complete' : 'is-consultation-pending');
       const consultationCodeCell = consultationCode
         ? `<span class="consultation-code-badge is-complete">${escapeHtml(consultationCode)}</span>`
@@ -2034,10 +2041,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderUploadStatusCell(response, state) {
-    const badge = `<span class="response-status-badge is-${state.key}">${escapeHtml(CdcUploadModel.stateLabel(state))}</span>`;
+    const badge = `<span class="response-status-badge is-${state.key}">${escapeHtml(CdcUploadModel.stateLabel(state, localBureaus))}</span>`;
     const entries = CdcUploadModel.getCodeEntries(response);
     if (!entries.length) return badge;
-    const details = entries.map(entry => `<span class="upload-code-entry ${entry.uploaded_at ? 'is-uploaded' : 'is-pending'}" title="${entry.uploaded_at ? `已於 ${escapeHtml(formatDate(entry.uploaded_at))} 上傳` : '尚未上傳'}">${escapeHtml(entry.code)}→${escapeHtml(CdcUploadModel.UNITS[entry.unit])}${entry.uploaded_at ? ' ✓' : ''}</span>`).join('');
+    const details = entries.map(entry => `<span class="upload-code-entry ${entry.uploaded_at ? 'is-uploaded' : 'is-pending'}" title="${entry.uploaded_at ? `已於 ${escapeHtml(formatDate(entry.uploaded_at))} 上傳` : '尚未上傳'}">${escapeHtml(entry.code)}→${escapeHtml(CdcUploadModel.unitLabel(entry, localBureaus))}${entry.uploaded_at ? ' ✓' : ''}</span>`).join('');
     return `${badge}<div class="upload-code-list">${details}</div>`;
   }
 
@@ -2380,6 +2387,85 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  async function loadLocalBureaus() {
+    const { data, error } = await window.questionnaireSupabase
+      .from('local_health_bureaus')
+      .select('id, name')
+      .order('created_at', { ascending: true });
+    if (error) {
+      showStatus(bureauStatus, '無法載入地方衛生局清單，請確認已執行最新資料庫更新。', true);
+      return;
+    }
+    localBureaus = data || [];
+    renderLocalBureaus();
+  }
+
+  function renderLocalBureaus() {
+    if (!bureauCard) return;
+    bureauCard.hidden = !window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.read');
+    const canEdit = window.StaffAccess.canAccess(activeStaffProfile, 'questionnaire.consultation');
+    bureauForm.hidden = !canEdit;
+    bureauList.replaceChildren(...localBureaus.map(bureau => {
+      const item = document.createElement('li');
+      const text = document.createElement('span');
+      text.textContent = bureau.name;
+      item.append(text);
+      if (canEdit) {
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'admin-button secondary';
+        edit.textContent = '編輯';
+        edit.addEventListener('click', () => {
+          bureauForm.elements.id.value = bureau.id;
+          bureauForm.elements.name.value = bureau.name;
+          document.getElementById('local-bureau-cancel').hidden = false;
+          bureauForm.elements.name.focus();
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'admin-button secondary';
+        remove.textContent = '刪除';
+        remove.addEventListener('click', async () => {
+          if (!window.confirm(`確定刪除「${bureau.name}」？已指定此衛生局的諮詢代碼會顯示為「地方衛生局（已刪除）」。`)) return;
+          const { error } = await window.questionnaireSupabase.from('local_health_bureaus').delete().eq('id', bureau.id);
+          if (error) { showStatus(bureauStatus, '刪除失敗，請確認帳號具編輯權限。', true); return; }
+          localBureaus = localBureaus.filter(entry => entry.id !== bureau.id);
+          renderLocalBureaus();
+          renderResponses();
+          showStatus(bureauStatus, '已刪除。');
+        });
+        item.append(edit, remove);
+      }
+      return item;
+    }));
+  }
+
+  function initializeBureauSettings() {
+    if (!bureauForm) return;
+    const cancel = document.getElementById('local-bureau-cancel');
+    const reset = () => { bureauForm.reset(); bureauForm.elements.id.value = ''; cancel.hidden = true; };
+    cancel.addEventListener('click', reset);
+    bureauForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const id = bureauForm.elements.id.value;
+      const name = bureauForm.elements.name.value.trim();
+      if (localBureaus.some(entry => entry.id !== id && entry.name === name)) {
+        showStatus(bureauStatus, '已有相同名稱的衛生局。', true);
+        return;
+      }
+      const table = window.questionnaireSupabase.from('local_health_bureaus');
+      const { data, error } = await (id ? table.update({ name }).eq('id', id) : table.insert({ name })).select('id, name').maybeSingle();
+      if (error || !data) { showStatus(bureauStatus, '儲存失敗，請確認帳號具編輯權限。', true); return; }
+      localBureaus = id
+        ? localBureaus.map(entry => (entry.id === id ? data : entry))
+        : [...localBureaus, data];
+      reset();
+      renderLocalBureaus();
+      renderResponses();
+      showStatus(bureauStatus, '已儲存衛生局。');
+    });
+  }
+
   function initializeCdcExport() {
     if (!cdcExportButton || !cdcExportDialog || !cdcExportForm) return;
     const STORAGE_KEY = 'cdcExportSettings';
@@ -2394,6 +2480,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const values = Object.fromEntries(new FormData(cdcExportForm).entries());
       return { ...values, includeUploaded: cdcExportForm.elements.includeUploaded.checked };
     };
+    const bureauSelect = cdcExportForm.elements.bureauId;
+    const exportTargetLabel = options => (options.unit === 'local' && options.bureauId
+      ? localBureaus.find(bureau => bureau.id === options.bureauId)?.name || CdcUploadModel.UNITS.local
+      : CdcUploadModel.UNITS[options.unit]);
+    const syncBureauOptions = () => {
+      if (!bureauSelect) return;
+      const current = bureauSelect.value;
+      bureauSelect.replaceChildren(new Option('全部地方衛生局（含未指定）', ''), ...localBureaus.map(bureau => new Option(bureau.name, bureau.id)));
+      bureauSelect.value = localBureaus.some(bureau => bureau.id === current) ? current : '';
+      const isLocal = cdcExportForm.elements.unit.value === 'local';
+      bureauSelect.closest('label').hidden = !isLocal;
+    };
     const getTargets = () => {
       if (selectedResponseIds.size) return responses.filter(response => selectedResponseIds.has(response.id));
       return getFilteredResponses();
@@ -2401,6 +2499,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const syncMethodFields = () => {
       const method = cdcExportForm.elements.method.value;
       cdcExportForm.querySelectorAll('[data-method]').forEach(label => { label.hidden = label.dataset.method !== method; });
+      syncBureauOptions();
     };
     const refreshPreview = () => {
       const targets = getTargets();
@@ -2408,7 +2507,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const { rows, skipped } = CdcUploadModel.buildImportRows(targets, { ...options, institutions: screeningInstitutions });
       const files = Math.ceil(rows.length / CdcUploadModel.MAX_ROWS_PER_FILE);
       scopeElement.textContent = `${selectedResponseIds.size ? `已選取 ${targets.length} 筆問卷` : `未選取資料，將使用目前篩選的 ${targets.length} 筆問卷`}；`
-        + `可匯出 ${rows.length} 組送往${CdcUploadModel.UNITS[options.unit]}的諮詢代碼${files > 1 ? `（將分成 ${files} 個檔案）` : ''}。`;
+        + `可匯出 ${rows.length} 組送往${exportTargetLabel(options)}的諮詢代碼${files > 1 ? `（將分成 ${files} 個檔案）` : ''}。`;
       skippedList.replaceChildren(...skipped.map(item => {
         const li = document.createElement('li');
         li.textContent = `代碼 ${item.code}：${item.reason}`;
@@ -2468,10 +2567,10 @@ document.addEventListener('DOMContentLoaded', () => {
           downloadBlob(blob, `cdc-upload-${options.unit}-${stamp}${chunks.length > 1 ? `-${index + 1}` : ''}.xlsx`);
           await new Promise(resolve => window.setTimeout(resolve, 300));
         }
-        lastExport = { unit: options.unit, rows };
-        markButton.textContent = `標記這 ${rows.length} 組代碼為已上傳${CdcUploadModel.UNITS[options.unit]}`;
+        lastExport = { unit: options.unit, bureauId: options.unit === 'local' ? options.bureauId : '', rows };
+        markButton.textContent = `標記這 ${rows.length} 組代碼為已上傳${exportTargetLabel(options)}`;
         markButton.hidden = false;
-        showStatus(statusElement, `已產生 ${chunks.length} 個檔案。請上傳至${CdcUploadModel.UNITS[options.unit]}系統，完成後按「標記為已上傳」。`);
+        showStatus(statusElement, `已產生 ${chunks.length} 個檔案。請上傳至${exportTargetLabel(options)}系統，完成後按「標記為已上傳」。`);
       } catch {
         showStatus(statusElement, '無法產生檔案，請確認範例檔可讀取後再試一次。', true);
       }
@@ -2492,7 +2591,7 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const [id, codes] of codesByResponse) {
         const target = responses.find(response => response.id === id);
         if (!target) continue;
-        const nextUploads = CdcUploadModel.markUploaded(target, codes, lastExport.unit, at, activeUser?.id);
+        const nextUploads = CdcUploadModel.markUploaded(target, codes, lastExport.unit, at, activeUser?.id, lastExport.bureauId);
         const { data: updated, error } = await window.questionnaireSupabase
           .from('questionnaire_responses')
           .update({ consult_uploads: nextUploads })
@@ -3230,7 +3329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     responseSubtitle.replaceChildren();
     const badge = document.createElement('span');
     badge.className = `response-status-badge is-${state.key}`;
-    badge.textContent = CdcUploadModel.stateLabel(state);
+    badge.textContent = CdcUploadModel.stateLabel(state, localBureaus);
     responseSubtitle.append(badge, ` ${formatDate(response.created_at)}｜${data.screener || '未填篩檢員'}｜${data.screening_place || '未填地點'}`);
     const list = getFilteredResponses();
     const index = list.findIndex(entry => entry.id === response.id);
@@ -3355,8 +3454,8 @@ document.addEventListener('DOMContentLoaded', () => {
       nextAction.textContent = '前往諮詢與上傳';
       nextAction.addEventListener('click', goto('consult'));
     } else if (state.key === 'needs-upload') {
-      nextTitle.textContent = `下一步：${CdcUploadModel.stateLabel(state)}`;
-      nextText.textContent = state.pending.map(entry => `${entry.code}→${CdcUploadModel.UNITS[entry.unit]}`).join('、');
+      nextTitle.textContent = `下一步：${CdcUploadModel.stateLabel(state, localBureaus)}`;
+      nextText.textContent = state.pending.map(entry => `${entry.code}→${CdcUploadModel.unitLabel(entry, localBureaus)}`).join('、');
       nextAction.textContent = '前往諮詢與上傳';
       nextAction.addEventListener('click', goto('consult'));
     } else {
@@ -3937,7 +4036,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 新代碼預設為尚未使用的單位，方便同一份問卷同時上傳地方衛生局與疾管署
         const used = new Set([...codeMeta.values()].map(entry => entry.unit));
         const unit = ['cdc', 'local'].find(key => !used.has(key)) || CdcUploadModel.DEFAULT_UNIT;
-        codeMeta.set(code, { code, unit, uploaded_at: null, uploaded_by: null });
+        codeMeta.set(code, { code, unit, bureau_id: null, uploaded_at: null, uploaded_by: null });
       }
       return codeMeta.get(code);
     };
@@ -4036,12 +4135,35 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.entries(CdcUploadModel.UNITS).forEach(([value, text]) => unitSelect.add(new Option(text, value, false, value === meta.unit)));
         unitSelect.addEventListener('change', () => {
           meta.unit = unitSelect.value;
+          meta.bureau_id = null;
           meta.uploaded_at = null;
           meta.uploaded_by = null;
           markDialogDirty('consult');
           renderConsultationCodeTags();
         });
         unitLabel.append(unitText, unitSelect);
+        let bureauLabel = null;
+        if (meta.unit === 'local') {
+          bureauLabel = document.createElement('label');
+          bureauLabel.className = 'consultation-code-unit';
+          const bureauText = document.createElement('span');
+          bureauText.textContent = '衛生局';
+          const bureauSelect = document.createElement('select');
+          bureauSelect.setAttribute('aria-label', `諮詢代碼 ${code} 上傳的地方衛生局`);
+          bureauSelect.add(new Option(localBureaus.length ? '請選擇衛生局' : '尚未設定衛生局', ''));
+          localBureaus.forEach(bureau => bureauSelect.add(new Option(bureau.name, bureau.id, false, bureau.id === meta.bureau_id)));
+          if (meta.bureau_id && !localBureaus.some(bureau => bureau.id === meta.bureau_id)) {
+            bureauSelect.add(new Option('（已刪除的衛生局）', meta.bureau_id, false, true));
+          }
+          bureauSelect.addEventListener('change', () => {
+            meta.bureau_id = bureauSelect.value || null;
+            meta.uploaded_at = null;
+            meta.uploaded_by = null;
+            markDialogDirty('consult');
+            renderConsultationCodeTags();
+          });
+          bureauLabel.append(bureauText, bureauSelect);
+        }
 
         const actions = document.createElement('div');
         actions.className = 'consultation-code-card-actions';
@@ -4075,7 +4197,7 @@ document.addEventListener('DOMContentLoaded', () => {
           remove.dataset.codeIndex = index;
           actions.append(uploaded, edit, remove);
         }
-        body.append(unitLabel, actions);
+        body.append(...[unitLabel, bureauLabel, actions].filter(Boolean));
         card.append(header, body);
         codeTags.append(card);
       });

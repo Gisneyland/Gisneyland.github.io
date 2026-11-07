@@ -546,6 +546,21 @@ permalink: /admin/
         </form>
         <p id="screening-institution-status" class="admin-status" role="status" hidden></p>
       </section>
+      <section id="local-bureaus-card" class="admin-panel" aria-labelledby="local-bureaus-title" hidden>
+        <p class="eyebrow">串接上傳</p>
+        <h2 id="local-bureaus-title">地方衛生局</h2>
+        <p class="admin-muted" data-info-note>輸入組織合作的地方衛生局名稱（數量不限）。諮詢代碼選擇「地方衛生局」為上傳單位時，可在此清單中指定要上傳到哪一個衛生局。</p>
+        <ul id="local-bureau-list" class="screening-institution-list"></ul>
+        <form id="local-bureau-form" class="screening-institution-form">
+          <input type="hidden" name="id">
+          <label>衛生局名稱<input name="name" maxlength="80" required autocomplete="off" placeholder="例：新竹市衛生局"></label>
+          <div class="cdc-export-actions">
+            <button class="admin-button" type="submit">儲存衛生局</button>
+            <button id="local-bureau-cancel" class="admin-button secondary" type="button" hidden>取消編輯</button>
+          </div>
+        </form>
+        <p id="local-bureau-status" class="admin-status" role="status" hidden></p>
+      </section>
       <section id="screening-plan-card" class="admin-panel screening-plan-card" aria-labelledby="screening-plan-title">
         <div class="screening-plan-card-heading">
           <div>
@@ -752,6 +767,9 @@ permalink: /admin/
           <option value="cdc">疾管署</option>
           <option value="local">地方衛生局</option>
         </select>
+      </label>
+      <label data-unit-only="local" hidden>地方衛生局
+        <select name="bureauId"></select>
       </label>
       <label>篩檢單位（醫事機構 10 碼或統編 8 碼）
         <input name="screeningUnitCode" inputmode="numeric" pattern="(\d{10}|\d{8})" maxlength="10" required autocomplete="off">
