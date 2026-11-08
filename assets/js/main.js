@@ -2278,7 +2278,7 @@ function setPageLanguage(language) {
   const organizationName = document.getElementById('notice-org-name');
   if (organizationName) {
     organizationName.textContent = language === 'zh-TW'
-      ? '財團法人紅絲帶基金會'
+      ? '財團法人台灣紅絲帶基金會'
       : 'Taiwan AIDS Organization';
   }
   document.documentElement.lang = language;
