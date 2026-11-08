@@ -3,7 +3,7 @@
 :::info
 [![hackmd-github-sync-badge](https://hackmd.io/Z9Tcu3ziQQWNJcX2ABbdOw/badge)](https://hackmd.io/Z9Tcu3ziQQWNJcX2ABbdOw)
 
-> 標籤: `風城部屋` `新竹彩虹文化祭` `財團法人紅絲帶基金會`
+> 標籤: `風城部屋` `新竹彩虹文化祭` `財團台灣法人紅絲帶基金會`
 :::
 
 ----
