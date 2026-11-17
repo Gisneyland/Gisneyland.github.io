@@ -43,7 +43,7 @@ const SCREENING_PHOTO_BUCKET = 'screening-test-photos';
 const SCREENING_PHOTO_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(hiv|syphilis)\.(jpg|png|webp)$/;
 
 const RESPONSE_VALUE_LABELS = {
-  gender: { cisman: '順性別男性', transman: '跨性別男性', ciswoman: '順性別女性', transwoman: '跨性別女性', gender_others: '其他' },
+  gender: { cisman: '順性別男性', transman: '跨性別男性', ciswoman: '順性別女性', transwoman: '跨性別女性', gender_others: '其他（非二元／其他性別認同）', gender_undisclosed: '未提供' },
   orientation: { heterosexual: '異性戀', homosexual: '同性戀', bisexual: '雙性戀', orientation_others: '其他' },
   education: { illiterate: '不識字', primary: '小學', junior_high: '國中', senior_high: '高中', university: '大學', master: '碩士', phd: '博士' },
   frequency_screening: { '-1': '從未篩檢', '0': '偶爾篩檢', '1': '定期篩檢' },
@@ -63,6 +63,8 @@ const RESPONSE_YES_NO_FIELDS = new Set([
   'drug_amphetamine_oral', 'drug_ghb', 'drug_mdma', 'drug_ketamine', 'drug_rush',
   'drug_mephedrone', 'drug_heroin', 'drug_weed', 'drug_other_choice'
 ]);
+
+const GENDER_UNDISCLOSED_HINT = '受檢者未提供性別。請在外站先詢問受檢者意願，無法確認時選外站最接近的「其他／不確定」選項；此處僅供外站填寫，本站紀錄與統計仍維持「未提供」，不會被改動。';
 
 const RESPONSE_CONDITIONAL_GROUPS = [
   { parent: 'gender', children: ['gender_others'], isActive: data => data.gender === 'gender_others' },
@@ -3982,7 +3984,9 @@ document.addEventListener('DOMContentLoaded', () => {
         rows: riskRows.map(([label, key, value]) => [label, value ?? answerFor(key)])
       },
       responseGroup('二、基本資料', [
-        ['性別', 'gender', gender], ['國籍', 'nationality'], ['出生年份', 'birth'],
+        ['性別', 'gender', gender],
+        ...(data.gender === 'gender_undisclosed' ? [['性別（外站填寫建議）', '', GENDER_UNDISCLOSED_HINT]] : []),
+        ['國籍', 'nationality'], ['出生年份', 'birth'],
         ['18 歲以前居住地', 'hometown', hometown], ['目前居住地', 'residence', residence],
         ['性傾向', 'orientation', orientation], ['教育程度', 'education']
       ]),
