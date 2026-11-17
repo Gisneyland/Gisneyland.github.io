@@ -1655,8 +1655,32 @@ function initializeQuestionnaire(form) {
   const steps = Array.from(form.querySelectorAll('.question-step, .question-group'));
   if (!steps.length) return;
 
-  [['gender_select', 'gender_others', 'gender_others_field'],
-    ['orientation_select', 'orientation_others', 'orientation_others_field']].forEach(([selectId, otherValue, fieldId]) => {
+  const genderSelect = document.getElementById('gender_select');
+  const genderBirthSelect = document.getElementById('gender_birth_select');
+  const genderBirthField = document.getElementById('gender_birth_field');
+  const genderOthersField = document.getElementById('gender_others_field');
+  const genderValue = document.getElementById('gender_value');
+  if (genderSelect && genderBirthSelect && genderBirthField && genderOthersField && genderValue) {
+    // Derive the stored legacy category so admin classification and statistics stay unchanged.
+    const genderCategories = { man: ['cisman', 'transman'], woman: ['ciswoman', 'transwoman'] };
+    const updateGender = () => {
+      const identity = genderSelect.value;
+      const needsBirth = identity in genderCategories;
+      genderBirthField.hidden = !needsBirth;
+      genderBirthSelect.required = needsBirth;
+      genderOthersField.hidden = identity !== 'nonbinary_other';
+      if (!needsBirth) genderBirthSelect.value = '';
+      if (genderOthersField.hidden) genderOthersField.querySelector('input').value = '';
+      if (needsBirth && genderBirthSelect.value !== 'same' && genderBirthSelect.value !== 'different' && genderBirthSelect.value !== 'undisclosed') genderValue.value = '';
+      else if (needsBirth) genderValue.value = genderBirthSelect.value === 'undisclosed' ? 'gender_undisclosed' : genderCategories[identity][genderBirthSelect.value === 'same' ? 0 : 1];
+      else genderValue.value = identity === 'nonbinary_other' ? 'gender_others' : identity === 'undisclosed' ? 'gender_undisclosed' : '';
+    };
+    genderSelect.addEventListener('change', updateGender);
+    genderBirthSelect.addEventListener('change', updateGender);
+    updateGender();
+  }
+
+  [['orientation_select', 'orientation_others', 'orientation_others_field']].forEach(([selectId, otherValue, fieldId]) => {
     const select = document.getElementById(selectId);
     const field = document.getElementById(fieldId);
     const input = field?.querySelector('input');
@@ -1947,7 +1971,9 @@ function initializeQuestionnaire(form) {
     };
     const stepFor = selector => form.querySelector(selector)?.closest('.question-step');
     add('nickname', '暱稱', stepFor('#nickname'), '暱稱', document.getElementById('nickname')?.value, '未提供');
-    add('profile', '基本資料', stepFor('#gender_select'), '性別', otherText('gender_select', 'gender_others'));
+    const genderAnswer = [selectedText('gender_select'), document.getElementById('gender_birth_field')?.hidden ? '' : selectedText('gender_birth_select')].filter(Boolean);
+    const genderOther = document.getElementById('gender_others')?.value.trim();
+    add('profile', '基本資料', stepFor('#gender_select'), '性別', genderAnswer.length > 1 ? `${genderAnswer[0]}（${genderAnswer[1]}）` : genderOther ? `${genderAnswer[0]}（${genderOther}）` : genderAnswer[0]);
     add('profile', '基本資料', stepFor('#orientation_select'), '性傾向', otherText('orientation_select', 'orientation_others'));
     add('profile', '基本資料', stepFor('#birth'), '出生年份', selectedText('birth'));
     add('profile', '基本資料', stepFor('#nationality-search'), '國籍', Array.from(form.querySelectorAll('input[name="nationality[]"]:checked')).map(input => input.dataset.nationalityName).join('、'));
@@ -2165,7 +2191,11 @@ function initializeQuestionnaire(form) {
       return;
     }
     if (input.tagName === 'SELECT') {
-      if (input.value === 'gender_others' || input.value === 'orientation_others') {
+      if (input.id === 'gender_select' && ['man', 'woman'].includes(input.value)) {
+        document.getElementById('gender_birth_select')?.focus();
+        return;
+      }
+      if (input.value === 'orientation_others' || input.id === 'gender_select' && input.value === 'nonbinary_other') {
         step.querySelector('.conditional-field:not([hidden]) input')?.focus();
         return;
       }
