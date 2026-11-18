@@ -10,6 +10,8 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="{{ page.url | absolute_url }}">
   <link rel="icon" type="image/x-icon" href="{{ '/assets/images/favicon.ico' | relative_url }}">
+  <link rel="manifest" href="{{ '/manifest.webmanifest' | relative_url }}">
+  <link rel="apple-touch-icon" href="{{ '/assets/images/icon-192.png' | relative_url }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <!-- Materialize CSS & Icons -->
@@ -79,5 +81,6 @@
   <script src="{{ '/assets/js/screening-photo.js' | relative_url }}?v={{ asset_v }}"></script>
   <script src="{{ '/assets/js/main.js' | relative_url }}?v={{ asset_v }}"></script>
   
+  <script src="{{ '/assets/js/pwa.js' | relative_url }}?v={{ asset_v }}" data-sw="{{ '/sw.js' | relative_url }}" defer></script>
 </body>
 </html>
