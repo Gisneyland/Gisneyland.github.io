@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "風城部屋",
+  "productName": "Gisneyland Desktop",
   "version": "1.0.0",
   "identifier": "io.github.gisneyland.desktop",
   "build": {
@@ -9,6 +9,7 @@
   "app": {
     "windows": [
       {
+        "create": false,
         "title": "風城部屋 GisneyLand",
         "url": "https://gisneyland.github.io/",
         "width": 1200,

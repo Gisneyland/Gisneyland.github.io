@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "icons": "tauri icon app-icon.png",
-    "dev": "tauri dev",
+    "dev": "npm run icons && tauri dev",
     "build": "npm run icons && tauri build"
   },
   "devDependencies": {
