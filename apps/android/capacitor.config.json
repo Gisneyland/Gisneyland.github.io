@@ -1,0 +1,13 @@
+{
+  "appId": "io.github.gisneyland.app",
+  "appName": "風城部屋",
+  "webDir": "www",
+  "server": {
+    "url": "https://gisneyland.github.io/",
+    "allowNavigation": ["gisneyland.github.io", "*.supabase.co"],
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
