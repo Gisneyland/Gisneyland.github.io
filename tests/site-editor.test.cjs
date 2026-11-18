@@ -115,6 +115,7 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
     ${editor}
     <script src="/assets/js/site-editor-model.js"></script><script src="/assets/js/site-editor-rich.js"></script>
     <script src="/assets/js/site-editor-dom.js"></script><script src="/assets/js/site-editor-inline.js"></script>
+    <script src="/assets/js/supabase-data.js"></script>
     <script>window.renderCount=0;window.originalEditorDOM=SiteEditorDOM;window.SiteEditorDOM={capture(...args){const captured=originalEditorDOM.capture(...args);window.fixtureBaseline=captured;const render=captured.render;captured.render=(...values)=>{renderCount++;return render(...values)};return captured}};</script>
     <script src="/assets/js/site-editor.js"></script>
     <script>document.addEventListener('DOMContentLoaded',()=>{ window.originalInput=document.getElementById('secret'); window.originalWidget=document.getElementById('widget-button'); window.clicks=0; originalWidget.addEventListener('click',()=>clicks++); document.querySelector('[data-managed-news]').textContent='Live feed';document.getElementById('translated').replaceChildren(document.createTextNode('Runtime translation')); });</script>
@@ -123,7 +124,7 @@ test('browser: static CRUD/order, nested cards, safe blocks/navigation, private 
     if (!request.url.startsWith('/assets/')) { response.setHeader('Content-Type', 'text/html; charset=utf-8'); response.end(fixture); return; }
     try {
       const pathname = new URL(request.url, 'http://localhost').pathname;
-      assert.match(pathname, /^\/assets\/(?:js\/site-editor[-a-z]*\.js|css\/site-editor\.css)$/);
+      assert.match(pathname, /^\/assets\/(?:js\/(?:site-editor[-a-z]*|supabase-data)\.js|css\/site-editor\.css)$/);
       response.setHeader('Content-Type', pathname.endsWith('.css') ? 'text/css' : 'text/javascript');
       response.end(await fsp.readFile(path.join(root, pathname)));
     } catch { response.writeHead(404).end(); }
