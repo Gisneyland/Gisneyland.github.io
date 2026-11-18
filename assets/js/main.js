@@ -149,9 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
           error = result.error;
         } else {
           if (screeningPhotos.size) throw new Error('Photo upload requires the submit function');
-          const result = await window.questionnaireSupabase
-            .from('questionnaire_responses')
-            .insert(payload);
+          const result = await SiteData.responses.insert(payload);
           error = result.error;
         }
 
@@ -919,11 +917,7 @@ async function initializeStaffSessionIndicator() {
   }
 
   try {
-    const { data: profile, error } = await window.questionnaireSupabase
-      .from('admin_profiles')
-      .select('screener_number, approval_status, privacy_consent_at')
-      .eq('user_id', sessionData.session.user.id)
-      .maybeSingle();
+    const { data: profile, error } = await SiteData.profiles.fetchOwn(sessionData.session.user.id, SiteData.profiles.columns.screenerAccess);
 
     if (error) {
       setState('error', 'staff_status_error', '無法確認工作人員權限', true);
@@ -2460,7 +2454,7 @@ function initializeDraftSubmission(form) {
       if (window.SUPABASE_FUNCTION_NAME) {
         ({ error } = await window.questionnaireSupabase.functions.invoke(window.SUPABASE_FUNCTION_NAME, { body: payload }));
       } else {
-        ({ error } = await window.questionnaireSupabase.from('questionnaire_responses').insert(payload));
+        ({ error } = await SiteData.responses.insert(payload));
       }
       if (error) throw error;
       form.reset();

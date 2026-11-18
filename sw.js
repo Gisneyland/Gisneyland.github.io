@@ -6,7 +6,12 @@ const CACHE = 'gisneyland-{{ asset_v }}';
 const OFFLINE_URL = '{{ "/offline.html" | relative_url }}';
 const PRECACHE = [
   OFFLINE_URL,
-  '{{ "/assets/images/icon-192.png" | relative_url }}'
+  '{{ "/assets/images/icon-192.png" | relative_url }}',
+  '{{ "/assets/images/favicon.ico" | relative_url }}'
+  {%- for style in site.data.shell_styles -%}
+  ,
+  '{{ style | relative_url }}?v={{ asset_v }}'
+  {%- endfor %}
 ];
 
 self.addEventListener('install', (event) => {
