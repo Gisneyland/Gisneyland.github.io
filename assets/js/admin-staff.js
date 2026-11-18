@@ -26,10 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!access.canAccess(activeProfile, 'staff.manage')) return;
     const version = ++loadVersion;
     showStatus('工作人員帳號載入中。');
-    const { data, error } = await client
-      .from('admin_profiles')
-      .select('user_id, email, nickname, full_name, phone, approval_status, account_role, permissions, privacy_consent_at, screener_number')
-      .order('nickname', { ascending: true });
+    const { data, error } = await SiteData.profiles.listRoster();
     if (version !== loadVersion) return;
     if (error) {
       showStatus('無法載入工作人員帳號，請確認管理權限後重試。', true);

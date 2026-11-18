@@ -80,10 +80,12 @@ test('deployment contracts separate public data, RPC-only writes, auth checks an
   assert.match(sql, /pg_advisory_xact_lock/);
   assert.match(sql, /expected_navigation_revision is distinct from/);
   const layout = fs.readFileSync(path.join(root, '_layouts/default.html'), 'utf8');
-  for (const asset of ['css/site-editor.css', 'js/site-editor-model.js', 'js/site-editor-rich.js',
+  for (const asset of ['js/site-editor-model.js', 'js/site-editor-rich.js',
     'js/site-editor-dom.js', 'js/site-editor-inline.js', 'js/site-editor.js']) {
     assert.ok(layout.includes(`'/assets/${asset}' | relative_url }}?v={{ asset_v }}`), `${asset} cache version`);
   }
+  assert.ok(fs.readFileSync(path.join(root, '_data/shell_styles.yml'), 'utf8').includes('/assets/css/site-editor.css'));
+  assert.match(layout, /for style in site\.data\.shell_styles[\s\S]*?\?v=\{\{ asset_v \}\}/);
   assert.ok(layout.indexOf('site-editor.js') < layout.indexOf('i18n.js'));
   assert.ok(layout.indexOf('site-editor.js') < layout.indexOf("'/assets/js/content.js'"));
   const controller = fs.readFileSync(path.join(root, 'assets/js/site-editor.js'), 'utf8');

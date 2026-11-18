@@ -100,8 +100,7 @@
   }
   async function checkSession(session, token, check, preserve) {
     try {
-      const { data, error } = await client.from('admin_profiles')
-        .select('account_role,approval_status,privacy_consent_at').eq('user_id', session.user.id).maybeSingle();
+      const { data, error } = await global.SiteData.profiles.fetchOwn(session.user.id, global.SiteData.profiles.columns.editorAccess);
       if (token !== generation || check !== profileCheck || activeUserId !== session.user.id) return;
       if (error || !M.administrator(data)) { revoke(); return; }
       admin = true; trigger.hidden = false;
@@ -373,7 +372,7 @@
       const [content, nav, currentPage, currentNav, profile] = await Promise.all([
         read('site_editor_publications', page), read('site_editor_publications', '@navigation'),
         read('site_editor_drafts', page), read('site_editor_drafts', '@navigation'),
-        client.from('admin_profiles').select('account_role,approval_status,privacy_consent_at').eq('user_id', userId).maybeSingle()
+        global.SiteData.profiles.fetchOwn(userId, global.SiteData.profiles.columns.editorAccess)
       ]);
       if (!authorized(token) || request !== publicationRequest || activeUserId !== userId) return;
       if (profile.error) throw profile.error;

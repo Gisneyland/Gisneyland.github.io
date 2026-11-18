@@ -1,0 +1,5 @@
+# Same-origin stylesheets every public page needs. Used by _layouts/default.html and precached by sw.js
+# so the offline page is styled even if the first visit is followed immediately by going offline.
+- /assets/css/style.css
+- /assets/css/rich-content.css
+- /assets/css/site-editor.css
