@@ -1,0 +1,13 @@
+{
+  "name": "gisneyland-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "icons": "tauri icon app-icon.png",
+    "dev": "npm run icons && tauri dev",
+    "build": "npm run icons && tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}
