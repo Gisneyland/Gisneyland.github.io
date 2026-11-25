@@ -3,7 +3,7 @@
 兩個殼 app 都載入線上網站 `https://gisneyland.github.io/`，網站更新後 app 自動同步；網站程式碼不受影響（`apps/` 已在 `_config.yml` 排除，不會被 Jekyll 發佈）。
 
 - `android/`：Capacitor。`npm install && npm run build:apk`（需 JDK 17 與 Android SDK），輸出 `android/android/app/build/outputs/apk/debug/`。
-- `desktop/`：Tauri v2（Linux AppImage / deb / rpm）。需 Rust 與 WebKitGTK，`npm install && npm run build`。
+- `desktop/`：Tauri v2（Linux AppImage / deb / rpm）。需 Rust 與 WebKitGTK，`npm install && npm run build`。deb/rpm 會安裝 `zenity` 作為位置權限提示；AppImage 使用者需自行安裝 `zenity` 或 `kdialog`。
 
 也可在 GitHub Actions 手動執行 **Build apps**，或推送 `app-v*` tag，從 artifacts 下載。
 
