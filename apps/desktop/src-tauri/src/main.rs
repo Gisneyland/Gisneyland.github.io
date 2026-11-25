@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::webview::{PermissionKind, PermissionResponse};
 
 fn request_geolocation_consent() -> bool {
@@ -34,6 +35,8 @@ fn main() {
     tauri::Builder::default()
         .setup(|app| {
             let window_config = &app.config().app.windows[0];
+            let app_handle = app.handle().clone();
+            let popup_id = AtomicU64::new(0);
             tauri::WebviewWindowBuilder::from_config(app.handle(), window_config)?
                 .on_permission_request(|webview, permission| {
                     let is_hosted_site = webview
@@ -51,13 +54,24 @@ fn main() {
                         PermissionResponse::Deny
                     }
                 })
-                .on_new_window(|url, _features| {
-                    if matches!(url.scheme(), "http" | "https") {
-                        let _ = std::process::Command::new("xdg-open")
-                            .arg(url.as_str())
-                            .spawn();
+                .on_new_window(move |url, features| {
+                    if !matches!(url.scheme(), "http" | "https") {
+                        return tauri::webview::NewWindowResponse::Deny;
                     }
-                    tauri::webview::NewWindowResponse::Deny
+
+                    let label = format!("popup-{}", popup_id.fetch_add(1, Ordering::Relaxed));
+                    match tauri::WebviewWindowBuilder::new(
+                        &app_handle,
+                        label,
+                        tauri::WebviewUrl::External("about:blank".parse().unwrap()),
+                    )
+                    .window_features(features)
+                    .title(url.as_str())
+                    .build()
+                    {
+                        Ok(window) => tauri::webview::NewWindowResponse::Create { window },
+                        Err(_) => tauri::webview::NewWindowResponse::Deny,
+                    }
                 })
                 .build()?;
             Ok(())
