@@ -1,0 +1,13 @@
+# 僅供 CI 與本機驗證使用：基礎結構由 supabase/schema.sql 與 migrations 以 psql 依序套用，
+# 因此關閉 CLI 的自動 migration，避免與 schema.sql 的基礎資料表衝突。
+project_id = "gisneyland"
+
+[db]
+port = 54322
+major_version = 15
+
+[db.migrations]
+enabled = false
+
+[db.seed]
+enabled = false
