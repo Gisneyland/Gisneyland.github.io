@@ -44,3 +44,13 @@ test('responses.listPendingPage pages oldest-first over uncoded rows', () => {
   assert.deepEqual(calls[0].steps.at(-1), ['range', 400, 599]);
   assert.deepEqual(calls[0].steps.find(([name]) => name === 'is'), ['is', 'anonymous_consult_code', null]);
 });
+
+test('batch insert uses database defaults and deletion returns current photo data', () => {
+  const { SiteData, calls } = load();
+  const rows = [{ created_at: '2026-11-04T00:00:00Z' }, {}];
+  SiteData.responses.insertMany(rows);
+  SiteData.responses.deleteMany(['1']);
+  assert.equal(calls[0].steps[0][0], 'insert');
+  assert.equal(calls[0].steps[0][2].defaultToNull, false);
+  assert.deepEqual(calls[1].steps.at(-1), ['select', 'id, response_data']);
+});

@@ -183,6 +183,12 @@ permalink: /admin/
             <button id="refresh-button" class="admin-button secondary icon-only" type="button" aria-label="重新整理紀錄" title="重新整理紀錄">
               <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
             </button>
+            <button id="import-responses-button" class="admin-button secondary icon-only" type="button" aria-label="批次匯入紀錄" title="批次匯入紀錄" hidden>
+              <span class="material-icons notranslate" translate="no" aria-hidden="true">playlist_add</span>
+            </button>
+            <button id="delete-responses-button" class="admin-button secondary icon-only" type="button" aria-label="刪除已選取的紀錄" title="刪除已選取的紀錄" hidden disabled>
+              <span class="material-icons notranslate" translate="no" aria-hidden="true">delete</span>
+            </button>
             <button id="cdc-export-button" class="admin-button secondary icon-only" type="button" aria-label="產生串接上傳檔" title="產生串接上傳檔">
               <span class="material-icons notranslate" translate="no" aria-hidden="true">upload_file</span>
             </button>
@@ -266,6 +272,11 @@ permalink: /admin/
       </div>
       <div id="active-filters" class="active-filters" aria-live="polite" hidden></div>
       <p id="dashboard-status" class="admin-status" role="status" hidden></p>
+      <div id="response-photo-cleanup" hidden>
+        <p>以下照片尚未刪除。請重試；若瀏覽器無法保存，請先複製路徑以便手動清理。</p>
+        <textarea id="response-photo-cleanup-paths" aria-label="待刪除照片路徑" readonly></textarea>
+        <button id="response-photo-cleanup-retry" class="admin-button secondary" type="button">重試刪除照片</button>
+      </div>
       <div class="admin-table-wrap" role="region" aria-label="篩檢紀錄表格，可左右捲動" tabindex="0">
         <table class="admin-table">
           <caption class="sr-only">篩檢紀錄；桌機雙擊、觸控點按或鍵盤操作可查看詳細資料</caption>
@@ -815,6 +826,28 @@ permalink: /admin/
     <div class="cdc-export-actions">
       <button id="cdc-export-generate" class="admin-button" type="submit">產生 XLSX</button>
       <button id="cdc-export-mark" class="admin-button secondary" type="button" hidden>標記為已上傳</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="response-import-dialog" class="response-dialog" aria-labelledby="response-import-title">
+  <div class="dialog-header">
+    <h2 id="response-import-title">批次匯入篩檢紀錄</h2>
+    <button id="response-import-close" class="icon-button" type="button" aria-label="關閉">
+      <span class="material-icons notranslate" translate="no" aria-hidden="true">close</span>
+    </button>
+  </div>
+  <form id="response-import-form" class="cdc-export-form">
+    <label>CSV 檔案（UTF-8，第一列為欄位標題）
+      <input id="response-import-file" type="file" accept=".csv,text/csv" required>
+    </label>
+    <p class="admin-muted" data-info-note>標題可使用欄位代碼（如 screener、screening_at）或後台匯出檔的中文欄位名稱；另可加入 status（draft／submitted）、language、created_at（ISO 格式）。已完成的紀錄必須有篩檢員編號。每次最多 2000 筆，系統會每 100 筆一批寫入。匯入一律新增紀錄，不會覆蓋現有資料，重複匯入同一檔案會產生重複紀錄。</p>
+    <p id="response-import-scope" class="admin-muted"></p>
+    <ul id="response-import-errors" class="cdc-export-skipped" hidden></ul>
+    <p id="response-import-status" class="admin-status" role="status" aria-live="polite" hidden></p>
+    <div class="cdc-export-actions">
+      <button id="response-import-submit" class="admin-button" type="submit" disabled>開始匯入</button>
+      <button id="response-import-template" class="admin-button secondary" type="button">下載範本</button>
     </div>
   </form>
 </dialog>

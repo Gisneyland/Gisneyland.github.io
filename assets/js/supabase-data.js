@@ -33,6 +33,17 @@
     insert(payload) {
       return client().from('questionnaire_responses').insert(payload);
     },
+    // 每批一次請求；呼叫端負責分批（見 ResponseBatchModel.chunk）
+    insertMany(rows) {
+      return client().from('questionnaire_responses').insert(rows, { defaultToNull: false }).select('id');
+    },
+    // RLS 會讓無權限的刪除回傳 0 筆而非錯誤，所以回傳實際刪除的 id 供呼叫端核對
+    deleteMany(ids) {
+      return client().from('questionnaire_responses').delete().in('id', ids).select('id, response_data');
+    },
+    removePhotos(bucket, paths) {
+      return client().storage.from(bucket).remove(paths);
+    },
     // Oldest first, uncoded only.
     listPendingPage(offset, size) {
       return client().from('questionnaire_responses')

@@ -167,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let loginMode = 'password';
   let otpSentFor = '';
   let responses = [];
+  let responseBatch = null;
   const selectedNationalities = new Set();
   let currentPage = 1;
   let screenerNumberUserId = null;
@@ -853,6 +854,20 @@ document.addEventListener('DOMContentLoaded', () => {
     renderResponses();
   });
   initializeCdcExport();
+  responseBatch = window.AdminResponseBatch?.init({
+    format: window.AdminResponseFormat,
+    showStatus,
+    statusElement: dashboardStatus,
+    getSelectedResponses: () => responses.filter(response => selectedResponseIds.has(response.id)),
+    onImported: () => loadResponses(),
+    onDeleted: ids => {
+      const removed = new Set(ids);
+      responses = responses.filter(response => !removed.has(response.id));
+      ids.forEach(id => selectedResponseIds.delete(id));
+      renderNationalityOptions();
+      renderResponses();
+    }
+  });
   initializeInstitutionSettings();
   initializeBureauSettings();
   initializeExternalLinkSettings();
@@ -1005,6 +1020,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasConsent = Boolean(profile.privacy_consent_at);
     const isApproved = profile.approval_status === 'approved';
     const canRead = isApproved && hasConsent && window.StaffAccess.canAccess(profile, 'questionnaire.read');
+    const canEditResponses = canRead && window.StaffAccess.canAccess(profile, 'questionnaire.consultation');
+    responseBatch?.setEnabled(canEditResponses);
     const canManageContent = isApproved && hasConsent && window.StaffAccess.canAccess(profile, 'site_content.manage');
     const canManageStaff = isApproved && hasConsent && window.StaffAccess.canAccess(profile, 'staff.manage');
     const access = new Map([
@@ -1662,6 +1679,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showLogin() {
     activeStaffProfile = null;
+    responseBatch?.setEnabled(false);
     screeningPlanEditable = false;
     document.dispatchEvent(new CustomEvent('screening-plan-calendar-change', { detail: null }));
     loginPanel.hidden = false;
@@ -1792,6 +1810,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedCount = filtered.filter(response => selectedResponseIds.has(response.id)).length;
     selectAllResponses.checked = filtered.length > 0 && selectedCount === filtered.length;
     selectAllResponses.indeterminate = selectedCount > 0 && selectedCount < filtered.length;
+    responseBatch?.refresh();
     cdcExportButton?.setAttribute('title', selectedResponseIds.size ? `產生串接上傳檔（已選 ${selectedResponseIds.size} 筆）` : '產生串接上傳檔');
   }
 

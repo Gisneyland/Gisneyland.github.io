@@ -28,6 +28,8 @@ bundle exec jekyll serve
 
 1. 在 Supabase Dashboard 的 SQL Editor 執行最新版 [supabase/schema.sql](supabase/schema.sql)。除了問卷資料表，也會建立新聞/活動共用的 `site_content` 表與 RLS：訪客只能讀取已上架內容，只有 `admin_profiles` 中的工作人員能新增、編輯、刪除與切換上架狀態。匿名使用者只能新增問卷，不能查詢、修改或刪除問卷資料。
 
+   新專案接著須依檔名順序執行 [supabase/migrations](supabase/migrations) 的所有 SQL，才能建立工作人員權限及其餘功能。既有專案請只依序套用尚未執行的 migrations，勿重跑會覆蓋權限的基礎 schema。
+
 2. 到 Supabase Dashboard 的 `Project Settings > API`，複製 `Project URL` 與 `Publishable key`（舊介面可能顯示為 `anon public` key），填入 [assets/js/supabase-config.js](assets/js/supabase-config.js)。這個 key 可以公開，但不要放 `service_role` key。
 3. 正式環境部署 Edge Function：
 
@@ -159,6 +161,10 @@ psql "$DISPOSABLE_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/site-editor-componen
 ## 串接上傳檔（疾管署／地方衛生局）
 
 後台「篩檢紀錄」每筆問卷會顯示串接狀態：草稿、待填諮詢代碼、待上傳串接（標示單位）、已上傳串接。可用「串接上傳」篩選器過濾，勾選資料後按上方「產生串接上傳檔」，依 [範例檔 V2503](assets/templates/cdc-anonymous-screening-import-V2503.xlsx) 格式（保留第 1–10 列、從第 11 列起、每檔最多 500 筆、日期為 yyyy/MM/dd、諮詢代碼不含開頭 E）下載 XLSX；若未勾選則使用目前篩選結果。每組諮詢代碼可在問卷詳細資料中指定上傳單位（疾管署或地方衛生局）並標記是否已上傳，同一份問卷因此可有多組代碼分別上傳。使用前請執行 [202611040002_consult_uploads.sql](supabase/migrations/202611040002_consult_uploads.sql)。篩檢單位代碼、篩檢方式等設定只儲存在該瀏覽器。
+
+同時具備「查看篩檢資料」與「編輯匿名諮詢與問卷資料」權限的人員，可在篩檢紀錄使用「批次匯入紀錄」（CSV，每次最多 2000 筆，每 100 筆一批寫入，一律新增、不覆蓋；可下載範本）與「刪除已選取的紀錄」（勾選或全選目前篩選結果，每 100 筆一批，需輸入「刪除」確認，並一併清除陽性試劑照片，無法復原，建議先匯出備份）。使用前請執行 [202611080001_response_batch_manage.sql](supabase/migrations/202611080001_response_batch_manage.sql)。介面在 `assets/js/admin-response-batch.js`，解析與驗證邏輯在 `assets/js/response-batch-model.js`。
+
+若照片清理失敗，頁面會保留待清理路徑並提供重試，路徑也會保存在目前瀏覽器；若瀏覽器無法保存，請在離開頁面前複製路徑以便手動清理。
 
 串接上傳檔預設為快篩。「篩檢地點類別」依設定頁「機構內篩檢地點」清單判斷（機構名稱或別名包含於問卷篩檢地點即為 1，否則為 7），機構搬遷或新增分點時可直接在設定頁調整；使用前請執行 [202611040003_screening_institutions.sql](supabase/migrations/202611040003_screening_institutions.sql)（預設含財團法人台灣紅絲帶基金會、風城部屋、紅樓部屋、桃園部屋、諸羅部屋）。
 
