@@ -1,3 +1,4 @@
+use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::webview::{PermissionKind, PermissionResponse};
 
@@ -67,6 +68,12 @@ fn main() {
                     )
                     .window_features(features)
                     .title(url.as_str())
+                    .on_new_window(|child_url, _features| {
+                        if matches!(child_url.scheme(), "http" | "https") {
+                            let _ = Command::new("xdg-open").arg(child_url.as_str()).spawn();
+                        }
+                        tauri::webview::NewWindowResponse::Deny
+                    })
                     .build()
                     {
                         Ok(window) => tauri::webview::NewWindowResponse::Create { window },
