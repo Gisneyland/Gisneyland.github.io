@@ -54,3 +54,5 @@ jobs:
           done
       - name: Check RLS for batch import and delete
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f tests/supabase/response-batch.sql
+      - name: Check security advisor migration
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f tests/supabase/security-advisor.sql
