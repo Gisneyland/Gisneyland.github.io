@@ -322,6 +322,7 @@ permalink: /admin/
             <option value="event">活動</option>
           </select>
           <div class="content-toolbar-actions">
+          <button id="calendar-subscribe-button" class="admin-button secondary" type="button" title="訂閱工作行事曆" aria-label="訂閱工作行事曆"><span class="material-icons notranslate" translate="no" aria-hidden="true">event_repeat</span>訂閱</button>
           <button id="edit-opening-hours-button" class="admin-button secondary icon-only" type="button" title="編輯營業時段" aria-label="編輯營業時段"><span class="material-icons notranslate" translate="no" aria-hidden="true">store</span></button>
           <button id="refresh-site-content-button" class="admin-button secondary icon-only" type="button" title="重新整理內容" aria-label="重新整理內容">
             <span class="material-icons notranslate" translate="no" aria-hidden="true">refresh</span>
@@ -350,7 +351,6 @@ permalink: /admin/
               <button type="button" data-calendar-mode="timeGridDay" title="日檢視" aria-label="日檢視" aria-pressed="false"><span class="material-icons notranslate" translate="no" aria-hidden="true">today</span></button>
               <button type="button" data-calendar-mode="listMonth" title="連續清單" aria-label="連續清單" aria-pressed="false"><span class="material-icons notranslate" translate="no" aria-hidden="true">view_list</span></button>
             </div>
-            <button id="calendar-subscribe-button" class="admin-button secondary icon-only" type="button" title="訂閱工作行事曆" aria-label="訂閱工作行事曆"><span class="material-icons notranslate" translate="no" aria-hidden="true">event_repeat</span></button>
           </div>
           <div id="site-content-calendar" class="site-content-calendar" aria-label="新聞與活動行事曆"></div>
           <p id="calendar-source-status" class="admin-muted" role="status" hidden></p>
@@ -518,9 +518,9 @@ permalink: /admin/
           <p id="screener-number-status" class="admin-status" role="status" hidden></p>
         </section>
       </section>
-      <section id="external-links-card" class="admin-panel" aria-labelledby="external-links-title" hidden>
-        <p class="eyebrow">待辦連結</p>
-        <h2 id="external-links-title">外國問卷與衛生局／疾管署網站</h2>
+      <details id="external-links-card" class="admin-panel admin-disclosure" aria-labelledby="external-links-title" hidden>
+        <summary class="admin-disclosure-summary"><div><p class="eyebrow">待辦連結</p><h2 id="external-links-title">外國問卷與衛生局／疾管署網站</h2></div><span class="material-icons notranslate disclosure-chevron" translate="no" aria-hidden="true">expand_more</span></summary>
+        <div class="admin-disclosure-body">
         <p class="admin-muted" data-info-note>每筆連結數量不限。「外國問卷」依受檢者國籍（可複選）自動出現在該筆紀錄的待辦；同一國籍可新增多份。「衛生局／疾管署網站」可填縣市關鍵字，篩檢地點包含關鍵字才會列入，留空代表全部適用。網址每年變動時直接編輯即可。</p>
         <ul id="external-link-list" class="screening-institution-list"></ul>
         <form id="external-link-form" class="screening-institution-form">
@@ -548,10 +548,11 @@ permalink: /admin/
           </div>
         </form>
         <p id="external-link-status" class="admin-status" role="status" hidden></p>
-      </section>
-      <section id="screening-institutions-card" class="admin-panel" aria-labelledby="screening-institutions-title" hidden>
-        <p class="eyebrow">串接上傳</p>
-        <h2 id="screening-institutions-title">機構內篩檢地點</h2>
+        </div>
+      </details>
+      <details id="screening-institutions-card" class="admin-panel admin-disclosure" aria-labelledby="screening-institutions-title" hidden>
+        <summary class="admin-disclosure-summary"><div><p class="eyebrow">串接上傳</p><h2 id="screening-institutions-title">機構內篩檢地點</h2></div><span class="material-icons notranslate disclosure-chevron" translate="no" aria-hidden="true">expand_more</span></summary>
+        <div class="admin-disclosure-body">
         <p class="admin-muted" data-info-note>問卷的篩檢地點包含下列名稱、別名或地址時，串接上傳檔的「篩檢地點類別」填 1（機構內），其餘填 7（外展）。機構搬遷或新增分點時在此更新。</p>
         <ul id="screening-institution-list" class="screening-institution-list"></ul>
         <form id="screening-institution-form" class="screening-institution-form">
@@ -567,10 +568,11 @@ permalink: /admin/
           </div>
         </form>
         <p id="screening-institution-status" class="admin-status" role="status" hidden></p>
-      </section>
-      <section id="local-bureaus-card" class="admin-panel" aria-labelledby="local-bureaus-title" hidden>
-        <p class="eyebrow">串接上傳</p>
-        <h2 id="local-bureaus-title">地方衛生局</h2>
+        </div>
+      </details>
+      <details id="local-bureaus-card" class="admin-panel admin-disclosure" aria-labelledby="local-bureaus-title" hidden>
+        <summary class="admin-disclosure-summary"><div><p class="eyebrow">串接上傳</p><h2 id="local-bureaus-title">地方衛生局</h2></div><span class="material-icons notranslate disclosure-chevron" translate="no" aria-hidden="true">expand_more</span></summary>
+        <div class="admin-disclosure-body">
         <p class="admin-muted" data-info-note>輸入組織合作的地方衛生局名稱（數量不限）。諮詢代碼選擇「地方衛生局」為上傳單位時，可在此清單中指定要上傳到哪一個衛生局。</p>
         <ul id="local-bureau-list" class="screening-institution-list"></ul>
         <form id="local-bureau-form" class="screening-institution-form">
@@ -582,13 +584,12 @@ permalink: /admin/
           </div>
         </form>
         <p id="local-bureau-status" class="admin-status" role="status" hidden></p>
-      </section>
-      <section id="screening-plan-card" class="admin-panel screening-plan-card" aria-labelledby="screening-plan-title">
+        </div>
+      </details>
+      <details id="screening-plan-card" class="admin-panel admin-disclosure screening-plan-card" aria-labelledby="screening-plan-title">
+        <summary class="admin-disclosure-summary"><div><p class="eyebrow">篩檢規劃</p><h2 id="screening-plan-title">常用地點與時段</h2></div><span class="material-icons notranslate disclosure-chevron" translate="no" aria-hidden="true">expand_more</span></summary>
+        <div class="admin-disclosure-body">
         <div class="screening-plan-card-heading">
-          <div>
-            <p class="eyebrow">篩檢規劃</p>
-            <h2 id="screening-plan-title">常用地點與時段</h2>
-          </div>
           <button id="screening-plan-info-button" class="admin-button secondary icon-only" type="button" aria-label="排程與資料說明" title="排程與資料說明">
             <span class="material-icons notranslate" translate="no" aria-hidden="true">info</span>
           </button>
@@ -697,7 +698,8 @@ permalink: /admin/
           <div id="screening-plan-disasters" class="screening-plan-disasters" role="status" aria-live="polite">尚未查詢</div>
           <div id="screening-plan-advice" class="screening-plan-advice" aria-live="polite" hidden></div>
         </section>
-      </section>
+        </div>
+      </details>
       <dialog id="screening-plan-info-dialog" class="calendar-small-dialog screening-plan-info-dialog" aria-labelledby="screening-plan-info-title">
         <div class="dialog-header">
           <h2 id="screening-plan-info-title">排程與資料說明</h2>
