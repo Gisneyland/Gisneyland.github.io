@@ -3,9 +3,11 @@
 \set ON_ERROR_STOP on
 begin;
 
-insert into auth.users (id, aud, role, email) values
-  ('00000000-0000-0000-0000-0000000000a1', 'authenticated', 'authenticated', 'editor@example.test'),
-  ('00000000-0000-0000-0000-0000000000a2', 'authenticated', 'authenticated', 'reader@example.test');
+insert into auth.users (id, aud, role, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000000a1', 'authenticated', 'authenticated', 'editor@example.test',
+    '{"nickname":"editor","privacy_consent":true,"privacy_notice_version":"staff-privacy-2026-10-v1"}'),
+  ('00000000-0000-0000-0000-0000000000a2', 'authenticated', 'authenticated', 'reader@example.test',
+    '{"nickname":"reader","privacy_consent":true,"privacy_notice_version":"staff-privacy-2026-10-v1"}');
 
 insert into public.admin_profiles
   (user_id, nickname, screener_number, approval_status, account_role, permissions, privacy_consent_at, access_model_version)
