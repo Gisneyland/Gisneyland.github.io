@@ -384,6 +384,32 @@ create table if not exists public.screening_institutions (
   created_at timestamptz not null default now()
 );
 
+-- plpgsql defers column resolution so this works before the staff_management migration adds the columns; that migration replaces it.
+create or replace function public.has_admin_permission(required_permission text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+  return exists (
+    select 1
+    from public.admin_profiles as profile
+    where profile.user_id = auth.uid()
+      and profile.approval_status = 'approved'
+      and profile.privacy_consent_at is not null
+      and (
+        profile.account_role = 'administrator'
+        or required_permission = any(coalesce(profile.permissions, array[]::text[]))
+      )
+  );
+end;
+$$;
+
+revoke all on function public.has_admin_permission(text) from public, anon;
+grant execute on function public.has_admin_permission(text) to authenticated;
+
 alter table public.screening_institutions enable row level security;
 revoke all on table public.screening_institutions from anon, authenticated;
 grant select, insert, update, delete on table public.screening_institutions to authenticated;
