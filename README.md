@@ -28,6 +28,8 @@ bundle exec jekyll serve
 
 1. 在 Supabase Dashboard 的 SQL Editor 執行最新版 [supabase/schema.sql](supabase/schema.sql)。除了問卷資料表，也會建立新聞/活動共用的 `site_content` 表與 RLS：訪客只能讀取已上架內容，只有 `admin_profiles` 中的工作人員能新增、編輯、刪除與切換上架狀態。匿名使用者只能新增問卷，不能查詢、修改或刪除問卷資料。
 
+   新專案接著須依檔名順序執行 [supabase/migrations](supabase/migrations) 的所有 SQL，才能建立工作人員權限及其餘功能。既有專案請只依序套用尚未執行的 migrations，勿重跑會覆蓋權限的基礎 schema。
+
 2. 到 Supabase Dashboard 的 `Project Settings > API`，複製 `Project URL` 與 `Publishable key`（舊介面可能顯示為 `anon public` key），填入 [assets/js/supabase-config.js](assets/js/supabase-config.js)。這個 key 可以公開，但不要放 `service_role` key。
 3. 正式環境部署 Edge Function：
 
