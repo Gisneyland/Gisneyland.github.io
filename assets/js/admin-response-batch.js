@@ -1,6 +1,7 @@
 // 篩檢紀錄的批次匯入／刪除介面。資料列表與選取狀態由 admin.js 持有，這裡只透過 init 傳入的回呼互動。
 (function (root) {
   const PHOTO_BUCKET = 'screening-test-photos';
+  const PENDING_PHOTOS_KEY = 'response-batch-pending-photos';
 
   function init(options) {
     const {
@@ -18,9 +19,48 @@
     const scopeElement = document.getElementById('response-import-scope');
     const errorList = document.getElementById('response-import-errors');
     const importStatus = document.getElementById('response-import-status');
+    const cleanupElement = document.getElementById('response-photo-cleanup');
+    const cleanupPaths = document.getElementById('response-photo-cleanup-paths');
+    const cleanupRetry = document.getElementById('response-photo-cleanup-retry');
     let enabled = false;
     let parsed = null;
     let busy = false;
+    let readSequence = 0;
+    let pendingPhotos = [];
+    try {
+      const saved = JSON.parse(root.localStorage.getItem(PENDING_PHOTOS_KEY) || '[]');
+      if (Array.isArray(saved)) pendingPhotos = saved.filter(path => typeof path === 'string' && path && !path.includes('..'));
+    } catch {}
+
+    function renderCleanup() {
+      cleanupElement.hidden = !enabled || !pendingPhotos.length;
+      cleanupPaths.value = pendingPhotos.join('\n');
+      cleanupRetry.disabled = busy;
+    }
+
+    function savePendingPhotos() {
+      try {
+        root.localStorage.setItem(PENDING_PHOTOS_KEY, JSON.stringify(pendingPhotos));
+        return true;
+      } catch {
+        return false;
+      } finally {
+        renderCleanup();
+      }
+    }
+
+    async function cleanPendingPhotos() {
+      if (!pendingPhotos.length) return '';
+      try {
+        const { error } = await root.SiteData.responses.removePhotos(PHOTO_BUCKET, pendingPhotos);
+        if (error) return error.message || 'Storage 刪除失敗';
+        pendingPhotos = [];
+        if (!savePendingPhotos()) return '無法更新瀏覽器保存的待清理路徑';
+        return '';
+      } catch (error) {
+        return error.message || 'Storage 刪除失敗';
+      }
+    }
 
     function refresh() {
       const count = getSelectedResponses().length;
@@ -28,6 +68,7 @@
       deleteButton.hidden = !enabled;
       deleteButton.disabled = busy || count === 0;
       deleteButton.title = count ? `刪除已選取的 ${count} 筆紀錄` : '刪除已選取的紀錄（請先勾選）';
+      renderCleanup();
     }
 
     function setEnabled(value) {
@@ -59,6 +100,7 @@
     }
 
     function resetImportDialog() {
+      readSequence += 1;
       parsed = null;
       form.reset();
       submitButton.disabled = true;
@@ -77,12 +119,21 @@
     });
 
     fileInput.addEventListener('change', async () => {
+      const sequence = ++readSequence;
       parsed = null;
       submitButton.disabled = true;
       importStatus.hidden = true;
       const file = fileInput.files[0];
       if (!file) return;
-      const result = Model.buildImportRecords(Model.parseCsv(await file.text()), format);
+      let text;
+      try {
+        text = await file.text();
+      } catch {
+        if (sequence === readSequence && fileInput.files[0] === file) renderErrors([{ line: 0, reason: '無法讀取檔案。' }]);
+        return;
+      }
+      if (sequence !== readSequence || fileInput.files[0] !== file) return;
+      const result = Model.buildImportRecords(Model.parseCsv(text), format);
       parsed = result;
       renderErrors(result.errors, result.ignoredHeaders);
       scopeElement.textContent = `可匯入 ${result.records.length} 筆，需修正 ${result.errors.length} 筆；將分成 ${Model.chunk(result.records).length} 批寫入。`;
@@ -137,8 +188,16 @@
         if (error) { failure = error.message || '權限不足'; break; }
         const removed = new Set((data || []).map(row => row.id));
         deletedIds.push(...removed);
-        const paths = Model.collectPhotoPaths(batch.filter(response => removed.has(response.id)));
-        if (paths.length) await root.SiteData.responses.removePhotos(PHOTO_BUCKET, paths).catch(() => {});
+        const paths = Model.collectPhotoPaths(data || []);
+        pendingPhotos = [...new Set([...pendingPhotos, ...paths])];
+        if (paths.length) {
+          const saved = savePendingPhotos();
+          const photoError = await cleanPendingPhotos();
+          if (photoError) {
+            failure = `照片刪除未完成：${photoError}；請${saved ? '使用重試按鈕' : '複製待清理路徑並使用重試按鈕'}。`;
+            break;
+          }
+        }
         if (removed.size < batch.length) { failure = '部分資料未被刪除，可能是權限不足或資料已被其他人刪除'; break; }
       }
       busy = false;
@@ -147,10 +206,20 @@
       showStatus(
         statusElement,
         failure
-          ? `已刪除 ${deletedIds.length} 筆，其餘未刪除：${failure}。請確認已執行 202611080001 migration 且帳號具編輯權限。`
+          ? `已刪除 ${deletedIds.length} 筆，未完成：${failure}`
           : `已刪除 ${deletedIds.length} 筆資料。`,
         Boolean(failure)
       );
+    });
+
+    cleanupRetry.addEventListener('click', async () => {
+      if (!enabled || busy || !pendingPhotos.length) return;
+      busy = true;
+      refresh();
+      const error = await cleanPendingPhotos();
+      busy = false;
+      refresh();
+      showStatus(statusElement, error ? `照片刪除未完成：${error}。請保留待清理路徑並重試。` : '待清理照片已刪除。', Boolean(error));
     });
 
     return { setEnabled, refresh };

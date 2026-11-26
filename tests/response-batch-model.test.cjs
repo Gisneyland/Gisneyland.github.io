@@ -45,3 +45,24 @@ test('collectPhotoPaths ignores unsafe paths and duplicates', () => {
   ]);
   assert.deepEqual(paths, ['a/hiv.jpg']);
 });
+
+test('import reverses exported nationalities and date values', () => {
+  const headers = ['screener', 'nationality', 'screening_at', 'last_screening_at', 'hiv_positive_appointment'];
+  const original = ['A001', ['TW', 'US'], '2026-11-04', '2025-03', '2026-11-04T09:30'];
+  const exported = original.map((value, index) => format.formatResponseValue(headers[index], value));
+  const result = model.buildImportRecords([headers, exported, ['A002', 'TW', '', '', ''], ['A003', '不存在', '', '', '']], format);
+  assert.deepEqual(result.records.map(record => record.response_data), [
+    { screener: 'A001', nationality: ['TW', 'US'], screening_at: '2026-11-04', last_screening_at: '2025-03', hiv_positive_appointment: '2026-11-04T09:30' },
+    { screener: 'A002', nationality: ['TW'] }
+  ]);
+  assert.equal(result.errors[0].line, 4);
+  assert.match(result.errors[0].reason, /國籍/);
+});
+
+test('blocked fields are ignored after resolving Chinese and grouped headers', () => {
+  const result = model.buildImportRecords([
+    ['screener', 'screening_photos', '陽性試劑照片', '篩檢結果與陽性轉介 - 陽性試劑照片'],
+    ['A001', 'one', 'two', 'three']
+  ], format);
+  assert.deepEqual(result.records[0].response_data, { screener: 'A001' });
+});

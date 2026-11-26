@@ -272,6 +272,11 @@ permalink: /admin/
       </div>
       <div id="active-filters" class="active-filters" aria-live="polite" hidden></div>
       <p id="dashboard-status" class="admin-status" role="status" hidden></p>
+      <div id="response-photo-cleanup" hidden>
+        <p>以下照片尚未刪除。請重試；若瀏覽器無法保存，請先複製路徑以便手動清理。</p>
+        <textarea id="response-photo-cleanup-paths" aria-label="待刪除照片路徑" readonly></textarea>
+        <button id="response-photo-cleanup-retry" class="admin-button secondary" type="button">重試刪除照片</button>
+      </div>
       <div class="admin-table-wrap" role="region" aria-label="篩檢紀錄表格，可左右捲動" tabindex="0">
         <table class="admin-table">
           <caption class="sr-only">篩檢紀錄；桌機雙擊、觸控點按或鍵盤操作可查看詳細資料</caption>

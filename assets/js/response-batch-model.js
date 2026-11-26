@@ -13,6 +13,20 @@
   const STATUS_ALIASES = { draft: 'draft', 草稿: 'draft', submitted: 'submitted', 已完成: 'submitted' };
   const LANGUAGE_ALIASES = { 'zh-TW': 'zh-TW', 繁體中文: 'zh-TW', en: 'en', English: 'en' };
   const ARRAY_KEYS = new Set(['screening_interpretation']);
+  const nationalityNames = new Map();
+  try {
+    const names = new Intl.DisplayNames(['zh-TW'], { type: 'region' });
+    for (let first = 65; first <= 90; first += 1) {
+      for (let second = 65; second <= 90; second += 1) {
+        const code = String.fromCharCode(first, second);
+        const label = names.of(code);
+        if (label && label !== code) {
+          nationalityNames.set(code, code);
+          if (!nationalityNames.has(label)) nationalityNames.set(label, code);
+        }
+      }
+    }
+  } catch {}
 
   function chunk(items, size = BATCH_SIZE) {
     const batches = [];
@@ -80,6 +94,24 @@
 
   function parseValue(format, key, raw) {
     const text = String(raw).trim();
+    if (key === 'nationality') {
+      return text.split(/[|、;；,]+/).map(item => {
+        const value = item.trim();
+        const code = nationalityNames.get(value) || nationalityNames.get(value.toUpperCase());
+        if (!code) throw new Error(`無法辨識的國籍「${value}」。`);
+        return code;
+      });
+    }
+    const datePatterns = {
+      screening_at: /^(\d{4})年(\d{1,2})月(\d{1,2})日$/,
+      last_screening_at: /^(\d{4})年(\d{1,2})月$/,
+      hiv_positive_appointment: /^(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d{2}:\d{2})$/
+    };
+    const match = datePatterns[key]?.exec(text);
+    if (match) {
+      const date = `${match[1]}-${match[2].padStart(2, '0')}${match[3] ? `-${match[3].padStart(2, '0')}` : ''}`;
+      return match[4] ? `${date}T${match[4]}` : date;
+    }
     if (ARRAY_KEYS.has(key)) {
       return text.split(/[|、;；]+/).map(item => reverseValue(format, key, item.trim())).filter(Boolean);
     }
@@ -102,9 +134,9 @@
       if (['status', '處理狀態'].includes(name)) return { meta: 'status' };
       if (['language', '填答語言'].includes(name)) return { meta: 'language' };
       if (name === 'created_at') return { meta: 'created_at' };
-      if (BLOCKED_KEYS.has(name)) return { ignored: name };
-      if (headerMap.has(name)) return { key: headerMap.get(name) };
-      if (KEY_PATTERN.test(name)) return { key: name };
+      const key = headerMap.get(name) || (KEY_PATTERN.test(name) ? name : '');
+      if (BLOCKED_KEYS.has(key)) return { ignored: name };
+      if (key) return { key };
       if (name) result.ignoredHeaders.push(name);
       return { ignored: name };
     });
@@ -121,7 +153,10 @@
       columns.forEach((column, index) => {
         const raw = cells[index];
         if (raw === undefined || raw.trim() === '') return;
-        if (column.key) data[column.key] = parseValue(format, column.key, raw);
+        if (column.key) {
+          try { data[column.key] = parseValue(format, column.key, raw); }
+          catch (error) { failure = error.message; }
+        }
         else if (column.meta === 'status') {
           if (STATUS_ALIASES[raw.trim()]) record.status = STATUS_ALIASES[raw.trim()];
           else failure = `未知的處理狀態「${raw.trim()}」。`;
@@ -134,7 +169,7 @@
           else record.created_at = new Date(time).toISOString();
         }
       });
-      if (!Object.keys(data).length) return;
+      if (!Object.keys(data).length && !failure) return;
       if (!failure && record.status === 'submitted' && !String(data.screener || '').trim()) failure = '已完成的紀錄必須填寫篩檢員編號。';
       if (!failure && data.anonymous_consult_code !== undefined) {
         if (CODE_PATTERN.test(data.anonymous_consult_code)) record.anonymous_consult_code = data.anonymous_consult_code;
