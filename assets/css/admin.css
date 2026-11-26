@@ -841,7 +841,7 @@ html[data-theme="dark"] .admin-body .content-switch-track::after { background: v
 .screening-plan-card-heading {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.75rem;
 }
 
