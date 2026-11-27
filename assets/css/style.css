@@ -734,6 +734,10 @@ a {
   padding: 0.05rem 0.2rem;
 }
 
+#activity-calendar .fc-daygrid-dot-event:not(.dgpa-holiday-event):not(.dgpa-makeup-event) {
+  color: var(--text);
+}
+
 #activity-calendar .calendar-holiday-label {
   display: -webkit-box;
   -webkit-line-clamp: 2;
