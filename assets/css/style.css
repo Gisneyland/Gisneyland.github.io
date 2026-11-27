@@ -738,6 +738,17 @@ a {
   color: var(--text);
 }
 
+#activity-calendar .calendar-activity-label {
+  display: block;
+  height: auto;
+  overflow: visible;
+  color: inherit;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 #activity-calendar .calendar-holiday-label {
   display: -webkit-box;
   -webkit-line-clamp: 2;

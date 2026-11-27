@@ -133,3 +133,28 @@ test('ICS exports timed UTC, inclusive all-day dates, coordinates and opening ex
   assert.match(opening, /DTEND:20261018T040000Z/);
   assert.ok(!text.includes('UID:opening-2026-10-20@'));
 });
+test('published activities reach the calendar with a titled label', async () => {
+  let options;
+  const FullCalendar = { Calendar: class { constructor(element, config) { options = config; } render() {} } };
+  const record = { id: 'a1', content_type: 'event', title: '彩虹文化祭', event_start: '2026-09-19', event_end: '2026-09-19' };
+  const client = { from() { return { select() { return { eq() { return this; }, order() { return this; }, then(resolve) { return Promise.resolve({ data: [record], error: null }).then(resolve); } }; } }; } };
+  const document = {
+    addEventListener() {},
+    getElementById() { return { textContent: '', addEventListener() {} }; },
+    createElement() { return { attributes: {}, classList: { names: [], add(name) { this.names.push(name); } }, setAttribute() {} }; }
+  };
+  const context = vm.createContext({
+    window: { FullCalendar, SiteCalendarModel: model, questionnaireSupabase: client }, FullCalendar, document,
+    fetch: async () => ({ ok: true, json: async () => [] }),
+    localStorage: { getItem() { return null; } }, console
+  });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets/js/content.js'), 'utf8'), context);
+  await vm.runInContext('initializeActivityCalendar()', context);
+  const events = await new Promise(resolve => options.events({ start: new Date('2026-08-30T00:00:00Z'), end: new Date('2026-10-04T00:00:00Z') }, resolve));
+  const activity = events.find(event => event.extendedProps.kind === 'activity');
+  assert.equal(activity.title, '彩虹文化祭');
+  assert.equal(activity.start, '2026-09-19');
+  const badge = options.eventContent({ event: activity }).domNodes[0];
+  assert.equal(badge.textContent, '彩虹文化祭');
+  assert.deepEqual(badge.classList.names, ['calendar-activity-label']);
+});
