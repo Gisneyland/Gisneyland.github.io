@@ -267,9 +267,9 @@ async function initializeActivityCalendar() {
     eventContent: info => {
       const { kind, description } = info.event.extendedProps;
       if (kind === 'opening-hours') return { domNodes: [] };
-      if (kind !== 'government-holiday' && kind !== 'government-makeup-workday' && kind !== 'opening-closure') return;
+      if (kind !== 'government-holiday' && kind !== 'government-makeup-workday' && kind !== 'opening-closure' && kind !== 'activity') return;
 
-      const label = kind === 'opening-closure' ? info.event.title : description || info.event.title;
+      const label = kind === 'opening-closure' || kind === 'activity' ? info.event.title : description || info.event.title;
       const badge = document.createElement('span');
       badge.className = 'notranslate';
       badge.setAttribute('translate', 'no');
