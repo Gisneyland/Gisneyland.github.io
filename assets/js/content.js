@@ -267,23 +267,24 @@ async function initializeActivityCalendar() {
     eventContent: info => {
       const { kind, description } = info.event.extendedProps;
       if (kind === 'opening-hours') return { domNodes: [] };
-      if (kind !== 'government-holiday' && kind !== 'government-makeup-workday') return;
+      if (kind !== 'government-holiday' && kind !== 'government-makeup-workday' && kind !== 'opening-closure') return;
 
+      const label = kind === 'opening-closure' ? info.event.title : description || info.event.title;
       const badge = document.createElement('span');
       badge.className = 'notranslate';
       badge.setAttribute('translate', 'no');
-      badge.setAttribute('aria-label', description || info.event.title);
-      badge.title = description || info.event.title;
+      badge.setAttribute('aria-label', label);
+      badge.title = label;
       badge.classList.add('calendar-holiday-label');
-      badge.textContent = description || info.event.title;
+      badge.textContent = label;
       return { domNodes: [badge] };
     },
     eventDidMount: info => {
       const { kind, description, record } = info.event.extendedProps;
       const hoverText = kind === 'opening-hours'
         ? info.event.title
-        : kind === 'government-holiday' || kind === 'government-makeup-workday'
-          ? `${description || info.event.title}：${formatIsoDate(info.event.startStr)}`
+        : kind === 'government-holiday' || kind === 'government-makeup-workday' || kind === 'opening-closure'
+          ? `${kind === 'opening-closure' ? info.event.title : description || info.event.title}：${formatIsoDate(info.event.startStr)}`
           : record
             ? [
               record.title,
