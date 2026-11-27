@@ -267,7 +267,7 @@ async function initializeActivityCalendar() {
     eventContent: info => {
       const { kind, description } = info.event.extendedProps;
       if (kind === 'opening-hours') return { domNodes: [] };
-      if (kind !== 'government-holiday' && kind !== 'government-makeup-workday') return;
+      if (kind !== 'government-holiday' && kind !== 'government-makeup-workday' && kind !== 'opening-closure') return;
 
       const badge = document.createElement('span');
       badge.className = 'notranslate';
@@ -282,7 +282,7 @@ async function initializeActivityCalendar() {
       const { kind, description, record } = info.event.extendedProps;
       const hoverText = kind === 'opening-hours'
         ? info.event.title
-        : kind === 'government-holiday' || kind === 'government-makeup-workday'
+        : kind === 'government-holiday' || kind === 'government-makeup-workday' || kind === 'opening-closure'
           ? `${description || info.event.title}：${formatIsoDate(info.event.startStr)}`
           : record
             ? [

@@ -648,6 +648,7 @@ a {
   --fc-today-bg-color: var(--accent-soft);
   --fc-event-bg-color: var(--accent-strong);
   --fc-event-border-color: var(--accent-strong);
+  --fc-event-text-color: var(--button-text);
   color: var(--text);
 }
 
@@ -685,6 +686,16 @@ a {
 #activity-calendar .fc-daygrid-event {
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+#activity-calendar .fc-daygrid-event .fc-event-main,
+#activity-calendar .fc-daygrid-event .fc-event-title {
+  white-space: normal;
+}
+
+#activity-calendar .fc-daygrid-event.dgpa-holiday-event .fc-event-main,
+#activity-calendar .fc-daygrid-event.dgpa-makeup-event .fc-event-main {
+  color: inherit;
 }
 
 #activity-calendar .fc-bg-event.opening-hours-event {
