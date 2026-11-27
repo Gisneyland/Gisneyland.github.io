@@ -723,6 +723,21 @@ a {
   background: var(--surface-muted);
 }
 
+#activity-calendar .fc-daygrid-event .calendar-holiday-label {
+  color: inherit;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+#activity-calendar .fc-daygrid-event:not(.dgpa-holiday-event):not(.dgpa-makeup-event) {
+  color: var(--button-text);
+  padding: 0.05rem 0.2rem;
+}
+
+#activity-calendar .fc-daygrid-dot-event:not(.dgpa-holiday-event):not(.dgpa-makeup-event) {
+  color: var(--text);
+}
+
 #activity-calendar .calendar-holiday-label {
   display: -webkit-box;
   -webkit-line-clamp: 2;
