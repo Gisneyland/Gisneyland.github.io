@@ -275,7 +275,7 @@ async function initializeActivityCalendar() {
       badge.setAttribute('translate', 'no');
       badge.setAttribute('aria-label', label);
       badge.title = label;
-      badge.classList.add('calendar-holiday-label');
+      badge.classList.add(kind === 'activity' ? 'calendar-activity-label' : 'calendar-holiday-label');
       badge.textContent = label;
       return { domNodes: [badge] };
     },
