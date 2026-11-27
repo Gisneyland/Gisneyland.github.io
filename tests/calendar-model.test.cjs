@@ -29,6 +29,47 @@ test('single-day closures and extra opening override schedule and holidays', () 
   assert.equal(model.openingForDate('2026-10-20', [], [], true).closed, true);
 });
 
+test('calendar closure badges and hover labels retain the full title and date', async () => {
+  let options;
+  const FullCalendar = { Calendar: class {
+    constructor(element, config) { options = config; }
+    render() {}
+  } };
+  const document = {
+    addEventListener() {},
+    getElementById(id) { return id === 'activity-calendar' ? {} : null; },
+    createElement() {
+      return {
+        attributes: {},
+        classList: { add() {} },
+        setAttribute(name, value) { this.attributes[name] = value; }
+      };
+    }
+  };
+  const context = vm.createContext({
+    window: { FullCalendar }, FullCalendar, document,
+    localStorage: { getItem() { return null; } }, console
+  });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets/js/content.js'), 'utf8'), context);
+  await vm.runInContext('initializeActivityCalendar()', context);
+
+  for (const [kind, title, description, expected] of [
+    ['opening-closure', '休館 · 設備維修', '設備維修', '休館 · 設備維修'],
+    ['opening-closure', '休館', '休館', '休館'],
+    ['government-makeup-workday', '補班（補班）', '補班', '補班']
+  ]) {
+    const event = { title, startStr: '2026-10-20', extendedProps: { kind, description } };
+    const badge = options.eventContent({ event }).domNodes[0];
+    assert.equal(badge.textContent, expected);
+    assert.equal(badge.title, expected);
+    assert.equal(badge.attributes['aria-label'], expected);
+    const el = { attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } };
+    options.eventDidMount({ event, el });
+    assert.equal(el.title, `${expected}：2026年10月20日`);
+    assert.equal(el.attributes['aria-label'], el.title);
+  }
+});
+
 test('navigation labels follow the selected period; stream time uses the current clock', () => {
   const now = new Date('2026-10-18T05:03:00+08:00');
   assert.deepEqual(model.navigationLabels('dayGridMonth', '2028-03-01', now), { title: '2028年', today: '3月' });
