@@ -133,3 +133,9 @@ test('ICS exports timed UTC, inclusive all-day dates, coordinates and opening ex
   assert.match(opening, /DTEND:20261018T040000Z/);
   assert.ok(!text.includes('UID:opening-2026-10-20@'));
 });
+test('activity calendar labels inherit the event text color so dot events stay readable', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../assets/css/style.css'), 'utf8');
+  const rule = css.match(/#activity-calendar \.calendar-activity-label \{([^}]*)\}/);
+  assert.ok(rule);
+  assert.match(rule[1], /color:\s*inherit/);
+});

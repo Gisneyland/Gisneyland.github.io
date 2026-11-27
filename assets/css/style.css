@@ -742,7 +742,7 @@ a {
   display: block;
   height: auto;
   overflow: visible;
-  color: var(--button-text);
+  color: inherit;
   font-size: 0.72rem;
   line-height: 1.3;
   white-space: normal;
