@@ -386,6 +386,7 @@ html[data-theme="dark"] .admin-body .content-switch-track::after { background: v
 }
 
 .screening-map {
+  isolation: isolate;
   width: 100%;
   min-height: 18rem;
   aspect-ratio: 1.45;
