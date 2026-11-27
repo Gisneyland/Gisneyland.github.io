@@ -160,7 +160,7 @@ async function initializeActivityCalendar() {
     },
     height: 'auto',
     fixedWeekCount: false,
-    dayMaxEvents: true,
+    dayMaxEvents: false,
     dayCellContent: ({ date }) => {
       const dayNumber = document.createElement('span');
       dayNumber.className = 'notranslate';

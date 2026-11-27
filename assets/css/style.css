@@ -684,6 +684,7 @@ a {
 }
 
 #activity-calendar .fc-daygrid-event {
+  min-height: 1.2rem;
   overflow-wrap: anywhere;
   white-space: normal;
 }
